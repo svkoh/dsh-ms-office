@@ -1,0 +1,6 @@
+# 仓库里统一存 LF，检出时按各平台约定（不依赖每个人本机的 core.autocrlf 设置）
+* text=auto
+
+# vendored 第三方文件必须逐字节保持原样：test/pako-provenance.test.mjs 会校验它的哈希，
+# 任何换行符转换都会让「正文与上游逐字节相同」这个许可声明变成假的
+server/pako.min.js -text

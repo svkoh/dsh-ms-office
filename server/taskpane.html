@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>DSH Office 执行器</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <script src="pako.min.js"></script>
+  <style>
+    body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; margin: 0; padding: 12px; font-size: 13px; color: #1f1f1f; }
+    h1 { font-size: 14px; margin: 0 0 8px; }
+    .status { padding: 8px; border-radius: 6px; margin-bottom: 8px; }
+    .ok { background: #e6f4ea; color: #137333; }
+    .err { background: #fce8e6; color: #c5221f; }
+    .warn { background: #fef7e0; color: #ea8600; }
+    #log { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 8px; height: 140px; overflow-y: auto; font-size: 12px; white-space: pre-wrap; }
+    .meta { color: #5f6368; font-size: 12px; margin-top: 6px; }
+    .mode-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 12px; }
+    #approval { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; border-top: 3px solid #ea8600; background: #fef7e0; padding: 12px; font-size: 14px; box-shadow: 0 -2px 10px rgba(0,0,0,0.15); }
+    #approval .title { font-weight: bold; margin-bottom: 6px; font-size: 16px; }
+    #approval .meta { font-size: 13px; }
+    #approval .preview { background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; font-size: 14px; line-height: 1.5; max-height: 140px; overflow-y: auto; margin-bottom: 8px; white-space: pre-wrap; word-break: break-all; }
+    #approval button { margin-right: 8px; padding: 7px 20px; border-radius: 4px; border: none; cursor: pointer; font-size: 15px; }
+    #approval-confirm { background: #1a73e8; color: #fff; }
+    #approval-reject { background: #e0e0e0; color: #333; }
+  </style>
+</head>
+<body>
+  <h1>DSH Office 执行器</h1>
+  <div id="status" class="status warn">正在初始化 Office…</div>
+  <div class="meta" id="host">host: -</div>
+  <div class="mode-row">
+    <label for="mode-select">覆盖操作确认模式：</label>
+    <select id="mode-select">
+      <option value="ask" selected>审批模式</option>
+      <option value="auto">自动模式</option>
+    </select>
+  </div>
+  <div class="meta">窗格承载 Office.js 执行：自动模式覆盖操作自动执行；审批模式需在此审批。窗格须保持开启。</div>
+  <div style="margin-top:8px"><strong>最近执行日志</strong></div>
+  <div id="log">(空)</div>
+  <div id="approval">
+    <div class="title">⚠️ 待确认的覆盖操作</div>
+    <div class="meta" id="approval-action">-</div>
+    <div class="meta">当前状态：</div>
+    <div class="preview" id="approval-preview">(读取预览中…)</div>
+    <div class="meta">修改后：</div>
+    <div class="preview" id="approval-after">-</div>
+    <button id="approval-confirm">更改</button>
+    <button id="approval-reject">拒绝</button>
+  </div>
+  <script src="taskpane.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "_comment": "actions 分片的拼接清单（顺序 = 依赖顺序）。server.js 用它拼 /actions.js，测试用它做装配校验；两处必须看同一份，所以放在这里而不是散在代码里。runtime 必须最先（提供共享工具 + 分片容器），registry 必须最后（装配 + 与 capabilities.json 对账）。",
+  "parts": [
+    "runtime.js",
+    "word.js",
+    "excel.js",
+    "ppt.js",
+    "common.js",
+    "registry.js"
+  ]
+}

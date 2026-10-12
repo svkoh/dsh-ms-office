@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: ${{ matrix.os }} / node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [18, 20, 22]
+        exclude:
+          # 这个插件实际跑在 Windows 上的 Office 里，Windows 只测最新 LTS 就够
+          - os: windows-latest
+            node: 18
+          - os: windows-latest
+            node: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # 没有任何运行时依赖，装的是 lint 用的 devDependencies
+      - run: npm install --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+  package:
+    name: 发布包内容
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      # 打包面必须只含「要发出去的东西」：多一个本机文件就是泄露，少一个分片就是装上不工作
+      - name: npm pack --dry-run
+        run: npm pack --dry-run

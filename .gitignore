@@ -1,0 +1,6 @@
+node_modules/
+*.log
+.DS_Store
+
+# 本机定制的 action（窗格会加载它来覆盖/新增内置 action）——属于本机配置，不入库
+user-actions.js

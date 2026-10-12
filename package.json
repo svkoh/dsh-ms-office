@@ -1,0 +1,86 @@
+{
+  "name": "dsh-office-for-mso",
+  "version": "0.2.0",
+  "description": "Control the Microsoft Office documents you already have open (Word / Excel / PowerPoint) from a DeepSeek Harness session, through an Office add-in. Ships a local bridge sidecar plus the task pane that executes Office.js.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "cordis.patch.yml",
+    "lib",
+    "server/server.js",
+    "server/taskpane.js",
+    "server/taskpane.html",
+    "server/actions",
+    "server/capabilities.json",
+    "server/manifest.xml",
+    "server/sideload.ps1",
+    "server/pako.min.js",
+    "server/package.json",
+    "skills",
+    "README.md",
+    "README.en.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "platform": "web"
+    }
+  },
+  "engines": {
+    "node": ">=18",
+    "dsh": ">=0.2.1-alpha.1 <2"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.5-alpha.1",
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.2.1-alpha.1 <2"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-client-ui-slots": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "test": "node --test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "check": "npm run lint && npm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "eslint": "^9.13.0",
+    "globals": "^15.11.0"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "office",
+    "word",
+    "excel",
+    "powerpoint",
+    "office-js",
+    "add-in"
+  ],
+  "license": "MIT",
+  "author": "svkoh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/svkoh/dsh-office-for-mso.git"
+  },
+  "bugs": {
+    "url": "https://github.com/svkoh/dsh-office-for-mso/issues"
+  },
+  "homepage": "https://github.com/svkoh/dsh-office-for-mso#readme"
+}
