@@ -185,8 +185,9 @@ describe('技能包', () => {
     assert.match(md, /^whenToUse: .+/m);
   });
 
-  test('README 里的技能路径与实际目录一致', () => {
-    for (const file of ['README.md', 'README.en.md']) {
+  test('开发文档里的技能路径与实际目录一致', () => {
+    // 文件职责表从 README 搬进了开发文档，路径一致性的守卫也跟着搬
+    for (const file of ['docs/DEVELOPMENT.md', 'docs/DEVELOPMENT.en.md']) {
       const text = fs.readFileSync(path.join(ROOT, file), 'utf8');
       assert.ok(text.includes(`skills/${SKILL_NAME}/SKILL.md`), `${file} 里的技能路径不对`);
     }
@@ -222,13 +223,33 @@ describe('文档与实际一致', () => {
     assert.ok(readme.includes(`${count} actions`), `README.en.md 里没有 "${count} actions"`);
   });
 
-  test('两份 README 里列出的每个 action 都真实存在', () => {
+  test('文档里列出的每个 action 都真实存在', () => {
     const names = new Set(capabilities.map((c) => c.name));
-    for (const file of ['README.md', 'README.en.md']) {
+    // 完整清单搬进了 docs/，所以守卫面跟着扩到全部文档，而不是只看两个 README
+    const files = [
+      'README.md',
+      'README.en.md',
+      ...fs
+        .readdirSync(path.join(ROOT, 'docs'))
+        .filter((f) => f.endsWith('.md'))
+        .map((f) => `docs/${f}`),
+    ];
+    for (const file of files) {
       const text = fs.readFileSync(path.join(ROOT, file), 'utf8');
       const mentioned = [...text.matchAll(/`([a-z][a-z0-9_]{3,})`/g)].map((m) => m[1]);
       const known = mentioned.filter((n) => n.includes('_') && !names.has(n) && /^(word|ppt|read|write|set|get|add|list|apply|insert|delete|clear|convert|create|format|replace|append|search|locate|validate|evaluate|rename|change)_/.test(n));
       assert.deepEqual([...new Set(known)], [], `${file} 提到了不存在的 action`);
+    }
+  });
+
+  test('README 指向的每份文档都存在', () => {
+    for (const readme of ['README.md', 'README.en.md']) {
+      const text = fs.readFileSync(path.join(ROOT, readme), 'utf8');
+      const links = [...text.matchAll(/\]\((docs\/[^)#]+)(?:#[^)]*)?\)/g)].map((m) => m[1]);
+      assert.ok(links.length >= 3, `${readme} 应该指向 docs/ 下的文档（实际 ${links.length} 条）`);
+      for (const rel of links) {
+        assert.ok(fs.existsSync(path.join(ROOT, rel)), `${readme} 链接了不存在的 ${rel}`);
+      }
     }
   });
 });
