@@ -194,7 +194,11 @@ describe('静态文件白名单', () => {
   test('/ 返回窗格页面', async () => {
     const r = await srv.req('/');
     assert.equal(r.status, 200);
-    assert.ok(r.text.includes('DSH Office 执行器'));
+    // 可见文案不写死在 HTML 里（由 /office/i18n 的字典填），所以断言「窗格骨架」而不是某个字符串
+    assert.match(r.text, /<script src="taskpane\.js">/);
+    assert.match(r.text, /id="log"/);
+    assert.match(r.text, /id="status"/);
+    assert.match(r.text, /id="ui-title"/);
   });
 
   test('/pako.min.js 可加载（窗格解压 OOXML 依赖）', async () => {

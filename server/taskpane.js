@@ -1,9 +1,14 @@
 // taskpane.js — DSH Office 执行器窗格（actions 热更新架构）
-// 职责：窗格 UI、桥接轮询/心跳、execute 分发、actions.js 热更新加载。
+// 职责：窗格 UI（含 i18n）、桥接轮询/心跳、execute 分发、actions.js 热更新加载。
+//
 // 所有 action 实现都在 /actions.js（服务端把 server/actions/ 下的分片拼成这一个脚本，可热更新）：
 // 改任一分片 → 重启桥接服务 → 窗格自动重新加载，无需重开窗格。
+//
 // 本文件（窗格）应尽量少改：改本文件后，服务端心跳回传的 codeVersion 会与本页注入的
 // window.__CODE_VERSION__ 不一致，窗格在下次心跳时自动 reload（见 heartbeat()）。
+//
+// 文案不写在这里，也不写死在 HTML 里：服务端把 i18n/<lang>.json 的 pane 段经 /office/i18n 发出，
+// 本页按 Office 界面语言取一次再填进 DOM。改文案只改 i18n/*.json，不必碰窗格代码。
 
 const BRIDGE =
   typeof location !== "undefined" &&
@@ -15,16 +20,86 @@ const POLL_MS = 1000;
 const HEARTBEAT_MS = 5000;
 
 const statusEl = document.getElementById('status');
+const statusTextEl = document.getElementById('ui-status');
 const logEl = document.getElementById('log');
-const hostEl = document.getElementById('host');
+const hostValueEl = document.getElementById('ui-host-value');
+const docValueEl = document.getElementById('ui-doc-value');
+const modeSeg = document.getElementById('mode-seg');
 
+// ================= i18n =================
+// 语言判定与项目其余部分一致：en* 用英文，其余一律中文（不做「不认识就回退英文」）。
+let LANG = 'zh';
+let T = null;
+
+function normalizeLang(value) {
+  const tag = String(value || '').trim().toLowerCase();
+  if (tag.startsWith('en')) return 'en';
+  if (tag.startsWith('zh')) return 'zh';
+  return null;
+}
+
+function t(key, vars) {
+  if (!T) return key;
+  let text = T[key];
+  if (typeof text !== 'string') return key;
+  if (vars) for (const k of Object.keys(vars)) text = text.split('{' + k + '}').join(String(vars[k]));
+  return text;
+}
+
+// 状态条的文字要等字典到位才能渲染。字典到达前先把「该显示哪个状态」记下来，
+// 否则会短暂闪出一个裸的 key（'connected' / 'initializing'）。
+let pendingStatus = null;
 function setStatus(cls, text) {
   statusEl.className = 'status ' + cls;
-  statusEl.textContent = text;
+  statusTextEl.textContent = text;
 }
+function setStatusKey(cls, key) {
+  pendingStatus = { cls, key };
+  if (T) setStatus(cls, t(key));
+}
+setStatusKey('warn', 'initializing');
+
+/** 把字典填进 DOM。HTML 里刻意不写任何可见文案，避免出现第二份会漂移的副本。 */
+function applyI18n() {
+  const set = (id, key) => { const el = document.getElementById(id); if (el) el.textContent = t(key); };
+  set('ui-title', 'title');
+  set('ui-subtitle', 'subtitle');
+  set('ui-host-label', 'host');
+  set('ui-doc-label', 'document');
+  set('ui-mode-label', 'modeLabel');
+  set('ui-mode-ask', 'modeAsk');
+  set('ui-mode-auto', 'modeAuto');
+  set('ui-mode-hint', 'modeHint');
+  set('ui-log-label', 'logTitle');
+  set('ui-ap-title', 'approvalTitle');
+  set('ui-ap-current', 'approvalCurrent');
+  set('ui-ap-after', 'approvalAfter');
+  set('approval-confirm', 'approvalConfirm');
+  set('approval-reject', 'approvalReject');
+  document.title = t('title');
+  document.documentElement.lang = LANG === 'en' ? 'en' : 'zh-CN';
+  logEl.setAttribute('data-empty', t('logEmpty'));
+  setStatus(pendingStatus.cls, t(pendingStatus.key));
+}
+
+/** 取字典。窗格就是桥接服务发出来的，所以正常情况下这一次请求必定成功；失败则重试。 */
+async function loadI18n() {
+  LANG = normalizeLang(
+    (typeof Office !== 'undefined' && Office.context && Office.context.displayLanguage)
+    || (typeof navigator !== 'undefined' && navigator.language)
+  ) || 'zh';
+  const r = await api('/office/i18n?lang=' + encodeURIComponent(LANG));
+  if (!r || !r.pane) throw new Error('i18n payload missing');
+  T = r.pane;
+  LANG = r.lang || LANG;
+  applyI18n();
+}
+
+// ================= 公共辅助（暴露给 actions.js 使用） =================
+
 function log(line) {
-  const t = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-  logEl.textContent = `[${t}] ${line}\n` + logEl.textContent;
+  const time = new Date().toLocaleTimeString(LANG === 'en' ? 'en-GB' : 'zh-CN', { hour12: false });
+  logEl.textContent = `[${time}] ${line}\n` + logEl.textContent;
   if (logEl.textContent.length > 4000) logEl.textContent = logEl.textContent.slice(0, 4000);
 }
 
@@ -45,10 +120,17 @@ const INSTANCE_ID = 'inst-' + Math.random().toString(36).slice(2, 10) + '-' + Da
 function docUrlNow() { try { return String(Office.context.document.url || ''); } catch (e) { return ''; } }
 function docTitleNow() { try { return String(Office.context.document.title || ''); } catch (e) { return ''; } }
 
+/** 把「当前文档」显示出来：标题优先，退回 URL 的文件名。用户据此确认指令打在哪个文档上。 */
+function syncDoc() {
+  const url = docUrlNow();
+  const title = docTitleNow();
+  const fromUrl = url ? (url.split(/[\\/]/).pop() || url) : '';
+  docValueEl.textContent = title || fromUrl || t('documentUntitled');
+  docValueEl.title = url || title || '';
+}
+
 function okResult(result) { return { ok: true, result }; }
 function errResult(code, error) { return { ok: false, code, error }; }
-
-// ================= 公共辅助（暴露给 actions.js 使用） =================
 
 function getSelectionTextAsync() {
   return new Promise((resolve) => {
@@ -198,13 +280,13 @@ async function ensureActions() {
       // 验证新脚本确实执行：版本标记匹配 + __EXECUTE__ 已定义（防"加载成功但 IIFE 抛错/旧值残留"）
       if (window.__ACTIONS_VERSION__ === r.version && typeof window.__EXECUTE__ === 'function') {
         loadedActionsVersion = r.version;
-        log('actions 已热更新: ' + r.version.slice(0, 10));
+        log(t('logActionsUpdated', { version: r.version.slice(0, 10) }));
       } else {
-        log('⚠️ actions 热更新失败（版本不匹配或未执行），将重试');
+        log(t('logActionsFailed'));
       }
     }
   } catch (e) {
-    log('⚠️ actions 版本检查失败: ' + (e && e.message || e));
+    log(t('logVersionCheckFailed', { message: (e && e.message) || e }));
   }
 }
 
@@ -213,18 +295,12 @@ async function ensureActions() {
 function execute(action, args) {
   // 转发给 actions.js 的 __EXECUTE__（含机制级 re-read confirm 拦截，可热更新）
   const fn = window.__EXECUTE__;
-  if (typeof fn !== 'function') return errResult('unknown_action', 'actions 尚未加载');
+  if (typeof fn !== 'function') return errResult('unknown_action', 'actions not loaded yet');
   return Promise.resolve(fn(action, args));
 }
 
-// ================= 后台循环 =================
+// ================= 确认模式与窗格审批 =================
 
-// 连接状态恢复：poll/heartbeat 成功时把状态改回"已连接"（断联重连后不再停留"未连接"）
-function setConnected() {
-  if (statusEl.className !== 'status ok') setStatus('ok', '已连接：等待 DSH 指令');
-}
-
-// ---------- 确认模式与窗格审批 ----------
 // 初值必须是 'ask'，与服务端默认（CONFIRM_MODE 默认 ask）一致。
 // 本变量在 /office/config 返回之前就已参与判断：若初值为 'auto'，从窗格加载到配置同步之间存在
 // 「服务端要求审批、窗格却按自动模式直行」的时间窗，覆盖类操作会被无审批执行。
@@ -233,17 +309,23 @@ window.__CONFIRM_MODE__ = 'ask';
 let approvalActive = false;
 let approvalPending = null; // { cmd, preview, meta, resolve }
 
+function syncModeUI() {
+  if (!modeSeg) return;
+  for (const b of modeSeg.querySelectorAll('button')) {
+    b.setAttribute('aria-checked', String(b.dataset.mode === confirmMode));
+  }
+}
+
 function setConfirmMode(mode) {
   confirmMode = mode;
   window.__CONFIRM_MODE__ = mode;
-  const sel = document.getElementById('mode-select');
-  if (sel) sel.value = mode;
+  syncModeUI();
   api('/office/config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ confirmMode: mode }),
   }).catch(() => { /* 忽略 */ });
-  log(`确认模式: ${mode}`);
+  log(t('logMode', { mode: mode === 'auto' ? t('modeAuto') : t('modeAsk') }));
 }
 
 // 按 action 提取"修改后内容"（审批面板展示用）由 actions 分片提供，暴露为 window.__AFTER_CONTENT__：
@@ -253,22 +335,27 @@ function setConfirmMode(mode) {
 function renderApproval() {
   const box = document.getElementById('approval');
   if (!box) return;
-  if (!approvalPending) { box.style.display = 'none'; return; }
-  box.style.display = 'block';
-  document.getElementById('approval-action').textContent =
+  if (!approvalPending) { box.hidden = true; return; }
+  box.hidden = false;
+  document.getElementById('ap-action').textContent =
     `${approvalPending.cmd.action} @ ${approvalPending.cmd.host || hostName()}`;
   // 当前状态预览：有 text 直接显示文本；replace_all 的 hits 列表友好显示（将替换 N 处 + 命中内容）
-  let previewText = '(预览不可用)';
-  const p = approvalPending.preview;
-  if (p) {
-    if (typeof p.text === 'string') previewText = p.text;
-    else if (Array.isArray(p.hits) && p.hits.length) previewText = `将替换 ${p.wouldReplace} 处：\n` + p.hits.map((h, i) => `${i + 1}. ${h}`).join('\n');
-    else if (p.wouldReplace !== undefined) previewText = `将替换 ${p.wouldReplace} 处`;
-    else if (p.text !== undefined) previewText = String(p.text);
-    else previewText = JSON.stringify(p, null, 2);
+  let previewText;
+  if (approvalPending.reading) {
+    previewText = t('approvalReading');
+  } else {
+    previewText = t('approvalUnavailable');
+    const p = approvalPending.preview;
+    if (p) {
+      if (typeof p.text === 'string') previewText = p.text;
+      else if (Array.isArray(p.hits) && p.hits.length) previewText = t('approvalWillReplace', { count: p.wouldReplace }) + '\n' + p.hits.map((h, i) => `${i + 1}. ${h}`).join('\n');
+      else if (p.wouldReplace !== undefined) previewText = t('approvalWillReplace', { count: p.wouldReplace });
+      else if (p.text !== undefined) previewText = String(p.text);
+      else previewText = JSON.stringify(p, null, 2);
+    }
   }
-  document.getElementById('approval-preview').textContent = previewText.slice(0, 1500);
-  const after = document.getElementById('approval-after');
+  document.getElementById('ap-preview').textContent = previewText.slice(0, 1500);
+  const after = document.getElementById('ap-after');
   if (after) {
     // "修改后内容"由 actions.js 提供（新增/修改 action 不必改窗格）
     const afterFn = window.__AFTER_CONTENT__;
@@ -294,16 +381,20 @@ async function locateInsertionPoint(cmd) {
 async function showApproval(cmd) {
   approvalActive = true;
   const meta = (window.__ACTIONS__ || {})[cmd.action] || {};
-  const previewP = (meta.preview
-    ? Promise.resolve(meta.preview(hostName(), cmd.args || {}))
-    : Promise.resolve(okResult(null))
-  ).catch((e) => errResult('execution', String(e && e.message || e)));
-  const p = await previewP;
-  approvalPending = { cmd, preview: p.ok ? p.result : null, meta };
+  // 先把面板弹出来、预览位置显示"读取中"，再去做 re-read。
+  // 顺序反过来（读完再弹）在大文档上会让用户盯着一个没反应的窗格——re-read 是要跑一趟 Office.js 的。
+  approvalPending = { cmd, preview: null, meta, reading: true };
   renderApproval();
   // 预选闪烁必须放在审批面板弹出之后：闪烁在面板之前发生的话，用户看到面板时闪烁早已结束（"没闪"）
   // 面板已显示 → 再闪烁定位目标（不阻塞审批等待；用户点击确认时闪烁可能未结束，无副作用）
   locateInsertionPoint(cmd).catch(() => {});
+  const p = await (meta.preview
+    ? Promise.resolve(meta.preview(hostName(), cmd.args || {}))
+    : Promise.resolve(okResult(null))
+  ).catch((e) => errResult('execution', String(e && e.message || e)));
+  approvalPending.preview = p.ok ? p.result : null;
+  approvalPending.reading = false;
+  renderApproval();
   // 等待用户在窗格点击（确认/拒绝）；审批挂起 120s 未操作 → 自动解除（视为拒绝），防 poll 永久卡死
   const decision = await new Promise((resolve) => {
     approvalPending.resolve = resolve;
@@ -317,7 +408,7 @@ async function showApproval(cmd) {
     return api('/office/result', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ commandId: c.commandId, ok: false, error: decision === 'reject' ? '用户在窗格拒绝了该操作' : '审批超时未操作，已取消', code: 'rejected' }),
+      body: JSON.stringify({ commandId: c.commandId, ok: false, error: decision === 'reject' ? t('rejectMessage') : t('timeoutMessage'), code: 'rejected' }),
     });
   }
   const out = await execute(c.action, Object.assign({}, c.args || {}, { confirm: true }));
@@ -328,6 +419,13 @@ async function showApproval(cmd) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ commandId: c.commandId, ok: out.ok, result: out.result, error: out.error, code: out.code }),
   });
+}
+
+// ================= 后台循环 =================
+
+// 连接状态恢复：poll/heartbeat 成功时把状态改回"已连接"（断联重连后不再停留"未连接"）
+function setConnected() {
+  if (statusEl.className !== 'status ok') setStatusKey('ok', 'connected');
 }
 
 let busy = false;
@@ -342,29 +440,29 @@ async function poll() {
     if (cmd && cmd.commandId) {
       const meta = (window.__ACTIONS__ || {})[cmd.action] || {};
       if (meta.destructive && confirmMode === 'ask' && !(cmd.args || {}).confirm) {
-        log(`待审批: ${cmd.action}`);
+        log(t('logPendingApproval', { action: cmd.action }));
         await showApproval(cmd); // ask 模式：窗格挂起等用户审批
       } else {
-        log(`执行: ${cmd.action} ${JSON.stringify(cmd.args || {}).slice(0, 80)}`);
+        log(t('logExecuting', { action: cmd.action, args: JSON.stringify(cmd.args || {}).slice(0, 80) }));
         const out = await execute(cmd.action, cmd.args || {});
         await api('/office/result', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ commandId: cmd.commandId, ok: out.ok, result: out.result, error: out.error, code: out.code }),
         });
-        log(out.ok ? `完成: ${cmd.action}` : `失败: ${cmd.action} -> ${out.error}`);
+        log(out.ok ? t('logDone', { action: cmd.action }) : t('logFailed', { action: cmd.action, error: out.error }));
       }
     }
   } catch (e) {
-    setStatus('err', '桥接服务未连接，等待重试…');
+    setStatusKey('err', 'disconnected');
   } finally {
     busy = false;
   }
 }
 
-// 窗格代码版本：服务端把 taskpane.js 的 mtime 作为 __CODE_VERSION__ 注入本页（见 server.js 静态文件分支），
+// 窗格代码版本：服务端把 taskpane.js（+ i18n 字典）的 mtime 作为 __CODE_VERSION__ 注入本页（见 server.js 静态文件分支），
 // 并在每次心跳响应里回传当前值。两者不一致 = 磁盘上的窗格已改、本页跑的是旧代码 → 自动 reload。
-// 这样改窗格（taskpane.js）后重启桥接服务即可生效，不必手动关掉再打开窗格。
+// 这样改窗格（taskpane.js）或改文案（i18n/*.json）后重启桥接服务即可生效，不必手动关掉再打开窗格。
 let reloadingForCodeVersion = false;
 function heartbeat() {
   api('/office/heartbeat', {
@@ -373,22 +471,37 @@ function heartbeat() {
     body: JSON.stringify({ host: hostName(), instanceId: INSTANCE_ID, docUrl: docUrlNow(), docTitle: docTitleNow() }),
   }).then((r) => {
     setConnected();
+    syncDoc();
     // 重载前必须避开「审批面板正挂着」和「指令正在执行」：否则会丢掉用户的审批选择或正在跑的结果。
     // 错过这一拍不要紧，下一次心跳（5s 后）会再判一次。
     if (!r || !r.codeVersion || reloadingForCodeVersion) return;
     if (!window.__CODE_VERSION__ || r.codeVersion === window.__CODE_VERSION__) return;
     if (approvalActive || busy) return;
     reloadingForCodeVersion = true;
-    log('检测到窗格代码已更新，自动重载…');
+    log(t('logReloading'));
     setTimeout(() => { try { location.reload(); } catch (e) { reloadingForCodeVersion = false; } }, 300);
   }).catch(() => { /* 忽略，下次再试 */ });
 }
 
 Office.onReady((info) => {
   const hostNameStr = Office.HostType[info.host] || String(info.host);
-  hostEl.textContent = `host: ${hostNameStr} (${Office.version})`;
-  setStatus('ok', '已连接：等待 DSH 指令');
-  log(`Office 就绪 (${hostNameStr})`);
+  hostValueEl.textContent = `${hostNameStr} · ${Office.version}`;
+  hostValueEl.title = hostNameStr;
+
+  // 先取文案再启动循环：取不到就每秒重试，但轮询照常跑（窗格的功能不该被一次文案请求卡住）。
+  // 日志行放在取到字典之后写，否则会先把裸 key 打进日志。
+  (async function bootstrapI18n() {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      try {
+        await loadI18n();
+        log(t('logReady', { host: hostNameStr }));
+        return;
+      } catch (e) { /* 稍后重试 */ }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  })();
+
+  setStatusKey('ok', 'connected');
   api('/office/hello', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -396,22 +509,28 @@ Office.onReady((info) => {
     // 每次 reload 后该值会更新，GET /office/status 的 hellos 可用来验证自动重载确实发生。
     body: JSON.stringify({ host: hostName(), version: String(window.__CODE_VERSION__ || 'unknown') }),
   }).catch(() => {});
-  // 模式开关 + 审批按钮
-  const modeSel = document.getElementById('mode-select');
-  if (modeSel) {
-    modeSel.addEventListener('change', (e) => setConfirmMode(e.target.value));
-    api('/office/config').then((c) => {
-      if (c && (c.confirmMode === 'auto' || c.confirmMode === 'ask')) {
-        confirmMode = c.confirmMode;
-        window.__CONFIRM_MODE__ = c.confirmMode;
-        modeSel.value = c.confirmMode;
-      }
-    }).catch(() => {});
+
+  if (modeSeg) {
+    modeSeg.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-mode]');
+      if (btn) setConfirmMode(btn.dataset.mode);
+    });
   }
+  api('/office/config').then((c) => {
+    if (c && (c.confirmMode === 'auto' || c.confirmMode === 'ask')) {
+      confirmMode = c.confirmMode;
+      window.__CONFIRM_MODE__ = c.confirmMode;
+      syncModeUI();
+    }
+  }).catch(() => {});
+  syncModeUI();
+
   const btnConfirm = document.getElementById('approval-confirm');
   const btnReject = document.getElementById('approval-reject');
   if (btnConfirm) btnConfirm.addEventListener('click', () => { if (approvalPending && approvalPending.resolve) approvalPending.resolve('confirm'); });
   if (btnReject) btnReject.addEventListener('click', () => { if (approvalPending && approvalPending.resolve) approvalPending.resolve('reject'); });
+
+  syncDoc();
   setInterval(poll, POLL_MS);
   setInterval(heartbeat, HEARTBEAT_MS);
   heartbeat();

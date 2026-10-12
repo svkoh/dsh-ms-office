@@ -2,52 +2,229 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>DSH Office 执行器</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DSH Office</title>
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
   <script src="pako.min.js"></script>
   <style>
-    body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; margin: 0; padding: 12px; font-size: 13px; color: #1f1f1f; }
-    h1 { font-size: 14px; margin: 0 0 8px; }
-    .status { padding: 8px; border-radius: 6px; margin-bottom: 8px; }
-    .ok { background: #e6f4ea; color: #137333; }
-    .err { background: #fce8e6; color: #c5221f; }
-    .warn { background: #fef7e0; color: #ea8600; }
-    #log { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 8px; height: 140px; overflow-y: auto; font-size: 12px; white-space: pre-wrap; }
-    .meta { color: #5f6368; font-size: 12px; margin-top: 6px; }
-    .mode-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 12px; }
-    #approval { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; border-top: 3px solid #ea8600; background: #fef7e0; padding: 12px; font-size: 14px; box-shadow: 0 -2px 10px rgba(0,0,0,0.15); }
-    #approval .title { font-weight: bold; margin-bottom: 6px; font-size: 16px; }
-    #approval .meta { font-size: 13px; }
-    #approval .preview { background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; font-size: 14px; line-height: 1.5; max-height: 140px; overflow-y: auto; margin-bottom: 8px; white-space: pre-wrap; word-break: break-all; }
-    #approval button { margin-right: 8px; padding: 7px 20px; border-radius: 4px; border: none; cursor: pointer; font-size: 15px; }
-    #approval-confirm { background: #1a73e8; color: #fff; }
-    #approval-reject { background: #e0e0e0; color: #333; }
+    /* 配色沿用 Fluent 2 的语义角色，并按 Office 主题（浅/深）自动切换。
+       窗格跑在 WebView 里，宽度可能只有 320px、高度也可能很矮，所以布局一律竖排 + 可滚动。 */
+    :root {
+      color-scheme: light dark;
+      --bg: #ffffff;
+      --surface: #faf9f8;
+      --surface-2: #f3f2f1;
+      --border: #e0e0e0;
+      --text: #242424;
+      --text-2: #616161;
+      --text-3: #8a8886;
+      --brand: #0f6cbd;
+      --brand-hover: #115ea3;
+      --brand-ink: #ffffff;
+      --ok: #0e700e;
+      --ok-bg: #e7f6e7;
+      --warn: #bc4b09;
+      --warn-bg: #fdf3e7;
+      --danger: #b10e1c;
+      --danger-bg: #fde7e9;
+      --shadow: 0 -2px 12px rgba(0, 0, 0, .12);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1f1f1f;
+        --surface: #292929;
+        --surface-2: #333333;
+        --border: #3d3d3d;
+        --text: #f5f5f5;
+        --text-2: #c7c7c7;
+        --text-3: #9a9a9a;
+        --brand: #479ef5;
+        --brand-hover: #62abf5;
+        --brand-ink: #0a0a0a;
+        --ok: #6ccb5f;
+        --ok-bg: #143d14;
+        --warn: #f4b76b;
+        --warn-bg: #3d2c14;
+        --danger: #ff99a4;
+        --danger-bg: #3f1417;
+        --shadow: 0 -2px 12px rgba(0, 0, 0, .5);
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 12px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Microsoft YaHei", Arial, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 100vh;
+    }
+
+    /* ── 页眉 ─────────────────────────────────────────────── */
+    .hdr { display: flex; align-items: center; gap: 10px; padding: 2px 0 2px; }
+    .mark {
+      flex: none; width: 28px; height: 28px; border-radius: 7px;
+      background: var(--brand); color: var(--brand-ink);
+      display: grid; place-items: center;
+    }
+    .mark svg { width: 16px; height: 16px; display: block; }
+    .hdr h1 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+    .hdr p { margin: 1px 0 0; font-size: 11.5px; color: var(--text-3); }
+
+    /* ── 卡片 ─────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .label {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--text-3); margin-bottom: 6px;
+    }
+    .hint { margin: 8px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--text-3); }
+
+    /* ── 状态 ─────────────────────────────────────────────── */
+    .status {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 12.5px; font-weight: 500;
+      padding: 4px 10px 4px 8px; border-radius: 999px;
+      background: var(--surface-2); color: var(--text-2);
+      max-width: 100%;
+    }
+    .status .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
+    .status > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .status.ok { background: var(--ok-bg); color: var(--ok); }
+    .status.ok .dot { background: var(--ok); }
+    .status.err { background: var(--danger-bg); color: var(--danger); }
+    .status.err .dot { background: var(--danger); }
+    .status.warn { background: var(--warn-bg); color: var(--warn); }
+    .status.warn .dot { background: var(--warn); }
+
+    /* ── 元信息（宿主 / 文档）─────────────────────────────── */
+    .meta { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 9px 0 0; font-size: 12px; }
+    .meta dt { color: var(--text-3); white-space: nowrap; }
+    .meta dd { margin: 0; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── 分段控件（确认模式）─────────────────────────────── */
+    .seg { display: flex; gap: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 2px; }
+    .seg button {
+      flex: 1 1 0; min-width: 0; appearance: none; border: 0; background: transparent;
+      font: inherit; font-size: 12.5px; font-weight: 500; color: var(--text-2);
+      padding: 6px 8px; border-radius: 5px; cursor: pointer;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .seg button:hover { color: var(--text); }
+    .seg button[aria-checked="true"] { background: var(--bg); color: var(--text); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+    .seg button:focus-visible { outline: 2px solid var(--brand); outline-offset: -1px; }
+
+    /* ── 日志 ─────────────────────────────────────────────── */
+    .log {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: 8px; height: 148px; overflow-y: auto;
+      font-family: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+      font-size: 11px; line-height: 1.6; color: var(--text-2);
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .log:empty::before { content: attr(data-empty); color: var(--text-3); }
+
+    /* ── 审批面板（底部浮层）──────────────────────────────── */
+    #approval {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+      background: var(--warn-bg); border-top: 3px solid var(--warn);
+      box-shadow: var(--shadow);
+      padding: 12px; max-height: 88vh; overflow-y: auto;
+    }
+    #approval[hidden] { display: none; }
+    .ap-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--warn); margin-bottom: 8px; }
+    .ap-badge {
+      flex: none; width: 18px; height: 18px; border-radius: 50%;
+      background: var(--warn); color: var(--warn-bg);
+      font-size: 12px; font-weight: 700; line-height: 18px; text-align: center;
+    }
+    .ap-action {
+      font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+      font-size: 11.5px; color: var(--text-2); margin-bottom: 8px; word-break: break-all;
+    }
+    .ap-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: 4px; }
+    .ap-pre {
+      margin: 0 0 8px; padding: 8px; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 6px;
+      font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+      font-size: 12px; line-height: 1.5; color: var(--text);
+      max-height: 128px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .ap-actions { display: flex; gap: 8px; }
+    .btn {
+      appearance: none; border: 1px solid var(--border); background: var(--bg);
+      color: var(--text); font: inherit; font-size: 13px; font-weight: 500;
+      padding: 7px 16px; border-radius: 6px; cursor: pointer;
+    }
+    .btn:hover { background: var(--surface-2); }
+    .btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+    .btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); font-weight: 600; flex: 1 1 auto; }
+    .btn.primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
   </style>
 </head>
 <body>
-  <h1>DSH Office 执行器</h1>
-  <div id="status" class="status warn">正在初始化 Office…</div>
-  <div class="meta" id="host">host: -</div>
-  <div class="mode-row">
-    <label for="mode-select">覆盖操作确认模式：</label>
-    <select id="mode-select">
-      <option value="ask" selected>审批模式</option>
-      <option value="auto">自动模式</option>
-    </select>
+  <!-- 所有可见文案都由 taskpane.js 按语言填入（i18n 字典在 i18n/<lang>.json，经 /office/i18n 取）。
+       这里不写死任何文字，避免出现「改了一处忘了一处」的第二份文案。 -->
+  <header class="hdr">
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.5 2.5h5l4 4v7a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z"/>
+        <path d="M8.5 2.5v4h4"/>
+      </svg>
+    </div>
+    <div>
+      <h1 id="ui-title"></h1>
+      <p id="ui-subtitle"></p>
+    </div>
+  </header>
+
+  <section class="card">
+    <div class="status" id="status" role="status"><span class="dot"></span><span id="ui-status"></span></div>
+    <dl class="meta">
+      <dt id="ui-host-label"></dt><dd id="ui-host-value">—</dd>
+      <dt id="ui-doc-label"></dt><dd id="ui-doc-value">—</dd>
+    </dl>
+  </section>
+
+  <section class="card">
+    <div class="label" id="ui-mode-label"></div>
+    <div class="seg" role="radiogroup" aria-labelledby="ui-mode-label" id="mode-seg">
+      <button type="button" role="radio" aria-checked="false" data-mode="ask" id="ui-mode-ask"></button>
+      <button type="button" role="radio" aria-checked="false" data-mode="auto" id="ui-mode-auto"></button>
+    </div>
+    <p class="hint" id="ui-mode-hint"></p>
+  </section>
+
+  <section class="card">
+    <div class="label" id="ui-log-label"></div>
+    <div class="log" id="log" role="log" aria-live="polite"></div>
+  </section>
+
+  <div id="approval" hidden role="alertdialog" aria-labelledby="ui-ap-title">
+    <div class="ap-title"><span class="ap-badge" aria-hidden="true">!</span><span id="ui-ap-title"></span></div>
+    <div class="ap-action" id="ap-action"></div>
+    <div class="ap-label" id="ui-ap-current"></div>
+    <pre class="ap-pre" id="ap-preview"></pre>
+    <div class="ap-label" id="ui-ap-after"></div>
+    <pre class="ap-pre" id="ap-after"></pre>
+    <div class="ap-actions">
+      <button type="button" class="btn primary" id="approval-confirm"></button>
+      <button type="button" class="btn" id="approval-reject"></button>
+    </div>
   </div>
-  <div class="meta">窗格承载 Office.js 执行：自动模式覆盖操作自动执行；审批模式需在此审批。窗格须保持开启。</div>
-  <div style="margin-top:8px"><strong>最近执行日志</strong></div>
-  <div id="log">(空)</div>
-  <div id="approval">
-    <div class="title">⚠️ 待确认的覆盖操作</div>
-    <div class="meta" id="approval-action">-</div>
-    <div class="meta">当前状态：</div>
-    <div class="preview" id="approval-preview">(读取预览中…)</div>
-    <div class="meta">修改后：</div>
-    <div class="preview" id="approval-after">-</div>
-    <button id="approval-confirm">更改</button>
-    <button id="approval-reject">拒绝</button>
-  </div>
+
   <script src="taskpane.js"></script>
 </body>
 </html>
