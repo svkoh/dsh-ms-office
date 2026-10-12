@@ -1,49 +1,82 @@
 ---
 name: office-for-mso
-description: 通过本机桥接服务和 Office 加载项，操控用户当前打开的 Word/Excel/PowerPoint 文档（读/写/格式化/图表/公式/批注）。用于「读一下 Word 全文」「Excel 生成图表」「把选中的翻译成英文」等请求。
-whenToUse: 用户要求操作 Word/Excel/PowerPoint 文档（读取、编辑、格式化、分析、生成图表/公式、批注等），且这些文档是用户当前已打开的。
+description: 通过本机桥接服务和 Office 加载项，操控用户当前打开的 Microsoft Office 桌面版文档（Word / Excel / PowerPoint）——读取、写入、格式化、结构操作、图表 / 公式 / 批注。用于「读一下 Word 全文」「Excel 生成图表」「把选中的翻译成英文」这类请求。
+whenToUse: 用户要求操作 Word / Excel / PowerPoint 文档（读取、编辑、格式化、分析、生成图表/公式、批注等），且这些文档是用户已经在 Microsoft Office 桌面版里打开的。
 ---
 
 # Office for MSO（DSH ↔ Microsoft Office）
 
-本技能由 `dsh-office-for-mso` 插件提供。插件启动时拉起一个本机 HTTP 桥接服务
-（`server/server.js`），并把本技能发布到 `~/.agents/skills` 供 DSH 发现。
+## 适用边界
 
-## 架构
+- 只对**用户当前已打开**的 Microsoft Office **桌面版**文档生效（不含 WPS，也不含 Office 网页版）。
+- 执行发生在**文档里的加载项窗格**中，所以窗格必须开着；关掉就会得到 `addin_offline`。
+- **没有「打开某个文件」的能力**——文件不在 Office 里打开，这个技能就碰不到它。
+
+## 1. 先拿到桥接地址
+
+默认是 `http://127.0.0.1:3000`，但**端口是可配置的，被占用时服务会自己换一个**，所以不要假定 3000。
+实际地址写在桥接服务自己维护的公告文件里——**读它，不要猜**：
 
 ```
-DSH 会话(AI) --POST /office/command--> 桥接服务 --轮询--> Office 加载项窗格 --Office.js--> Word/Excel/PPT
+$DSH_HOME/dsh-office-for-mso/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
 ```
 
-- **桥接服务**：本插件托管的子进程，默认监听 `127.0.0.1:3000`。
-- **监听端口**：优先用插件设置里配的端口（未配置则 3000）；该端口被占用时插件会另选一个空闲端口，
-  并把加载项清单里的 SourceLocation 改写成实际端口。**不要写死 3000** —— 用下面第 1 步的
-  `/office/status`，或看插件设置页显示的端口。
-- **加载项窗格**：Office 文档侧边的「DSH Office 执行器」必须保持开启（关闭后指令立即 `addin_offline`）。
+```json
+{ "plugin": "dsh-office-for-mso", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234 }
+```
 
-## 使用流程
+取 `url` 字段拼后面的路径。下面出现的 `/office/...` 都相对这个地址。
 
-1. **查在线实例**：`GET http://127.0.0.1:<port>/office/status` → `instances`：`{instanceId, host, docUrl, docTitle}`
-   - 识别文档：**docUrl 优先**；为空（未保存）时用 **docTitle**
-   - 目标不在线 → 提醒用户打开文档，并在 **开始/开发人员 → 加载项** 中打开「DSH Office 执行器」
-2. **查能力**（可选）：`GET /office/capabilities` —— 78 个 action，含各自支持的平台与参数说明
-3. **发指令**：`POST /office/command`，body：`{ "action": "...", "instance": "<instanceId>", "args": {...} }`
-   - **`instance` 必填**（多文档同时打开时，不指定实例可能让错误的文档执行指令）
-   - 串行等待（超时约 90s）
-4. **错误处理**（完整表见 `GET /office/errors`）：
-   - `confirm_required` → 把 preview 给用户；**由窗格在用户批准后附加 `confirm:true`**。AI **不得**预先发送 `confirm:true`
-   - `rejected` → 停止，不要重发
-   - `addin_offline` → 提醒用户打开窗格，不要重试
-   - 无匹配的 search/dryRun → `ok:true + count:0`，如实告知，不要重试
+- **文件不存在** → 桥接服务没在跑。让用户在插件设置里确认它是「运行中」，**不要反复重试**。
+- 文件里的端口和你上次用的不一样，**以文件为准**（用户可能改过）。
 
-## 端口变更后
+## 2. 确认目标文档在线
 
-端口变了，加载项清单里的 SourceLocation 也跟着变；用户需**关闭并重开**相关 Office 文档，
-窗格才会按新地址重新加载。
+`GET /office/status` → `instances: [{ instanceId, host, docUrl, docTitle, online, lastBeat }]`
 
-## 安全
+- **按 `docUrl` 识别是哪一份文档**；`docUrl` 为空（文档未保存）时用 `docTitle`。
+- 有多个实例都像目标时，**先问用户是哪一份**，不要猜。
+- 目标不在线 → 提醒用户打开文档，并在 **开始 / 开发人员 → 加载项 → 开发人员加载项** 里
+  打开「DSH Office 执行器」窗格。**不要反复重试。**
+- 如果用户刚改过端口，清单里的地址虽然已跟着变，但 Office 只在加载文档时读一次清单——
+  提醒用户**关闭并重新打开**该文档。
 
-- 桥接服务只接受来自本机自身来源的请求：`Origin` 不是它自己的、或 `Host` 不匹配的请求一律 403
-- 覆盖类写操作默认进入窗格审批（`confirmMode=ask`）；用户可在窗格切到 `auto`
-- 不要伪造 `confirm:true`
-- 只操作用户本机已打开、且窗格在线的文档
+## 3. 查能力
+
+`GET /office/capabilities?lang=<zh|en>` → `actions: [{ name, hosts, destructive, requirement, args }]`
+
+- `hosts` = 能跑这个 action 的应用；`destructive: true` = 覆盖类操作（见第 5 步）。
+- `args` 是每个参数的说明（含类型与是否必填）。
+- **不要在回复里写死 action 数量**，以这次返回为准。
+- `lang` 省略时按服务端环境推断；给用户看的内容请显式传用户的语言。
+
+## 4. 发指令
+
+`POST /office/command`：
+
+```json
+{ "action": "read_selection", "instance": "<instanceId>", "args": {} }
+```
+
+- **`instance` 必填。** 多文档同时打开时省略它，指令可能落到错误的文档上——这是硬性拒绝，不是警告。
+- 同步等待，最长约 90s（超时返回 `timeout`）。
+- 返回 `{ ok, commandId, host, instance, result }`，失败时是 `{ ok: false, code, error, result? }`。
+
+## 5. 处理结果
+
+- 覆盖类操作在 `ask` 模式下返回 `confirm_required`，并带上 `result.preview`。
+  **把 preview 展示给用户，然后等窗格里的审批结果**——`confirm:true` 只能由窗格在用户批准后附加，
+  **你不得预先发送它**。
+- `rejected`：用户拒绝或审批超时。停下来，尊重决定，**不要重发**。
+- `addin_offline`：窗格没开。提醒用户，**不要重试**。
+- 「没找到」不是错误：`search` / `replace_all(dryRun)` 无命中返回 `ok:true + count:0`，如实转述。
+- 写入成功后结果里带 `previousState` / `afterState` / `document`——**用它核验，不要盲信**。
+
+完整错误码与处理建议（含每个码是否可重试）：`GET /office/errors?lang=<zh|en>`。
+
+## 安全约定
+
+- 桥接服务只接受本机自身来源的请求：`Origin` 不是它自己的、或 `Host` 不匹配的一律 403。
+- 覆盖类写操作默认走窗格审批（`confirmMode=ask`）；用户可在窗格切到自动模式。
+- **不要伪造 `confirm:true`。**
+- 只操作用户本机已打开、且窗格在线的文档。
