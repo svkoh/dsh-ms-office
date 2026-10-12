@@ -42,6 +42,7 @@
       "unknownEndpoint": "unknown endpoint",
       "badJson": "request body is not valid JSON",
       "bodyTooLarge": "request body exceeds the limit (max {max} bytes)",
+      "badEncoding": "request body is not valid UTF-8 (JSON must be sent as UTF-8 bytes)",
       "actionRequired": "action required",
       "invalidHost": "invalid host: {host} (valid: {valid})",
       "instanceRequired": "An add-in instance is required (instanceId): call GET /office/status first and pick the target from `instances` (identify the document by docUrl), then resend with `instance`. With several documents open, omitting it makes the wrong document execute the command.",
@@ -88,6 +89,10 @@
       "body_too_large": {
         "meaning": "The request body exceeds the server limit (64 MiB by default)",
         "action": "Shrink the body (write in batches, or use a smaller image/HTML payload) and resend"
+      },
+      "bad_encoding": {
+        "meaning": "The request body is not valid UTF-8: the server decodes strictly, so invalid bytes are rejected instead of silently replaced with garbage",
+        "action": "Resend the POST body as UTF-8 bytes (PowerShell: [Text.Encoding]::UTF8.GetBytes; do not rely on the local code page), then retry"
       },
       "bad_args": {
         "meaning": "Missing or invalid arguments (no action, invalid host, missing required parameter)",

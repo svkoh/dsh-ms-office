@@ -42,6 +42,7 @@
       "unknownEndpoint": "未知端点",
       "badJson": "请求体不是合法 JSON",
       "bodyTooLarge": "请求体超过上限（最大 {max} 字节）",
+      "badEncoding": "请求体不是合法 UTF-8（JSON 必须按 UTF-8 字节发送）",
       "actionRequired": "缺少 action",
       "invalidHost": "非法的 host: {host}（可选: {valid}）",
       "instanceRequired": "必须指定加载项实例（instanceId）：先 GET /office/status 查看 instances（按 docUrl 识别目标文档），带 instance 重发；多文档时未指定实例会导致指令被错误文档执行",
@@ -88,6 +89,10 @@
       "body_too_large": {
         "meaning": "请求体超过服务端上限（默认 64 MiB）",
         "action": "缩小请求体（如分批写入、改用更小的图片/HTML）后重发"
+      },
+      "bad_encoding": {
+        "meaning": "请求体不是合法 UTF-8：服务端按 UTF-8 严格解码，非法字节会被拒绝而不是被静默替换成乱码",
+        "action": "把 POST body 按 UTF-8 字节重发（PowerShell 用 [Text.Encoding]::UTF8.GetBytes，不要依赖本地代码页）"
       },
       "bad_args": {
         "meaning": "参数缺失或非法（如缺 action、host 非法、缺必填参数）",

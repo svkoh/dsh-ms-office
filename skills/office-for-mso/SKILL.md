@@ -47,6 +47,9 @@ $DSH_HOME/dsh-office-for-mso/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
 
 - `hosts` = 能跑这个 action 的应用；`destructive: true` = 覆盖类操作（见第 5 步）。
 - `args` 是每个参数的说明（含类型与是否必填）。
+- 枚举值大小写不敏感（`align:"left"` 也能通过）；被拒时错误里会列出合法值，照清单改，不要猜。
+- 字段名以 `args` 为准。`kind`→`type`、`width`/`height`→`w`/`h`、`fontSize`→`size` 是兼容别名；颜色只接受 `#RRGGBB`。
+- `shapeType` 的合法值由 Office 决定，插件不猜枚举：任何 PascalCase 名字都会放行，执行失败时错误里会补一份「已验证可用」的清单——照清单改，别猜。
 - **不要在回复里写死 action 数量**，以这次返回为准。
 - `lang` 省略时按服务端环境推断；给用户看的内容请显式传用户的语言。
 
@@ -61,6 +64,10 @@ $DSH_HOME/dsh-office-for-mso/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
 - **`instance` 必填。** 多文档同时打开时省略它，指令可能落到错误的文档上——这是硬性拒绝，不是警告。
 - 同步等待，最长约 90s（超时返回 `timeout`）。
 - 返回 `{ ok, commandId, host, instance, result }`，失败时是 `{ ok: false, code, error, result? }`。
+- **请求体按 UTF-8 字节发。** 脚本里发中文，先把 JSON 编码成 UTF-8 再发（PowerShell：
+  `[Text.Encoding]::UTF8.GetBytes($json)` 配 `Content-Type: application/json; charset=utf-8`）。
+  直接 `ConvertTo-Json` 交出去会按本地代码页编码——中文标题曾被写成 `??????`。
+  服务端现在会明确回 `bad_encoding`，不会静默把乱码写进文档。
 
 ## 5. 处理结果
 
@@ -69,6 +76,7 @@ $DSH_HOME/dsh-office-for-mso/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
   **你不得预先发送它**。
 - `rejected`：用户拒绝或审批超时。停下来，尊重决定，**不要重发**。
 - `addin_offline`：窗格没开。提醒用户，**不要重试**。
+- `bad_encoding`：请求体不是合法 UTF-8（多半是脚本按本地代码页发了中文）。改成 UTF-8 重发，**不要重发同一份字节**。
 - 「没找到」不是错误：`search` / `replace_all(dryRun)` 无命中返回 `ok:true + count:0`，如实转述。
 - 写入成功后结果里带 `previousState` / `afterState` / `document`——**用它核验，不要盲信**。
 

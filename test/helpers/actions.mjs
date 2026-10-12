@@ -25,12 +25,12 @@ function makeUtil() {
   };
 }
 
-function makeOffice(host) {
+function makeOffice(host, supported = false) {
   return {
     context: {
       host,
       platform: 'PC',
-      requirements: { isSetSupported: () => false },
+      requirements: { isSetSupported: () => supported },
       document: { mode: 'edit', url: '', title: '', settings: {} },
     },
     AsyncResultStatus: { Succeeded: 'succeeded', Failed: 'failed' },
@@ -42,20 +42,29 @@ function makeOffice(host) {
 }
 
 /**
+ * 执行层桩：参数通过校验后才会走到这里。
+ * 测试用 code==='execution' 来证明「校验先于执行」——这里仍然不模拟 Office 对象模型。
+ */
+function makeRunStub() {
+  return { run: () => { throw new Error('stub: Office run must not execute'); } };
+}
+
+/**
  * 加载全部分片，返回 { sandbox, win, A }。
  * 分片自校验失败（与 capabilities.json 不一致）会在这里直接抛错 —— 这正是我们要测的。
  */
-export function loadActions({ host = 'Word', meta = actionsMeta(), util = null } = {}) {
+export function loadActions({ host = 'Word', meta = actionsMeta(), util = null, supported = false } = {}) {
   const win = {
     __UTIL__: util || makeUtil(),
     __ACTIONS_META__: meta,
   };
   const sandbox = {
     window: win,
-    Office: makeOffice(host),
+    Office: makeOffice(host, supported),
     console,
     fetch: () => Promise.reject(new Error('测试桩：不应发起网络请求')),
     setTimeout,
+    Word: makeRunStub(), Excel: makeRunStub(), PowerPoint: makeRunStub(),
   };
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);

@@ -49,6 +49,13 @@ Take the `url` field and append the paths below to it. Every `/office/...` path 
 
 - `hosts` = the applications that can run the action; `destructive: true` = an overwriting action (see step 5).
 - `args` documents each parameter, including its type and whether it is required.
+- Enum values are case-insensitive (`align:"left"` passes as well); when one is rejected the error lists the
+  valid values — fix it from the list instead of guessing.
+- Field names follow `args`. `kind`→`type`, `width`/`height`→`w`/`h`, `fontSize`→`size` are accepted aliases;
+  colors accept `#RRGGBB` only.
+- `shapeType` values are Office's, not ours: the plugin does not guess the enum, so any PascalCase name is
+  accepted, and when execution fails the error appends the list of values verified against the add-in — fix
+  it from that list instead of guessing.
 - **Never quote a fixed action count back to the user** — use what this call returns.
 - Omit `lang` to let the server infer it; pass the user's language explicitly for anything the user will read.
 
@@ -64,6 +71,11 @@ Take the `url` field and append the paths below to it. Every `/office/...` path 
   document — this is a hard rejection, not a warning.
 - It waits synchronously, up to roughly 90s (`timeout`).
 - Returns `{ ok, commandId, host, instance, result }`, or `{ ok: false, code, error, result? }` on failure.
+- **Send the body as UTF-8 bytes.** When a script writes non-ASCII text, encode the JSON as UTF-8 first
+  (PowerShell: `[Text.Encoding]::UTF8.GetBytes($json)` with `Content-Type: application/json; charset=utf-8`).
+  Handing `ConvertTo-Json` straight to the request encodes it in the local codepage — a document title once
+  came out as `??????`. The bridge now rejects such a body with `bad_encoding` instead of silently
+  writing mojibake into the user's document.
 
 ## 5. Handle the result
 
@@ -72,6 +84,8 @@ Take the `url` field and append the paths below to it. Every `/office/...` path 
   pane only after the user approves, and **you must never send it yourself**.
 - `rejected`: the user declined, or approval timed out. Stop, respect the decision, **do not resend**.
 - `addin_offline`: the pane is not open. Tell the user, **do not retry**.
+- `bad_encoding`: the body was not valid UTF-8 (usually a script sent non-ASCII text in the local codepage).
+  Resend it as UTF-8 — **do not resend the same bytes**.
 - "Nothing found" is not an error: `search` / `replace_all(dryRun)` return `ok:true + count:0`. Report that faithfully.
 - A successful write returns `previousState` / `afterState` / `document` — **verify against them rather than trusting blindly**.
 

@@ -14,6 +14,8 @@ curl "$(jq -r .url "$DSH_HOME/dsh-office-for-mso/bridge.json")/office/capabiliti
 
 - **D** = destructive: the current state is read before writing, and by default you approve it in the pane.
 - **Hosts**: W = Word, E = Excel, P = PowerPoint.
+- **Enum values are case-insensitive** (`align:"left"` and `align:"Center"` are both accepted); a rejected value lists the valid ones in the error — fix it from the list instead of guessing.
+- **Field names follow the `args` descriptions.** Common misspellings are aliased: `kind`→`type`, `width`/`height`→`w`/`h`, `fontSize`→`size`; colors accept `#RRGGBB` only.
 
 > `server/capabilities.json` is the single source of truth for the **structure** (name / hosts / destructive / requirement);
 > the human-readable arg text comes from `i18n/<lang>.json`, and the endpoint merges the two.
@@ -105,6 +107,7 @@ Some things Office.js simply does not offer. The plugin returns an error code in
 - **No API exists**: creating native charts in PowerPoint, image cropping, inserting into an arbitrary placeholder ID; cross-platform "Link to Previous" and clipboard moves in Word
 - **Missing in some runtimes**: Word's `body.comments` and `paragraphFormat` do not exist on every build (the plugin returns `requirement`, it does not fake success)
 - **Known API traps**: Excel has no `workbook.getRange` / `calculate` (the official replacements are used); `Range.autoFilter` must go through the worksheet
+- **shapeType values are Office's, not ours**: the plugin does not guess the enum and accepts any PascalCase name; when execution fails it appends the list of values verified against the add-in, so the caller does not get a bare `InvalidArgument`
 
 ## Adding your own actions
 

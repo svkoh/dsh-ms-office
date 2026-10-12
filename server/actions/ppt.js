@@ -37,6 +37,12 @@
   const PPT_VERTICAL_ALIGNMENTS = ['Top', 'Middle', 'Bottom', 'TopCentered', 'MiddleCentered', 'BottomCentered'];
   const PPT_CONNECTORS = ['Straight', 'Elbow', 'Curve'];
   const PPT_DASH_STYLES = ['Dash', 'DashDot', 'DashDotDot', 'LongDash', 'LongDashDot', 'RoundDot', 'Solid', 'SquareDot', 'LongDashDotDot', 'SystemDash', 'SystemDot', 'SystemDashDot'];
+  const PPT_ALIGN_MODES = ['left', 'center', 'right', 'top', 'middle', 'bottom'];
+  const PPT_DISTRIBUTE_MODES = ['horizontal', 'vertical'];
+  const PPT_ZORDER_OPS = ['BringForward', 'BringToFront', 'SendBackward', 'SendToBack'];
+  // shapeType 的合法值由 Office 决定，插件不能凭空枚举。下面这组是在加载项里逐个试过的，
+  // 其余 PascalCase 名字仍然放行（不回归），但执行报错时会把这份清单作为提示附上。
+  const PPT_SHAPE_TYPES = ['Rectangle', 'Ellipse', 'Triangle', 'RightTriangle', 'RightArrow', 'Pentagon', 'Parallelogram', 'Diamond', 'Hexagon', 'Chevron', 'Heart', 'Plaque', 'Trapezoid', 'RoundRectangle', 'SnipRoundRectangle'];
   const PPT_TABLE_STYLES = new Set(['NoStyleNoGrid','NoStyleTableGrid','LightStyle1','LightStyle2','LightStyle3','MediumStyle1','MediumStyle2','MediumStyle3','MediumStyle4','DarkStyle1','DarkStyle2']);
   for (const base of ['ThemedStyle1','ThemedStyle2','LightStyle1','LightStyle2','LightStyle3','MediumStyle1','MediumStyle2','MediumStyle3','MediumStyle4']) for (let accent = 1; accent <= 6; accent++) PPT_TABLE_STYLES.add(`${base}Accent${accent}`);
   for (const base of ['DarkStyle1','DarkStyle2']) for (let accent = 1; accent <= 3; accent++) PPT_TABLE_STYLES.add(`${base}Accent${accent}`);
@@ -54,6 +60,35 @@
     return color.toUpperCase();
   }
 
+  // 枚举按大小写不敏感接受，但返回注册表里的规范写法：调用方写 "left" 也能通过。
+  // 报错时必须列出合法值——只说 "is invalid" 的话调用方只能靠猜，这是之前踩过的坑。
+  function pptEnum(value, path, allowed, fallback) {
+    if (value === undefined || value === null || value === '') return fallback === undefined ? null : fallback;
+    const raw = String(value);
+    const match = allowed.find((item) => item.toLowerCase() === raw.toLowerCase());
+    if (!match) throw new Error(`${path} is invalid: "${raw}" (valid: ${allowed.join(', ')})`);
+    return match;
+  }
+
+  // shapeType 是 Office 的几何类型名（PascalCase）。只放宽首字母，其余字符仍要求纯字母。
+  function pptShapeTypeName(value, path) {
+    const raw = String(value);
+    const canonical = raw.charAt(0).toUpperCase() + raw.slice(1);
+    if (!/^[A-Za-z][A-Za-z0-9]*$/.test(canonical)) throw new Error(`${path} is invalid: "${raw}" (must be an Office shape name, e.g. ${PPT_SHAPE_TYPES.slice(0, 4).join(', ')})`);
+    return canonical;
+  }
+
+  // 执行层的 InvalidArgument 常常只剩一个光秃秃的错误名，调用方看不出是哪项参数错了。
+  // shapeType 合不合法只有 Office 知道，插件不能凭空枚举，所以不拦未验证的名字，
+  // 只在执行报错时把「已验证可用」的清单补进消息里，让调用方知道下一步该试什么。
+  function shapeTypeHint(spec) {
+    const unverified = (spec.slides || []).flatMap((slide) => slide.elements)
+      .filter((element) => element.type === 'shape' && !PPT_SHAPE_TYPES.includes(element.shapeType));
+    if (unverified.length === 0) return '';
+    const names = [...new Set(unverified.map((element) => element.shapeType))].join(', ');
+    return ` (shapeType "${names}" is accepted but unverified; verified values: ${PPT_SHAPE_TYPES.join(', ')})`;
+  }
+
   function validatePptBuildArgs(args) {
     if (!args || !Array.isArray(args.slides) || args.slides.length === 0) throw new Error('slides must be a non-empty array');
     if (args.slides.length > PPT_MAX_SLIDES) throw new Error(`slides exceeds limit ${PPT_MAX_SLIDES}`);
@@ -66,20 +101,24 @@
       if (totalElements > PPT_MAX_ELEMENTS) throw new Error(`total elements exceeds limit ${PPT_MAX_ELEMENTS}`);
       const elements = slide.elements.map((element, elementIndex) => {
         const path = `slides[${slideIndex}].elements[${elementIndex}]`;
-        if (!element || !PPT_ELEMENT_TYPES.includes(element.type)) throw new Error(`${path}.type must be ${PPT_ELEMENT_TYPES.join('|')}`);
+        if (!element) throw new Error(`${path} must be an object`);
+        // 别名兼容：kind→type、width→w、height→h、fontSize→size。这几个是调用方最常写错的。
+        const alias = (primary, secondary) => (element[primary] !== undefined ? element[primary] : element[secondary]);
+        const type = pptEnum(alias('type', 'kind'), `${path}.type`, PPT_ELEMENT_TYPES);
         const out = {
-          type: element.type,
+          type,
           x: pptFiniteNumber(element.x, `${path}.x`, 0, designWidth),
           y: pptFiniteNumber(element.y, `${path}.y`, 0, designHeight),
-          w: pptFiniteNumber(element.w, `${path}.w`, 0.1, designWidth),
-          h: pptFiniteNumber(element.h, `${path}.h`, 0.1, designHeight),
+          w: pptFiniteNumber(alias('w', 'width'), `${path}.w`, type === 'line' ? 0 : 0.1, designWidth),
+          h: pptFiniteNumber(alias('h', 'height'), `${path}.h`, type === 'line' ? 0 : 0.1, designHeight),
           rotation: element.rotation === undefined ? null : pptFiniteNumber(element.rotation, `${path}.rotation`, -360, 360),
         };
         if (out.x + out.w > designWidth + 0.01 || out.y + out.h > designHeight + 0.01) throw new Error(`${path} exceeds design bounds ${designWidth}x${designHeight}`);
-        if (element.type === 'text' || element.type === 'shape') {
+        if (out.type === 'text' || out.type === 'shape') {
           out.text = element.text === undefined || element.text === null ? '' : String(element.text);
           out.font = element.font === undefined || element.font === null ? null : String(element.font);
-          out.size = pptFiniteNumber(element.size === undefined ? 18 : element.size, `${path}.size`, 1, 400);
+          const sizeValue = alias('size', 'fontSize');
+          out.size = pptFiniteNumber(sizeValue === undefined ? 18 : sizeValue, `${path}.size`, 1, 400);
           out.bold = element.bold === undefined ? false : !!element.bold;
           out.italic = element.italic === undefined ? false : !!element.italic;
           out.color = pptOptionalColor(element.color === undefined ? '#000000' : element.color, `${path}.color`);
@@ -87,10 +126,8 @@
           out.fillTransparency = pptFiniteNumber(element.fillTransparency === undefined ? 0 : element.fillTransparency, `${path}.fillTransparency`, 0, 1);
           out.lineColor = pptOptionalColor(element.lineColor, `${path}.lineColor`);
           out.lineWidth = pptFiniteNumber(element.lineWidth === undefined ? 1 : element.lineWidth, `${path}.lineWidth`, 0, 50);
-          out.align = element.align === undefined ? 'Left' : String(element.align);
-          out.valign = element.valign === undefined ? 'Top' : String(element.valign);
-          if (!PPT_ALIGNMENTS.includes(out.align)) throw new Error(`${path}.align is invalid`);
-          if (!PPT_VERTICAL_ALIGNMENTS.includes(out.valign)) throw new Error(`${path}.valign is invalid`);
+          out.align = pptEnum(element.align, `${path}.align`, PPT_ALIGNMENTS, 'Left');
+          out.valign = pptEnum(element.valign, `${path}.valign`, PPT_VERTICAL_ALIGNMENTS, 'Top');
           const margins = element.margins || {};
           out.margins = {
             left: pptFiniteNumber(margins.left === undefined ? 0 : margins.left, `${path}.margins.left`, 0, 100),
@@ -114,17 +151,14 @@
               font: run.font === undefined || run.font === null ? null : String(run.font),
             };
           }) : [];
-          if (element.type === 'shape') {
-            out.shapeType = element.shapeType === undefined ? 'Rectangle' : String(element.shapeType);
-            if (!/^[A-Za-z][A-Za-z0-9]*$/.test(out.shapeType)) throw new Error(`${path}.shapeType is invalid`);
+          if (out.type === 'shape') {
+            out.shapeType = element.shapeType === undefined ? 'Rectangle' : pptShapeTypeName(element.shapeType, `${path}.shapeType`);
           }
         } else {
-          out.connectorType = element.connectorType === undefined ? 'Straight' : String(element.connectorType);
-          if (!PPT_CONNECTORS.includes(out.connectorType)) throw new Error(`${path}.connectorType is invalid`);
+          out.connectorType = pptEnum(element.connectorType, `${path}.connectorType`, PPT_CONNECTORS, 'Straight');
           out.color = pptOptionalColor(element.color === undefined ? '#808080' : element.color, `${path}.color`);
           out.lineWidth = pptFiniteNumber(element.lineWidth === undefined ? 1 : element.lineWidth, `${path}.lineWidth`, 0.1, 50);
-          out.dashStyle = element.dashStyle === undefined ? 'Solid' : String(element.dashStyle);
-          if (!PPT_DASH_STYLES.includes(out.dashStyle)) throw new Error(`${path}.dashStyle is invalid`);
+          out.dashStyle = pptEnum(element.dashStyle, `${path}.dashStyle`, PPT_DASH_STYLES, 'Solid');
           out.transparency = pptFiniteNumber(element.transparency === undefined ? 0 : element.transparency, `${path}.transparency`, 0, 1);
         }
         return out;
@@ -202,7 +236,7 @@
         try { if (element.type === 'text') { shape = slide.shapes.addTextBox(element.text, pptShapeOptions(element, sx, sy)); applyPptTextFormat(shape, element); } else if (element.type === 'shape') { shape = slide.shapes.addGeometricShape(element.shapeType, pptShapeOptions(element, sx, sy)); applyPptShapeFormat(shape, element); shape.textFrame.textRange.text = element.text; applyPptTextFormat(shape, element); } else { shape = slide.shapes.addLine(element.connectorType, pptShapeOptions(element, sx, sy)); shape.lineFormat.visible = true; shape.lineFormat.color = element.color; shape.lineFormat.weight = element.lineWidth; shape.lineFormat.dashStyle = element.dashStyle; shape.lineFormat.transparency = element.transparency; } if (element.rotation !== null) shape.rotation = element.rotation; shape.load('id'); created.push(shape); counts[element.type]++; } catch (e) { throw new Error(`elements[${index}]: ${e && e.message || e}`); }
       }
       await ctx.sync(); return okResult({ host: 'PowerPoint', slideId, elements: created.map((shape) => ({ id: shape.id })), counts, coordinateSpace: { width: spec.designWidth, height: spec.designHeight }, targetSize: { width: targetWidth, height: targetHeight } });
-    }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
+    }); } catch (e) { return errResult('execution', String(e && e.message || e) + shapeTypeHint(spec)); }
   }
 
   async function pptDeleteShapes(args) {
@@ -318,7 +352,9 @@
 
   async function pptSetZOrder(args) {
     if (!isSetSupported('PowerPointApi', '1.8')) return errResult('requirement', 'ppt_set_z_order requires PowerPointApi 1.8+');
-    const operation = String(args.operation || ''); if (!['BringForward','BringToFront','SendBackward','SendToBack'].includes(operation) || !Array.isArray(args.shapeIds) || !args.shapeIds.length) return errResult('bad_args', 'valid operation and shapeIds required');
+    let operation;
+    try { operation = pptEnum(args.operation, 'operation', PPT_ZORDER_OPS); } catch (e) { return errResult('bad_args', e.message); }
+    if (!Array.isArray(args.shapeIds) || !args.shapeIds.length) return errResult('bad_args', 'shapeIds must be a non-empty array');
     try { return await PowerPoint.run(async (ctx) => { const slide = ctx.presentation.slides.getItem(String(args.slideId)); const refs = args.shapeIds.map((id) => slide.shapes.getItem(String(id))); refs.forEach((shape) => { shape.setZOrder(operation); shape.load('id,zOrderPosition'); }); await ctx.sync(); return okResult({ host: 'PowerPoint', slideId: args.slideId, operation, shapes: refs.map((s) => ({ id: s.id, zOrderPosition: s.zOrderPosition })) }); }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
   }
 
@@ -326,8 +362,8 @@
     const action = distribute ? 'ppt_distribute_shapes' : 'ppt_align_shapes';
     if (!isSetSupported('PowerPointApi', '1.4')) return errResult('requirement', `${action} requires PowerPointApi 1.4+`);
     if (!Array.isArray(args.shapeIds) || args.shapeIds.length < 2) return errResult('bad_args', 'shapeIds requires at least two IDs');
-    const mode = String(args.mode || '');
-    if ((!distribute && !['left','center','right','top','middle','bottom'].includes(mode)) || (distribute && !['horizontal','vertical'].includes(mode))) return errResult('bad_args', 'invalid mode');
+    let mode;
+    try { mode = pptEnum(args.mode, 'mode', distribute ? PPT_DISTRIBUTE_MODES : PPT_ALIGN_MODES); } catch (e) { return errResult('bad_args', e.message); }
     if (distribute && args.shapeIds.length < 3) return errResult('bad_args', 'distribution requires at least three shapes');
     try { return await PowerPoint.run(async (ctx) => { const slide = ctx.presentation.slides.getItem(String(args.slideId)); const refs = args.shapeIds.map((id) => slide.shapes.getItem(String(id))); refs.forEach((s) => s.load('id,left,top,width,height')); await ctx.sync();
       if (distribute) { const horizontal = mode === 'horizontal'; const sorted = refs.slice().sort((a,b) => (horizontal ? a.left-b.left : a.top-b.top)); const start = horizontal ? sorted[0].left : sorted[0].top; const end = horizontal ? sorted[sorted.length-1].left+sorted[sorted.length-1].width : sorted[sorted.length-1].top+sorted[sorted.length-1].height; const total = sorted.reduce((sum,s) => sum+(horizontal?s.width:s.height),0); const gap=(end-start-total)/(sorted.length-1); let cursor=start; for(const s of sorted){ if(horizontal)s.left=cursor; else s.top=cursor; cursor+=(horizontal?s.width:s.height)+gap; } }

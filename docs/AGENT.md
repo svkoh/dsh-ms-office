@@ -77,6 +77,10 @@ $DSH_HOME/dsh-office-for-mso/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
 - 同步等待，最长约 90s（超时返回 `timeout`）。
 - 成功：`{ ok: true, commandId, host, instance, result }`
 - 失败：`{ ok: false, code, error, result? }`
+- **请求体必须是 UTF-8 字节。** 脚本发中文时先把 JSON 按 UTF-8 编码再发出去（PowerShell：
+  `[Text.Encoding]::UTF8.GetBytes($json)` 配 `Content-Type: application/json; charset=utf-8`）。
+  按本地代码页发出去会被明确拒绝（`bad_encoding`），不会静默替换成乱码写进文档——静默写坏用户文档比报错更糟。
+  开头的 UTF-8 BOM 会被剥掉；空 body 不算编码错误。
 
 写入类操作成功后，`result` 里带 `previousState` / `afterState` / `document`——**用它核验，不要盲信**。
 
@@ -101,6 +105,7 @@ $DSH_HOME/dsh-office-for-mso/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
 | `busy`                                     | 上一条指令还在跑          | 稍等重发                        |
 | `timeout`                                  | 90s 无结果           | 查 status；在线可重试一次            |
 | `bad_json` / `body_too_large` / `bad_args` | 请求体非法 / 太大 / 参数非法 | 修正后重发                       |
+| `bad_encoding`                             | 请求体不是合法 UTF-8        | 按 UTF-8 重发，别用本地代码页        |
 | `unknown_action`                           | action 名不存在       | 查 capabilities 用正确名称        |
 | `unsupported_host`                         | 该 action 不支持当前应用  | 换 action 或换应用               |
 | `confirm_required`                         | 需要用户审批            | 交给窗格审批，不得预先发 `confirm:true` |

@@ -78,6 +78,11 @@ All endpoints accept `?lang=zh|en` (see [Language](#language)).
 - Synchronous, up to about 90s (returns `timeout` beyond that).
 - Success: `{ ok: true, commandId, host, instance, result }`
 - Failure: `{ ok: false, code, error, result? }`
+- **The body must be UTF-8 bytes.** When a script sends non-ASCII text, encode the JSON as UTF-8 first
+  (PowerShell: `[Text.Encoding]::UTF8.GetBytes($json)` with `Content-Type: application/json; charset=utf-8`).
+  A body that is not valid UTF-8 is rejected with `bad_encoding` instead of being silently mangled into the
+  document — silently corrupting a user's document is worse than an error. A leading UTF-8 BOM is stripped;
+  an empty body is not an encoding error.
 
 After a successful write, `result` carries `previousState` / `afterState` / `document` — **verify with it, do not trust blindly**.
 
@@ -102,6 +107,7 @@ To switch to automatic mode: the dropdown at the top of the pane, or `POST /offi
 | `busy`                                     | A command is still running                | Retry shortly                                      |
 | `timeout`                                  | No result within 90s                      | Check status; one retry is reasonable              |
 | `bad_json` / `body_too_large` / `bad_args` | Malformed / oversized body, bad arguments | Fix and resend                                     |
+| `bad_encoding`                             | Body is not valid UTF-8                   | Resend as UTF-8, not the local codepage            |
 | `unknown_action`                           | No such action                            | Check capabilities for the right name              |
 | `unsupported_host`                         | Action does not support this application  | Switch action or application                       |
 | `confirm_required`                         | User approval needed                      | Hand it to the pane; never pre-send `confirm:true` |

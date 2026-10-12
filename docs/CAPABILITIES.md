@@ -14,6 +14,8 @@ curl "$(jq -r .url "$DSH_HOME/dsh-office-for-mso/bridge.json")/office/capabiliti
 
 - **D** = 覆盖类操作（destructive）：执行前会先读一遍当前状态，默认还要你在窗格审批。
 - **平台**：W = Word，E = Excel，P = PowerPoint。
+- **枚举大小写不敏感**（`align:"left"` 和 `align:"Center"` 都接受），但非法值被拒时会把合法值清单写进报错——照清单改，不要猜。
+- **字段名以 `args` 说明为准**。常见误写已做别名兼容：`kind`→`type`、`width`/`height`→`w`/`h`、`fontSize`→`size`；颜色只接受 `#RRGGBB`。
 
 > `server/capabilities.json` 是**结构**的唯一真源（名称 / 平台 / 是否覆盖类 / requirement），
 > 人类可读的参数说明来自 `i18n/<lang>.json`，接口把两者合并后返回。
@@ -105,6 +107,7 @@ curl "$(jq -r .url "$DSH_HOME/dsh-office-for-mso/bridge.json")/office/capabiliti
 - **平台级没有的 API**：PPT 原生图表创建、图片裁剪、任意 placeholder ID 定向插图；Word 的跨平台 Link to Previous / 剪贴板移动
 - **本机运行时缺的**：Word 的 `body.comments` 与 `paragraphFormat` 在部分版本上不存在（插件返回 `requirement` 错误，不假装成功）
 - **已知的 API 坑**：Excel 没有 `workbook.getRange` / `calculate`（已改用官方替代 API）；`Range.autoFilter` 必须走 worksheet 级
+- **shapeType 的合法值由 Office 决定**：插件不猜枚举，任何 PascalCase 名字都放行；执行失败时把「已验证可用」的清单补进报错，不让调用方只看到一个光秃秃的 `InvalidArgument`
 
 ## 加自己的 action
 

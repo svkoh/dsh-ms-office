@@ -82,6 +82,7 @@ const ERROR_CODES = [
   { code: 'busy', layer: 'server', retry: true },
   { code: 'bad_json', layer: 'server', retry: true },
   { code: 'body_too_large', layer: 'server', retry: true },
+  { code: 'bad_encoding', layer: 'server', retry: true },
   { code: 'bad_args', layer: 'server|addin', retry: true },
   { code: 'timeout', layer: 'server', retry: true },
   { code: 'unknown_action', layer: 'addin', retry: true },
@@ -301,7 +302,19 @@ function readBody(req) {
     req.on('end', () => {
       if (settled) return;
       settled = true;
-      const text = Buffer.concat(chunks).toString('utf8');
+      const raw = Buffer.concat(chunks);
+      if (!raw.length) return resolve({});
+      // 显式严格解码：toString('utf8') 会把非法字节静默替换成 U+FFFD，客户端用本地代码页
+      // 发中文时文档标题变成乱码却仍回 200。这里宁可拒绝，也不静默写坏用户文档。
+      let text;
+      try {
+        text = new TextDecoder('utf-8', { fatal: true }).decode(raw);
+      } catch (e) {
+        const error = new Error('body is not valid UTF-8');
+        error.code = 'bad_encoding';
+        return reject(error);
+      }
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM 会让 JSON.parse 直接失败
       if (!text) return resolve({});
       try {
         resolve(JSON.parse(text));
@@ -315,11 +328,13 @@ function readBody(req) {
   });
 }
 
-// 统一的 body 读取失败应答：区分「太大」和「不是 JSON」
+// 统一的 body 读取失败应答：区分「太大」「不是 JSON」「不是合法 UTF-8」
 function sendBodyError(res, error, lang) {
   if (error && error.code === 'body_too_large') {
     // 请求体没读完就回包，这条连接不能再复用（否则剩余字节会被当成下一个请求）
     sendJson(res, 413, { ok: false, code: 'body_too_large', error: msg(lang, 'bodyTooLarge', { max: MAX_BODY_BYTES }) }, { connection: 'close' });
+  } else if (error && error.code === 'bad_encoding') {
+    sendJson(res, 400, { ok: false, code: 'bad_encoding', error: msg(lang, 'badEncoding') });
   } else {
     sendJson(res, 400, { ok: false, code: 'bad_json', error: msg(lang, 'badJson') });
   }
