@@ -8,14 +8,7 @@
 
 > **「Office」指 Microsoft Office 桌面版**，不含 WPS 等兼容产品。
 
-```
-你 ──▶ dsh 会话(AI) ──POST /office/command──▶ 桥接服务（本机 HTTP，127.0.0.1）
-                                                  │ 指令入队（按 host / instance 路由）
-                           Office 加载项窗格（文档内轮询，1s）
-                                                  │ Office.js 执行（78 个 action）
-                                                  ▼
-                        结果回传 ──▶ AI 取回 ──▶ 汇报给你
-```
+![运行时数据流：dsh 会话 → 桥接服务 → 加载项窗格 → Office 文档](docs/architecture-runtime.svg)
 
 **它和「让 AI 生成一个 .docx 文件」不是一回事**：加载项跑在 Office 进程里，操作的是**内存中的活文档**——你正在编辑的那一份。没有文件锁，没有「最后保存者赢」，你的编辑和 AI 的编辑由 Office 统一串行处理。
 
@@ -31,11 +24,11 @@
 
 ## 兼容性
 
-| | 状态 |
-|---|---|
-| **Windows** | ✅ 完整支持（加载项自动注册走 WEF 注册表） |
-| **macOS** | ✅ 核心可用（Node + 加载项）；自动注册不适用，需在 Office 里手动加载清单 |
-| **Linux** | ❌ 没有 Office 桌面版加载项宿主 |
+|             | 状态                                           |
+| ----------- | -------------------------------------------- |
+| **Windows** | ✅ 完整支持（加载项自动注册走 WEF 注册表）                     |
+| **macOS**   | ✅ 核心可用（Node + 加载项）；自动注册不适用，需在 Office 里手动加载清单 |
+| **Linux**   | ❌ 没有 Office 桌面版加载项宿主                         |
 
 - **Node.js ≥ 18**（桥接服务只用标准库）
 - **Microsoft Office 桌面版**（Word / Excel / PowerPoint）
@@ -58,10 +51,10 @@ dsh plugin --profile web add /path/to/dsh-office-for-mso
 
 > `dsh plugin --profile <name> <args>` 会把参数原样转发给 profile 目录下的 pnpm。
 
-装完后**确认 profile 清单里列了这个包**——dsh 加载的是 `dsh.profile.bundles` 这个有序清单，只装依赖不会被加载：
+**这一步不需要你做任何事。** dsh 加载的是 `dsh.profile.bundles` 这个有序清单（只装依赖不会被加载），而官方安装路径会自动维护它：本插件在自己的 `package.json` 里声明了 `dsh.bundle`，所以 `dsh plugin add`（以及桌面版的插件面板）装完就会把它加进清单：
 
 ```jsonc
-// $DSH_HOME/profiles/web/package.json
+// $DSH_HOME/profiles/web/package.json —— 自动写入，不用手改
 {
   "dsh": {
     "profile": {
@@ -71,16 +64,11 @@ dsh plugin --profile web add /path/to/dsh-office-for-mso
 }
 ```
 
-用 dsh 的插件管理面板安装会自动维护这个清单；用 `dsh plugin ... add` 手装的话需要自己确认一下。
+唯一例外：如果你之前**禁用**过它。官方的「禁用」状态就是「依赖还在、bundle 条目被摘掉」，而官方为避免误启用，重新安装时**不会**把一个已存在的依赖加回清单。这种情况去插件面板把它**启用**即可，不需要改文件。
 
 ### 让 AI 真的会用这个技能
 
-插件启动时会把自带的技能发布到 `~/.agents/skills/office-for-mso`，dsh 会话据此知道「有这么个能力、什么时候该用」。如果你禁用了技能的自动发布，也可以手动复制：
-
-```powershell
-mkdir "$HOME\.agents\skills\office-for-mso" -Force | Out-Null
-copy "skills\office-for-mso\SKILL.md" "$HOME\.agents\skills\office-for-mso\"
-```
+**同样是自动的，不需要你做任何事。** 插件每次启动都会把自带的技能发布到 `~/.agents/skills/office-for-mso`，dsh 会话据此知道「有这么个能力、什么时候该用」。发布失败只会在插件日志里留一行 `skill publishing skipped: …`，不会影响插件运行。
 
 ## 首次使用
 
@@ -102,22 +90,43 @@ powershell -ExecutionPolicy Bypass -File server\sideload.ps1 -Remove    # 卸载
 
 ## 架构
 
+### 运行时数据流
+
+![运行时数据流：DSH 会话 → 桥接服务 → 加载项窗格 → Office 文档](docs/architecture-runtime.svg)
+
+### 模块结构
+
+![模块结构：磁盘上的源文件如何被服务成 HTTP 端点](docs/architecture-modules.svg)
+
+### 文件职责
+
 | 文件 | 职责 |
 |---|---|
 | `lib/index.js` | 插件宿主侧入口：拉起桥接服务、挂设置面板路由 |
-| `lib/sidecar-host.mjs` | 桥接服务的生命周期：spawn、健康检查、端口选择、崩溃重启、退出清理 |
+| `lib/sidecar-host.mjs` | 桥接服务的生命周期：spawn、健康检查、端口选择、崩溃重启、退出清理；发布技能时按宿主语言在 `SKILL.md` / `SKILL.en.md` 之间二选一 |
 | `lib/client.js` | 插件设置面板（状态灯 / 端口 / 自动启动开关） |
 | `cordis.patch.yml` | 挂载本插件的 loader 行 |
-| `server/server.js` | 桥接服务：指令队列、路由、心跳、能力发现、静态文件 |
+| `server/server.js` | 桥接服务：指令队列、路由、心跳、能力发现、静态文件、按请求语言装配文案 |
 | `server/taskpane.js` | 加载项窗格：轮询 / 心跳 / 分发 / actions 热更新 |
 | `server/actions/` | **按宿主分片**的 action 实现：`word.js` / `excel.js` / `ppt.js` / `common.js`（宿主无关）/ `runtime.js`（共享运行时）/ `registry.js`（装配与对账） |
 | `server/actions/parts.json` | 分片拼接清单（顺序 = 依赖顺序）；服务端与测试读同一份 |
-| `server/capabilities.json` | **能力表的唯一真源**（名称 / 平台 / 是否覆盖类 / 参数说明） |
-| `server/taskpane.html` | 窗格 UI（含审批面板） |
-| `server/manifest.xml` | Office 加载项清单模板（端口 3000；运行期按实际端口改写后写到 `$DSH_HOME/dsh-office-for-mso/manifest.xml`） |
+| `server/capabilities.json` | **能力表的结构真源**：名称 / 平台 / 是否覆盖类 / requirement。人类可读的参数说明**不在这里** |
+| `i18n/zh.json` · `i18n/en.json` | **所有文案的唯一真源**：窗格 UI、服务端消息与错误目录、能力参数说明 |
+| `server/taskpane.html` | 窗格 UI 骨架（Fluent 2 语义色，跟随系统深色模式；可见文案全部由 `/office/i18n` 填入） |
+| `server/manifest.xml` | Office 加载项清单模板（端口 3000；运行期按实际端口改写后写到 `$DSH_HOME/dsh-office-for-mso/manifest.xml`；显示名 / 描述带 `en-US` 覆盖） |
 | `server/pako.min.js` | 解压 OOXML 用的 zlib 实现（第三方，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)） |
-| `skills/office-for-mso/SKILL.md` | 给 AI 看的技能说明（查状态 → 发指令 → 错误处理 → 安全约定） |
-| `test/` | 105 项测试（`npm test`，零测试框架依赖，用 `node --test`） |
+| `skills/office-for-mso/SKILL.md` · `SKILL.en.md` | 给 AI 看的技能说明（中文 / 英文两版，发布时二选一，只注册一个技能） |
+| `docs/*.svg` | 上面两张架构图（无外部字体依赖，浅色深色主题下都可读） |
+| `test/` | 131 项测试（`npm test`，零测试框架依赖，用 `node --test`） |
+
+### 语言（i18n）
+
+界面语言按这个顺序决定：**`?lang=` → `Accept-Language` → 环境变量 `OFFICE_LANG` → 系统 locale → 中文**。以 `en` 开头取英文，以 `zh` 开头取中文，其余一律中文。
+
+- **窗格**：读 `Office.context.displayLanguage`（用户在 Office 里设的编辑语言），再回退到 `navigator.language`；启动时向 `GET /office/i18n?lang=` 取字典，拿到之前不渲染状态文案（避免先闪一个「已连接」再翻成错误）。
+- **服务端**：`/office/capabilities`、`/office/errors`、`/office/i18n` 都返回 `lang` 字段，正文按该语言装配；启动日志也走同一套字典。
+- **AI 调用**：`?lang=en` 可以显式指定——如果你正在服务一个英文用户，加上它，返回的错误含义与 `aiAction` 就是英文。
+- **结构不随语言变**：`capabilities.json` 只放机器消费的字段，语言切换只影响文案。改一句描述**不可能**动到决定宿主校验或审批拦截的数据。
 
 **多文档模型**：每个窗格有自己的 `instanceId`。`GET /office/status` 返回在线文档列表，含 `docUrl`（文档路径，用来识别是哪一份）和 `docTitle`。发指令必须带 `instance`，否则拒绝——这是防止「多文档同时打开时指令被错误文档执行」的机制。
 
@@ -125,90 +134,101 @@ powershell -ExecutionPolicy Bypass -File server\sideload.ps1 -Remove    # 卸载
 
 **端口**：默认 `127.0.0.1:3000`。可以在插件设置面板里改；端口被占用时插件会另选一个空闲端口，并同步改写加载项清单里的地址。改端口后需要关闭并重新打开 Office 文档。
 
+**实际端口在哪查**：服务启动时会把当前地址写成 `$DSH_HOME/dsh-office-for-mso/bridge.json`（`$DSH_HOME` 未设置时是 `~/.dsh`）：
+
+```json
+{ "plugin": "dsh-office-for-mso", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234, "startedAt": "…" }
+```
+
+这个文件是给**调用方**（AI / 脚本）看的——它们看不到插件设置面板，端口又是可变的，所以必须有这么一个机器可读的落点。文件不存在就等于桥接服务没在跑。
+
 ## 能力（78 个 action）
 
-> `server/capabilities.json` 是唯一真源，`GET /office/capabilities` 返回同一份数据。下面这张表只是给人看的概览。
-> **D** = 覆盖类操作（destructive）：写之前会先读当前状态，默认需要你在窗格审批。
+> `server/capabilities.json` 是**结构**的唯一真源（名称 / 平台 / 是否覆盖类 / requirement），
+> 人类可读的参数说明来自 `i18n/<lang>.json`；`GET /office/capabilities` 把两者合并后返回。
+> **加 `?lang=en` 可以拿英文说明**，不传则按 `Accept-Language` → 系统 locale → 中文 的顺序决定。
+> 下面这张表只是给人看的概览（中文）。  
+> **D** = 覆盖类操作（destructive）：写之前会先读当前状态，默认需要你在窗格审批。  
 > 平台：W = Word，E = Excel，P = PowerPoint。
 
 ### 通用
 
-| action | 平台 | D | 说明 |
-|---|---|---|---|
-| `read_selection` | W/E/P | | 读当前选区；`withStyles` 附带样式 |
-| `write_selection` | W/E/P | D | 用 `text` 替换当前选区 |
-| `read_document` | W/E/P | | Word 全文 / Excel 已用区域（`sheet` 指定表）/ PPT 逐页文本 |
-| `get_environment` | W/E/P | | 宿主版本、平台、requirementSets 支持情况 |
-| `get_document_info` | W/E/P | | 文档 url / title / mode（只读判断）/ settings 键值 |
-| `set_setting` | W/E/P | D | 往文档里写持久化键值（随文档保存，跨会话可读） |
+| action              | 平台    | D | 说明                                          |
+| ------------------- | ----- | - | ------------------------------------------- |
+| `read_selection`    | W/E/P |   | 读当前选区；`withStyles` 附带样式                     |
+| `write_selection`   | W/E/P | D | 用 `text` 替换当前选区                             |
+| `read_document`     | W/E/P |   | Word 全文 / Excel 已用区域（`sheet` 指定表）/ PPT 逐页文本 |
+| `get_environment`   | W/E/P |   | 宿主版本、平台、requirementSets 支持情况                |
+| `get_document_info` | W/E/P |   | 文档 url / title / mode（只读判断）/ settings 键值    |
+| `set_setting`       | W/E/P | D | 往文档里写持久化键值（随文档保存，跨会话可读）                     |
 
 ### Word
 
-| action | 平台 | D | 说明 |
-|---|---|---|---|
-| `read_styles` | W/E | | 选区样式（字体 / 字号 / 加粗 / 颜色 / 高亮等） |
-| `replace_all` | W/E | D | 全文查找替换 `search` / `replace`；`dryRun` 只返回命中数 |
-| `append_text` | W | D | 文末追加段落 |
-| `read_tables` | W | | 结构化读取全部表格及表格样式 |
-| `read_table_borders` / `set_table_borders` | W | D | 读取 / 设置六类表格边框（WordApi 1.3+） |
-| `set_font` | W | D | 全文（含表格内文字）设字体 |
-| `word_list_paragraphs` / `word_delete_paragraphs` | W | D | 先列出带零基 `index` 的段落，再用 `targets:[{index,expectedText}]` 显式删除 |
-| `insert_paragraph` | W | D | 插入段落，可指定内置样式与插入位置 |
-| `insert_table` | W | D | WordApi 1.3 原生可编辑表格（`styleBuiltIn` 跨语言） |
-| `word_insert_html` | W | D | 往正文或选区插入 HTML |
-| `word_set_page_setup` | W | D | 按节设置页边距、页眉页脚距离（point） |
-| `word_insert_equation` | W | D | 插入原生公式（结构化节点，走 OOXML） |
-| `word_read_equations` | W | | 读取全文公式 OOXML |
-| `word_read_selection_paragraph` | W | | 读选区所在段落及其中的公式 OOXML |
-| `word_export_file` | W | | 导出 docx / pdf（base64） |
-| `word_insert_image` | W | D | 选区前 / 后 / 替换插图 |
-| `word_transfer_content` | W | D | 在选区、正文、表格、搜索命中、页眉页脚之间搬运 OOXML |
-| `apply_style` | W | D | 应用内置样式（selection / all） |
-| `format_selection` | W/E | D | 选区格式化（字体 / 字号 / 加粗 / 斜体 / 颜色 / 高亮） |
-| `set_paragraph_format` | W | D | 段落格式（对齐 / 缩进 / 行距 / 列表） |
-| `search` | W | | 查找文本，返回命中列表 |
-| `add_comment` / `read_comments` | W/E | D | 加 / 读批注 |
-| `read_properties` | W/E | | 文档属性（标题 / 作者 / 字数等） |
-| `word_list_sections` | W | | 列出节 |
-| `word_read_headers_footers` / `word_set_header_footer` | W | D | 读 / 写页眉页脚 |
-| `word_insert_break` | W | D | 插入分页 / 分节符 |
-| `word_insert_caption` | W | D | 插入题注（静态编号已实测；动态 `SEQ` 需显式开启） |
-| `locate_select` | W/E | | 定位并选中（书签 / 命名区域 / 文本 / Excel 区域），零副作用 |
+| action                                                 | 平台  | D | 说明                                                          |
+| ------------------------------------------------------ | --- | - | ----------------------------------------------------------- |
+| `read_styles`                                          | W/E |   | 选区样式（字体 / 字号 / 加粗 / 颜色 / 高亮等）                               |
+| `replace_all`                                          | W/E | D | 全文查找替换 `search` / `replace`；`dryRun` 只返回命中数                 |
+| `append_text`                                          | W   | D | 文末追加段落                                                      |
+| `read_tables`                                          | W   |   | 结构化读取全部表格及表格样式                                              |
+| `read_table_borders` / `set_table_borders`             | W   | D | 读取 / 设置六类表格边框（WordApi 1.3+）                                 |
+| `set_font`                                             | W   | D | 全文（含表格内文字）设字体                                               |
+| `word_list_paragraphs` / `word_delete_paragraphs`      | W   | D | 先列出带零基 `index` 的段落，再用 `targets:[{index,expectedText}]` 显式删除 |
+| `insert_paragraph`                                     | W   | D | 插入段落，可指定内置样式与插入位置                                           |
+| `insert_table`                                         | W   | D | WordApi 1.3 原生可编辑表格（`styleBuiltIn` 跨语言）                     |
+| `word_insert_html`                                     | W   | D | 往正文或选区插入 HTML                                               |
+| `word_set_page_setup`                                  | W   | D | 按节设置页边距、页眉页脚距离（point）                                       |
+| `word_insert_equation`                                 | W   | D | 插入原生公式（结构化节点，走 OOXML）                                       |
+| `word_read_equations`                                  | W   |   | 读取全文公式 OOXML                                                |
+| `word_read_selection_paragraph`                        | W   |   | 读选区所在段落及其中的公式 OOXML                                         |
+| `word_export_file`                                     | W   |   | 导出 docx / pdf（base64）                                       |
+| `word_insert_image`                                    | W   | D | 选区前 / 后 / 替换插图                                              |
+| `word_transfer_content`                                | W   | D | 在选区、正文、表格、搜索命中、页眉页脚之间搬运 OOXML                               |
+| `apply_style`                                          | W   | D | 应用内置样式（selection / all）                                     |
+| `format_selection`                                     | W/E | D | 选区格式化（字体 / 字号 / 加粗 / 斜体 / 颜色 / 高亮）                          |
+| `set_paragraph_format`                                 | W   | D | 段落格式（对齐 / 缩进 / 行距 / 列表）                                     |
+| `search`                                               | W   |   | 查找文本，返回命中列表                                                 |
+| `add_comment` / `read_comments`                        | W/E | D | 加 / 读批注                                                     |
+| `read_properties`                                      | W/E |   | 文档属性（标题 / 作者 / 字数等）                                         |
+| `word_list_sections`                                   | W   |   | 列出节                                                         |
+| `word_read_headers_footers` / `word_set_header_footer` | W   | D | 读 / 写页眉页脚                                                   |
+| `word_insert_break`                                    | W   | D | 插入分页 / 分节符                                                  |
+| `word_insert_caption`                                  | W   | D | 插入题注（静态编号已实测；动态 `SEQ` 需显式开启）                                |
+| `locate_select`                                        | W/E |   | 定位并选中（书签 / 命名区域 / 文本 / Excel 区域），零副作用                       |
 
 ### Excel
 
-| action | 平台 | D | 说明 |
-|---|---|---|---|
-| `list_sheets` | E | | 列出工作表（名称 / 位置 / 可见性） |
-| `read_range` | E | | 读区域（值 / 公式 / 数字格式） |
-| `write_range` | E | D | 批量写 `values` 或 `formulas`（>5000 格自动分块） |
-| `format_range` | E | D | 区域格式化并回读实际格式 |
-| `insert_chart` | E | D | 数据 → 图表（Column / Line / Bar / Pie / Area / Scatter…） |
-| `add_sheet` / `rename_sheet` / `delete_sheet` | E | D | 工作表管理（`delete_sheet` 支持 `dryRun`） |
-| `apply_sort` | E | D | 多字段排序 |
-| `apply_filter` | E | D | AutoFilter |
-| `evaluate_formula` | E | | 求值 `SUM(A1:A5, C1:C5)` 这类表达式（白名单 SUM / AVERAGE / COUNT / MAX / MIN / PRODUCT） |
-| `list_tables` / `create_table` | E | D | 枚举 / 创建原生表对象 |
-| `delete_table` / `convert_table_to_range` | E | D | 删表及数据 / 只移除表对象保留数据 |
-| `read_conditional_formats` / `add_conditional_format` / `delete_conditional_format` / `clear_conditional_formats` | E | D | 条件格式生命周期（ExcelApi 1.6+） |
-| `read_data_validation` / `set_data_validation` / `clear_data_validation` / `validate_data` | E | D | 数据验证生命周期（1.8+；`validate_data` 的 details 需 1.9+） |
+| action                                                                                                            | 平台 | D | 说明                                                                            |
+| ----------------------------------------------------------------------------------------------------------------- | -- | - | ----------------------------------------------------------------------------- |
+| `list_sheets`                                                                                                     | E  |   | 列出工作表（名称 / 位置 / 可见性）                                                          |
+| `read_range`                                                                                                      | E  |   | 读区域（值 / 公式 / 数字格式）                                                            |
+| `write_range`                                                                                                     | E  | D | 批量写 `values` 或 `formulas`（>5000 格自动分块）                                        |
+| `format_range`                                                                                                    | E  | D | 区域格式化并回读实际格式                                                                  |
+| `insert_chart`                                                                                                    | E  | D | 数据 → 图表（Column / Line / Bar / Pie / Area / Scatter…）                          |
+| `add_sheet` / `rename_sheet` / `delete_sheet`                                                                     | E  | D | 工作表管理（`delete_sheet` 支持 `dryRun`）                                             |
+| `apply_sort`                                                                                                      | E  | D | 多字段排序                                                                         |
+| `apply_filter`                                                                                                    | E  | D | AutoFilter                                                                    |
+| `evaluate_formula`                                                                                                | E  |   | 求值 `SUM(A1:A5, C1:C5)` 这类表达式（白名单 SUM / AVERAGE / COUNT / MAX / MIN / PRODUCT） |
+| `list_tables` / `create_table`                                                                                    | E  | D | 枚举 / 创建原生表对象                                                                  |
+| `delete_table` / `convert_table_to_range`                                                                         | E  | D | 删表及数据 / 只移除表对象保留数据                                                            |
+| `read_conditional_formats` / `add_conditional_format` / `delete_conditional_format` / `clear_conditional_formats` | E  | D | 条件格式生命周期（ExcelApi 1.6+）                                                       |
+| `read_data_validation` / `set_data_validation` / `clear_data_validation` / `validate_data`                        | E  | D | 数据验证生命周期（1.8+；`validate_data` 的 details 需 1.9+）                               |
 
 ### PowerPoint
 
-| action | 平台 | D | 说明 |
-|---|---|---|---|
-| `read_slides` | P | | 读当前选中的幻灯片范围（整份用 `read_document`） |
-| `ppt_read_notes` | P | | 全文件备注（解析 OOXML 的 notesSlides） |
-| `ppt_inspect_slides` | P | | 结构快照：shape ID / 类型 / 名称 / 坐标 / 层序 / 文本 |
-| `ppt_list_placeholders` | P | | placeholder 类型与边界 |
-| `ppt_add_slides` / `ppt_add_elements` | P | D | 批量建页，再按返回的 `slideId` 添加可编辑元素 |
-| `ppt_delete_slides` / `ppt_delete_shapes` | P | D | 按明确 ID 删除（拒绝清空演示文稿） |
-| `ppt_insert_image` | P | D | 插图（定位 或 当前选区 / placeholder） |
-| `ppt_insert_table` | P | D | PowerPointApi 1.8+ 原生可编辑表格 |
-| `ppt_group_shapes` / `ppt_ungroup_shape` / `ppt_set_z_order` | P | D | 分组 / 解组 / 层序 |
-| `ppt_align_shapes` / `ppt_distribute_shapes` | P | D | 对齐 / 分布（按 shape 边界做确定性几何计算） |
-| `ppt_render_slides` | P | | 逐页渲染 PNG |
-| `ppt_export_file` | P | | Office 原生导出 |
+| action                                                       | 平台 | D | 说明                                     |
+| ------------------------------------------------------------ | -- | - | -------------------------------------- |
+| `read_slides`                                                | P  |   | 读当前选中的幻灯片范围（整份用 `read_document`）       |
+| `ppt_read_notes`                                             | P  |   | 全文件备注（解析 OOXML 的 notesSlides）          |
+| `ppt_inspect_slides`                                         | P  |   | 结构快照：shape ID / 类型 / 名称 / 坐标 / 层序 / 文本 |
+| `ppt_list_placeholders`                                      | P  |   | placeholder 类型与边界                      |
+| `ppt_add_slides` / `ppt_add_elements`                        | P  | D | 批量建页，再按返回的 `slideId` 添加可编辑元素           |
+| `ppt_delete_slides` / `ppt_delete_shapes`                    | P  | D | 按明确 ID 删除（拒绝清空演示文稿）                    |
+| `ppt_insert_image`                                           | P  | D | 插图（定位 或 当前选区 / placeholder）            |
+| `ppt_insert_table`                                           | P  | D | PowerPointApi 1.8+ 原生可编辑表格             |
+| `ppt_group_shapes` / `ppt_ungroup_shape` / `ppt_set_z_order` | P  | D | 分组 / 解组 / 层序                           |
+| `ppt_align_shapes` / `ppt_distribute_shapes`                 | P  | D | 对齐 / 分布（按 shape 边界做确定性几何计算）            |
+| `ppt_render_slides`                                          | P  |   | 逐页渲染 PNG                               |
+| `ppt_export_file`                                            | P  |   | Office 原生导出                            |
 
 ### 能力边界
 
@@ -229,7 +249,7 @@ powershell -ExecutionPolicy Bypass -File server\sideload.ps1 -Remove    # 卸载
 - **不返回任何 `Access-Control-Allow-*` 头**（没有 CORS 全开）
 - **带 `Origin` 的请求，其 `Origin` 必须等于服务自身来源**，否则 `403 forbidden_origin`
 - **校验 `Host` 头**，挡 DNS 重绑定（攻击者域名解析到 127.0.0.1 时 `Host` 会是攻击者域名）
-- **静态文件走白名单**：只服务窗格真正需要的 5 个文件，`manifest.xml`、`*.ps1`、`capabilities.json`、`package.json` 都不在 HTTP 面上
+- **静态文件走白名单**：只服务窗格真正需要的 5 个文件，`manifest.xml`、`*.ps1`、`capabilities.json`、`package.json` 都不在 HTTP 面上（`i18n/*.json` 也不静态暴露——它经 `/office/i18n` 按语言装配后返回，和其余 `/office/*` 端点一样受来源校验保护）
 
 没有 Origin 的调用（本机 curl / agent 经 pwsh 发的请求）照常放行——这是设计内的使用者。
 
@@ -258,22 +278,23 @@ window.__USER_ACTIONS__ = {
 };
 ```
 
+
 重启桥接服务后生效（热更新，不用重开窗格）。
 
 > `user-actions.js` 里的 action 不经过 `capabilities.json`，所以要**自己带上 `hosts` / `destructive`**；想要审批 + 写后验证，再补一个 `preview`。
 
 ## 排查
 
-| 现象 | 处理 |
-|---|---|
-| 窗格显示「桥接服务未连接」 | 确认插件在设置面板里是「运行中」；或直接 `curl http://127.0.0.1:3000/office/status` |
-| 指令报 `timeout` | 加载项没在线：确认文档打开、窗格显示已连接 |
-| 指令立即返回 `addin_offline` | 窗格没开：打开文档 → 开始 / 开发人员 → 加载项 → 开发人员加载项 → 打开「DSH Office 执行器」 |
-| 窗格没出现 | Windows：确认服务起过（自动注册需要它跑一次），然后**关闭并重开**文档；确认 Office 不是以管理员身份运行（回环地址例外要求普通权限） |
-| 改了 `server/actions/*` 没生效 | 重启桥接服务（窗格会自动热更新） |
-| 改了 `taskpane.js` 没生效 | 重启桥接服务，然后等下一次心跳（≤5s）自动 reload；仍不行就手动重开窗格 |
-| 改了端口后窗格连不上 | 关闭并重新打开 Office 文档（加载项地址写在清单里，需要重新加载） |
-| 修改没生效 / 改错了位置 | 确认执行位置（光标 / 选区）正确；看窗格底部的执行日志 |
+| 现象                        | 处理                                                                          |
+| ------------------------- | --------------------------------------------------------------------------- |
+| 窗格显示「桥接服务未连接」             | 确认插件在设置面板里是「运行中」；然后 `curl "$(jq -r .url "$DSH_HOME/dsh-office-for-mso/bridge.json")/office/status"`（端口可能不是 3000，别写死）             |
+| 指令报 `timeout`             | 加载项没在线：确认文档打开、窗格显示已连接                                                       |
+| 指令立即返回 `addin_offline`    | 窗格没开：打开文档 → 开始 / 开发人员 → 加载项 → 开发人员加载项 → 打开「DSH Office 执行器」                  |
+| 窗格没出现                     | Windows：确认服务起过（自动注册需要它跑一次），然后**关闭并重开**文档；确认 Office 不是以管理员身份运行（回环地址例外要求普通权限） |
+| 改了 `server/actions/*` 没生效 | 重启桥接服务（窗格会自动热更新）                                                            |
+| 改了 `taskpane.js` 没生效      | 重启桥接服务，然后等下一次心跳（≤5s）自动 reload；仍不行就手动重开窗格                                    |
+| 改了端口后窗格连不上                | 关闭并重新打开 Office 文档（加载项地址写在清单里，需要重新加载）                                        |
+| 修改没生效 / 改错了位置             | 确认执行位置（光标 / 选区）正确；看窗格底部的执行日志                                                |
 
 ## 给 AI 调用方的约定
 
@@ -286,27 +307,27 @@ window.__USER_ACTIONS__ = {
 - 收到 `rejected` 就停下，尊重用户决定，不要重发
 - **「没找到」不是错误**：`search` / `replace_all(dryRun)` 无命中返回 `ok:true + count:0`，如实告知即可
 
-| code | 含义 | 处理 |
-|---|---|---|
-| `instance_required` | 缺 `instance` | 查 status 拿 instanceId 重发 |
-| `addin_offline` | 窗格未开启 / 离线 | 提醒用户开窗格，**不要重试** |
-| `busy` | 上一条指令还在跑 | 稍等重发 |
-| `timeout` | 90s 无结果 | 查 status；在线可重试一次 |
-| `bad_json` / `body_too_large` / `bad_args` | 请求体非法 / 太大 / 参数非法 | 修正后重发 |
-| `unknown_action` | action 名不存在 | 查 capabilities 用正确名称 |
-| `unsupported_host` | 该 action 不支持当前应用 | 换 action 或换应用 |
-| `confirm_required` | 需要用户审批 | 交给窗格审批，不得预先发 `confirm:true` |
-| `rejected` | 用户拒绝 / 审批超时 | 停止，**不要重发** |
-| `not_found` | 定位 / 查找目标不存在 | 如实告知，**不要重试同一查找** |
-| `readonly` | 文档只读 / 查看模式 | 告知用户另存为可编辑副本 |
-| `requirement` / `unsupported` | 当前环境缺这个 API | 如实告知，绝不假装成功 |
-| `execution` | 执行期异常 | 把 error 原样报告给用户 |
+| code                                       | 含义                | 处理                          |
+| ------------------------------------------ | ----------------- | --------------------------- |
+| `instance_required`                        | 缺 `instance`      | 查 status 拿 instanceId 重发    |
+| `addin_offline`                            | 窗格未开启 / 离线        | 提醒用户开窗格，**不要重试**            |
+| `busy`                                     | 上一条指令还在跑          | 稍等重发                        |
+| `timeout`                                  | 90s 无结果           | 查 status；在线可重试一次            |
+| `bad_json` / `body_too_large` / `bad_args` | 请求体非法 / 太大 / 参数非法 | 修正后重发                       |
+| `unknown_action`                           | action 名不存在       | 查 capabilities 用正确名称        |
+| `unsupported_host`                         | 该 action 不支持当前应用  | 换 action 或换应用               |
+| `confirm_required`                         | 需要用户审批            | 交给窗格审批，不得预先发 `confirm:true` |
+| `rejected`                                 | 用户拒绝 / 审批超时       | 停止，**不要重发**                 |
+| `not_found`                                | 定位 / 查找目标不存在      | 如实告知，**不要重试同一查找**           |
+| `readonly`                                 | 文档只读 / 查看模式       | 告知用户另存为可编辑副本                |
+| `requirement` / `unsupported`              | 当前环境缺这个 API       | 如实告知，绝不假装成功                 |
+| `execution`                                | 执行期异常             | 把 error 原样报告给用户             |
 
 ## 开发
 
 ```bash
 npm install     # 只装 lint 用的 devDependencies；插件本身运行时零依赖
-npm test        # 105 项测试
+npm test        # 131 项测试
 npm run lint
 npm run check   # lint + test
 
@@ -326,14 +347,14 @@ PORT=3000 node server/server.js
 
 每个分片都是**自包含 IIFE**，彼此不共享词法作用域，只通过 `window.__OFFICE_ACTIONS__` 交换：
 
-| 分片 | 挂载点 |
-|---|---|
-| `runtime.js` | `A.isSetSupported` / `A.validateMatrix` / `A.sleep` / `A.notFound` |
-| `word.js` | `A.hosts.Word = { actions, selectTargets, previewReaders, afterContent, environmentProbe }` |
-| `excel.js` | `A.hosts.Excel = { … }` |
-| `ppt.js` | `A.hosts.PowerPoint = { … }` |
-| `common.js` | `A.hosts.Common = { actions, previewReaders, afterContent }`（宿主无关，只用 Common API） |
-| `registry.js` | 装配：拍平成注册表、与 `capabilities.json` 对账、暴露 `__ACTIONS__` / `__EXECUTE__` / `__AFTER_CONTENT__` |
+| 分片            | 挂载点                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------- |
+| `runtime.js`  | `A.isSetSupported` / `A.validateMatrix` / `A.sleep` / `A.notFound`                          |
+| `word.js`     | `A.hosts.Word = { actions, selectTargets, previewReaders, afterContent, environmentProbe }` |
+| `excel.js`    | `A.hosts.Excel = { … }`                                                                     |
+| `ppt.js`      | `A.hosts.PowerPoint = { … }`                                                                |
+| `common.js`   | `A.hosts.Common = { actions, previewReaders, afterContent }`（宿主无关，只用 Common API）            |
+| `registry.js` | 装配：拍平成注册表、与 `capabilities.json` 对账、暴露 `__ACTIONS__` / `__EXECUTE__` / `__AFTER_CONTENT__`   |
 
 三条边界由测试强制（`test/actions-boundary.test.mjs`），它们就是「拆开」这件事本身的意义：
 
@@ -347,8 +368,12 @@ PORT=3000 node server/server.js
 
 ## 许可
 
-[MIT](LICENSE)。第三方组件（pako）的许可与出处见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+[MIT](LICENSE)。第三方组件（pako）的许可与出处见 [THIRD\_PARTY\_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ---
 
 *非微软官方产品。本项目与 Microsoft Corporation 无关联。*
+
+---
+
+本项目 fork 自 <https://github.com/Mikuzjc/dsh-office-for-mso>。

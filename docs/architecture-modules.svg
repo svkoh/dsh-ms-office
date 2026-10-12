@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 740 520" width="740" height="520"
+     role="img" aria-labelledby="arch-modules-title arch-modules-desc">
+  <title id="arch-modules-title">Office for MSO module structure</title>
+  <desc id="arch-modules-desc">Source modules on disk map to the HTTP surface the plugin serves: the capability structure file and the language dictionaries merge into the capabilities endpoint, the actions fragments concatenate into one script, and the task pane files are served to the Office web view.</desc>
+
+  <defs>
+    <marker id="mod-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+    </marker>
+    <marker id="mod-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+    </marker>
+  </defs>
+
+  <!-- paper -->
+  <rect x="0.5" y="0.5" width="739" height="519" rx="12" fill="#f5f5f5" stroke="rgba(45,49,66,0.12)" stroke-width="1"/>
+
+  <!-- ── zones (painted first) ───────────────────────────────────────────── -->
+  <!-- 区域标签直接写字，不铺遮罩：标签在边框内侧，遮罩只会把 zone 填充切出一块浅斑。 -->
+  <rect x="24" y="64" width="356" height="384" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+  <text x="40" y="77" fill="rgba(45,49,66,0.40)" font-size="7" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" letter-spacing="0.14em">ON DISK · server/</text>
+
+  <rect x="492" y="64" width="224" height="384" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+  <text x="508" y="77" fill="rgba(45,49,66,0.40)" font-size="7" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" letter-spacing="0.14em">SERVED OVER HTTP</text>
+
+  <!-- ── arrows (before boxes) ───────────────────────────────────────────── -->
+  <!-- capabilities.json → /office/capabilities（右拐再下错位，避开另一条） -->
+  <path d="M 356,132 H 412 Q 420,132 420,140 V 159 Q 420,167 428,167 H 516"
+        fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#mod-arrow-accent)"/>
+  <!-- i18n/*.json → /office/capabilities（右拐再上错位，两条在 y 上错开 18） -->
+  <path d="M 356,220 H 412 Q 420,220 420,212 V 193 Q 420,185 428,185 H 516"
+        fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#mod-arrow-accent)"/>
+  <!-- actions/ → /actions.js -->
+  <line x1="356" y1="308" x2="516" y2="308" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#mod-arrow)"/>
+  <!-- taskpane files → /taskpane.html -->
+  <line x1="356" y1="396" x2="516" y2="396" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#mod-arrow)"/>
+
+  <!-- ── arrow labels ────────────────────────────────────────────────────── -->
+  <!-- 不铺不透明遮罩：文字已让开自己的线（错位竖线 x=420，文字 x≥432），
+       遮罩只会把 zone 边框切出缺口。文字右端止于 ~476，离右区边框 492 还有余量。 -->
+  <text x="432" y="152" fill="#7a8399" font-size="8" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" letter-spacing="0.06em">STRUCTURE</text>
+
+  <text x="432" y="205" fill="#7a8399" font-size="8" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" letter-spacing="0.06em">TEXT</text>
+
+  <text x="412" y="299" fill="#7a8399" font-size="8" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" letter-spacing="0.06em">CONCAT</text>
+
+  <text x="412" y="387" fill="#7a8399" font-size="8" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" letter-spacing="0.06em">SERVE</text>
+
+  <!-- ── source · capabilities.json ─────────────────────────────────────── -->
+  <rect x="48" y="104" width="308" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="56" y="110" width="30" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+  <text x="71" y="119" fill="rgba(45,49,66,0.80)" font-size="7" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">FILE</text>
+  <text x="202" y="134" fill="#2d3142" font-size="12" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">capabilities.json</text>
+  <text x="202" y="150" fill="#4f5d75" font-size="9" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle">name · hosts · destructive</text>
+
+  <!-- ── source · i18n ──────────────────────────────────────────────────── -->
+  <rect x="48" y="192" width="308" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="56" y="198" width="30" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+  <text x="71" y="207" fill="rgba(45,49,66,0.80)" font-size="7" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">FILE</text>
+  <text x="202" y="222" fill="#2d3142" font-size="12" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">i18n/zh.json · en.json</text>
+  <text x="202" y="238" fill="#4f5d75" font-size="9" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle">every string a human reads</text>
+
+  <!-- ── source · actions fragments ─────────────────────────────────────── -->
+  <rect x="48" y="280" width="308" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="56" y="286" width="30" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+  <text x="71" y="295" fill="rgba(45,49,66,0.80)" font-size="7" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">DIR</text>
+  <text x="202" y="310" fill="#2d3142" font-size="12" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">actions/</text>
+  <text x="202" y="326" fill="#4f5d75" font-size="9" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle">parts.json + 6 host fragments</text>
+
+  <!-- ── source · task pane ─────────────────────────────────────────────── -->
+  <rect x="48" y="368" width="308" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="56" y="374" width="30" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+  <text x="71" y="383" fill="rgba(45,49,66,0.80)" font-size="7" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">FILE</text>
+  <text x="202" y="398" fill="#2d3142" font-size="12" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">taskpane.html · taskpane.js</text>
+  <text x="202" y="414" fill="#4f5d75" font-size="9" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle">the pane shell + its i18n</text>
+
+  <!-- ── served · capabilities (the two sources merge here) ─────────────── -->
+  <rect x="516" y="148" width="176" height="56" rx="6" fill="#f5f5f5"/>
+  <rect x="516" y="148" width="176" height="56" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+  <rect x="524" y="154" width="30" height="12" rx="2" fill="none" stroke="rgba(235,108,54,0.50)" stroke-width="0.8"/>
+  <text x="539" y="163" fill="rgba(235,108,54,0.90)" font-size="7" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">API</text>
+  <text x="604" y="178" fill="#2d3142" font-size="12" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">/office/capabilities</text>
+  <text x="604" y="194" fill="#4f5d75" font-size="9" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle">read by the AI session</text>
+
+  <!-- ── served · actions.js ────────────────────────────────────────────── -->
+  <rect x="516" y="280" width="176" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="524" y="286" width="30" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+  <text x="539" y="295" fill="rgba(45,49,66,0.80)" font-size="7" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">API</text>
+  <text x="604" y="310" fill="#2d3142" font-size="12" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">/actions.js</text>
+  <text x="604" y="326" fill="#4f5d75" font-size="9" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle">one script · hot-reloaded</text>
+
+  <!-- ── served · taskpane.html ─────────────────────────────────────────── -->
+  <rect x="516" y="368" width="176" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="524" y="374" width="30" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+  <text x="539" y="383" fill="rgba(45,49,66,0.80)" font-size="7" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">API</text>
+  <text x="604" y="398" fill="#2d3142" font-size="12" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">/taskpane.html</text>
+  <text x="604" y="414" fill="#4f5d75" font-size="9" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" text-anchor="middle">loaded by the Office WebView</text>
+
+  <!-- ── legend ─────────────────────────────────────────────────────────── -->
+  <line x1="24" y1="480" x2="716" y2="480" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+  <line x1="24" y1="496" x2="48" y2="496" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#mod-arrow)"/>
+  <text x="56" y="499" fill="#4f5d75" font-size="8" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" letter-spacing="0.14em">SERVED AS IS</text>
+  <line x1="190" y1="496" x2="214" y2="496" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#mod-arrow-accent)"/>
+  <text x="222" y="499" fill="#4f5d75" font-size="8" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace" letter-spacing="0.14em">MERGED AT SERVE TIME</text>
+</svg>

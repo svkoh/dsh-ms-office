@@ -8,14 +8,7 @@ This is a **standalone dsh plugin**. Install it and dsh gains an agent capabilit
 
 > "Office" means the **Microsoft Office desktop applications**. WPS and other compatible suites are not supported.
 
-```
-you ──▶ dsh session (AI) ──POST /office/command──▶ bridge (local HTTP, 127.0.0.1)
-                                                    │ command queued (routed by host / instance)
-                            Office add-in task pane (polls the bridge, 1s)
-                                                    │ executed via Office.js (78 actions)
-                                                    ▼
-                        result ──▶ AI picks it up ──▶ reported back to you
-```
+![Runtime data flow: dsh session → bridge → add-in task pane → Office document](docs/architecture-runtime.svg)
 
 **This is not "have the AI generate a .docx file."** The add-in runs inside the Office process and operates on the **live, in-memory document** — the one you are editing right now. No file locking, no last-writer-wins; your edits and the AI's edits are serialised by Office itself.
 
@@ -31,11 +24,11 @@ you ──▶ dsh session (AI) ──POST /office/command──▶ bridge (local
 
 ## Compatibility
 
-| | Status |
-|---|---|
-| **Windows** | ✅ Fully supported (add-in auto-registration via the WEF registry) |
-| **macOS** | ✅ Core works (Node + add-in); auto-registration does not apply, load the manifest manually from Office |
-| **Linux** | ❌ No Office desktop add-in host |
+|             | Status                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------ |
+| **Windows** | ✅ Fully supported (add-in auto-registration via the WEF registry)                                      |
+| **macOS**   | ✅ Core works (Node + add-in); auto-registration does not apply, load the manifest manually from Office |
+| **Linux**   | ❌ No Office desktop add-in host                                                                        |
 
 - **Node.js ≥ 18** (the bridge uses only the standard library)
 - **Microsoft Office desktop** (Word / Excel / PowerPoint)
@@ -102,22 +95,43 @@ powershell -ExecutionPolicy Bypass -File server\sideload.ps1 -Remove    # remove
 
 ## Architecture
 
-| File | Role |
-|---|---|
-| `lib/index.js` | Host-side entry: starts the bridge, mounts the settings routes |
-| `lib/sidecar-host.mjs` | Bridge lifecycle: spawn, health check, port selection, crash restart, dispose |
-| `lib/client.js` | Plugin settings panel (status dot / port / autostart switch) |
-| `cordis.patch.yml` | The loader row that mounts this plugin |
-| `server/server.js` | Bridge: command queue, routing, heartbeat, capability discovery, static files |
-| `server/taskpane.js` | The task pane: polling, heartbeat, dispatch, actions hot-reload |
-| `server/actions/` | Action implementations **split by host**: `word.js` / `excel.js` / `ppt.js` / `common.js` (host-agnostic) / `runtime.js` (shared runtime) / `registry.js` (assembly + reconciliation) |
-| `server/actions/parts.json` | Fragment concatenation list (order = dependency order); read by both the server and the tests |
-| `server/capabilities.json` | **Single source of truth for the capability table** (name / hosts / destructive / args) |
-| `server/taskpane.html` | Pane UI (including the approval panel) |
-| `server/manifest.xml` | Office add-in manifest template (port 3000; rewritten for the live port into `$DSH_HOME/dsh-office-for-mso/manifest.xml`) |
-| `server/pako.min.js` | zlib implementation used to unpack OOXML (third-party — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)) |
-| `skills/office-for-mso/SKILL.md` | The skill text the AI reads (status → command → errors → safety) |
-| `test/` | 105 tests (`npm test`, no test framework dependency — plain `node --test`) |
+### Runtime data flow
+
+![Runtime data flow: dsh session → bridge → add-in task pane → Office document](docs/architecture-runtime.svg)
+
+### Module structure
+
+![Module structure: how the files on disk are served as HTTP endpoints](docs/architecture-modules.svg)
+
+### File responsibilities
+
+| File                                             | Role                                                                                                                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/index.js`                                   | Host-side entry: starts the bridge, mounts the settings routes                                                                                                                        |
+| `lib/sidecar-host.mjs`                           | Bridge lifecycle: spawn, health check, port selection, crash restart, dispose; picks `SKILL.md` or `SKILL.en.md` by host language when publishing the skill                           |
+| `lib/client.js`                                  | Plugin settings panel (status dot / port / autostart switch)                                                                                                                          |
+| `cordis.patch.yml`                               | The loader row that mounts this plugin                                                                                                                                                |
+| `server/server.js`                               | Bridge: command queue, routing, heartbeat, capability discovery, static files, per-request text assembly                                                                              |
+| `server/taskpane.js`                             | The task pane: polling, heartbeat, dispatch, actions hot-reload                                                                                                                       |
+| `server/actions/`                                | Action implementations **split by host**: `word.js` / `excel.js` / `ppt.js` / `common.js` (host-agnostic) / `runtime.js` (shared runtime) / `registry.js` (assembly + reconciliation) |
+| `server/actions/parts.json`                      | Fragment concatenation list (order = dependency order); read by both the server and the tests                                                                                         |
+| `server/capabilities.json`                       | **Structure-only source of truth** for the capability table: name / hosts / destructive / requirement. Human-readable arg text is **not** here                                        |
+| `i18n/zh.json` · `i18n/en.json`                  | **Single source of truth for all text**: pane UI, server messages and error catalog, capability arg descriptions                                                                      |
+| `server/taskpane.html`                           | Pane UI skeleton (Fluent 2 semantic roles, follows the system dark mode; every visible string is filled in from `/office/i18n`)                                                       |
+| `server/manifest.xml`                            | Office add-in manifest template (port 3000; rewritten for the live port into `$DSH_HOME/dsh-office-for-mso/manifest.xml`; display name / description carry `en-US` overrides)         |
+| `server/pako.min.js`                             | zlib implementation used to unpack OOXML (third-party — see [THIRD\_PARTY\_NOTICES.md](THIRD_PARTY_NOTICES.md))                                                                       |
+| `skills/office-for-mso/SKILL.md` · `SKILL.en.md` | The skill text the AI reads (Chinese / English variants — exactly one is published, so only one skill is registered)                                                                  |
+| `docs/*.svg`                                     | The two diagrams above (no external font dependency; readable on light and dark themes)                                                                                               |
+| `test/`                                          | 131 tests (`npm test`, no test framework dependency — plain `node --test`)                                                                                                            |
+
+### Language (i18n)
+
+The UI language is resolved in this order: **`?lang=` → `Accept-Language` → `OFFICE_LANG` env var → system locale → Chinese**. A tag starting with `en` selects English, one starting with `zh` selects Chinese, anything else falls back to Chinese.
+
+- **Task pane**: reads `Office.context.displayLanguage` (the editing language the user set in Office), falling back to `navigator.language`; it fetches its dictionary from `GET /office/i18n?lang=` at startup and does not render any status text until the dictionary has arrived (so it never flashes "connected" and then flips to an error).
+- **Server**: `/office/capabilities`, `/office/errors` and `/office/i18n` all return a `lang` field and assemble their bodies in that language; startup logs go through the same dictionary.
+- **AI callers**: pass `?lang=en` to force it — if you are serving an English-speaking user, add it and the error meanings and `aiAction` text come back in English.
+- **Structure never varies with language**: `capabilities.json` holds only machine-consumed fields, so switching language only changes text. Editing a description **cannot** touch the data that decides host validation or approval interception.
 
 **Multi-document model**: every pane has its own `instanceId`. `GET /office/status` returns the online documents with `docUrl` (the path, used to tell documents apart) and `docTitle`. Commands must carry `instance`; without it they are refused — that is the mechanism preventing a command from being executed by the wrong document when several are open.
 
@@ -127,88 +141,92 @@ powershell -ExecutionPolicy Bypass -File server\sideload.ps1 -Remove    # remove
 
 ## Capabilities (78 actions)
 
-> `server/capabilities.json` is the single source of truth; `GET /office/capabilities` serves the same data. The table below is a human-readable overview.
-> **D** = destructive: the current state is read before writing, and by default you approve it in the pane.
+> `server/capabilities.json` is the single source of truth for the **structure** (name / hosts / destructive / requirement);  
+> the human-readable arg text comes from `i18n/<lang>.json`, and `GET /office/capabilities` merges the two.  
+> **Add `?lang=en` to get the English text**; without it the language is resolved from `Accept-Language` → system locale → Chinese.  
+> The table below is a human-readable overview (English).  
+> **D** = destructive: the current state is read before writing, and by default you approve it in the pane.  
 > Hosts: W = Word, E = Excel, P = PowerPoint.
 
 ### Common
 
-| action | hosts | D | Purpose |
-|---|---|---|---|
-| `read_selection` | W/E/P | | Read the selection; `withStyles` adds style details |
-| `write_selection` | W/E/P | D | Replace the selection with `text` |
-| `read_document` | W/E/P | | Word full text / Excel used range (`sheet` picks a sheet) / PowerPoint per-slide text |
-| `get_environment` | W/E/P | | Host version, platform, requirement-set support |
-| `get_document_info` | W/E/P | | Document url / title / mode (read-only detection) / settings values |
-| `set_setting` | W/E/P | D | Persist a key-value pair in the document (survives sessions) |
+| action              | hosts | D | Purpose                                                                               |
+| ------------------- | ----- | - | ------------------------------------------------------------------------------------- |
+| `read_selection`    | W/E/P |   | Read the selection; `withStyles` adds style details                                   |
+| `write_selection`   | W/E/P | D | Replace the selection with `text`                                                     |
+| `read_document`     | W/E/P |   | Word full text / Excel used range (`sheet` picks a sheet) / PowerPoint per-slide text |
+| `get_environment`   | W/E/P |   | Host version, platform, requirement-set support                                       |
+| `get_document_info` | W/E/P |   | Document url / title / mode (read-only detection) / settings values                   |
+| `set_setting`       | W/E/P | D | Persist a key-value pair in the document (survives sessions)                          |
+
 
 ### Word
 
-| action | hosts | D | Purpose |
-|---|---|---|---|
-| `read_styles` | W/E | | Selection styles (font, size, bold, colour, highlight…) |
-| `replace_all` | W/E | D | Find and replace `search` → `replace`; `dryRun` returns the hit count only |
-| `append_text` | W | D | Append a paragraph at the end of the document |
-| `read_tables` | W | | Structured read of every table plus its style |
-| `read_table_borders` / `set_table_borders` | W | D | Read / set the six border locations (WordApi 1.3+) |
-| `set_font` | W | D | Set the font for the whole document (including table text) |
-| `word_list_paragraphs` / `word_delete_paragraphs` | W | D | List paragraphs with zero-based `index`, then delete explicitly via `targets:[{index,expectedText}]` |
-| `insert_paragraph` | W | D | Insert a paragraph with an optional built-in style and location |
-| `insert_table` | W | D | Native editable table via WordApi 1.3 (`styleBuiltIn` is language-neutral) |
-| `word_insert_html` | W | D | Insert HTML into the body or the selection |
-| `word_set_page_setup` | W | D | Per-section margins and header/footer distances (points) |
-| `word_insert_equation` | W | D | Insert a native equation (structured nodes, via OOXML) |
-| `word_read_equations` | W | | Read equation OOXML for the whole document |
-| `word_read_selection_paragraph` | W | | Read the paragraph around the selection and any equation OOXML in it |
-| `word_export_file` | W | | Export docx / pdf (base64) |
-| `word_insert_image` | W | D | Insert an image before / after / replacing the selection |
-| `word_transfer_content` | W | D | Move OOXML between selection, body, tables, search hits, headers and footers |
-| `apply_style` | W | D | Apply a built-in style (selection or all) |
-| `format_selection` | W/E | D | Format the selection (font, size, bold, italic, colour, highlight) |
-| `set_paragraph_format` | W | D | Paragraph format (alignment, indent, line spacing, list) |
-| `search` | W | | Find text, returns the hits |
-| `add_comment` / `read_comments` | W/E | D | Add / read comments |
-| `read_properties` | W/E | | Document properties (title, author, word count…) |
-| `word_list_sections` | W | | List sections |
-| `word_read_headers_footers` / `word_set_header_footer` | W | D | Read / write headers and footers |
-| `word_insert_break` | W | D | Insert a page or section break |
-| `word_insert_caption` | W | D | Insert a caption (static numbering verified; dynamic `SEQ` must be opted into) |
-| `locate_select` | W/E | | Locate and select (bookmark, named range, text, Excel range) — side-effect free |
+| action                                                 | hosts | D | Purpose                                                                                              |
+| ------------------------------------------------------ | ----- | - | ---------------------------------------------------------------------------------------------------- |
+| `read_styles`                                          | W/E   |   | Selection styles (font, size, bold, colour, highlight…)                                              |
+| `replace_all`                                          | W/E   | D | Find and replace `search` → `replace`; `dryRun` returns the hit count only                           |
+| `append_text`                                          | W     | D | Append a paragraph at the end of the document                                                        |
+| `read_tables`                                          | W     |   | Structured read of every table plus its style                                                        |
+| `read_table_borders` / `set_table_borders`             | W     | D | Read / set the six border locations (WordApi 1.3+)                                                   |
+| `set_font`                                             | W     | D | Set the font for the whole document (including table text)                                           |
+| `word_list_paragraphs` / `word_delete_paragraphs`      | W     | D | List paragraphs with zero-based `index`, then delete explicitly via `targets:[{index,expectedText}]` |
+| `insert_paragraph`                                     | W     | D | Insert a paragraph with an optional built-in style and location                                      |
+| `insert_table`                                         | W     | D | Native editable table via WordApi 1.3 (`styleBuiltIn` is language-neutral)                           |
+| `word_insert_html`                                     | W     | D | Insert HTML into the body or the selection                                                           |
+| `word_set_page_setup`                                  | W     | D | Per-section margins and header/footer distances (points)                                             |
+| `word_insert_equation`                                 | W     | D | Insert a native equation (structured nodes, via OOXML)                                               |
+| `word_read_equations`                                  | W     |   | Read equation OOXML for the whole document                                                           |
+| `word_read_selection_paragraph`                        | W     |   | Read the paragraph around the selection and any equation OOXML in it                                 |
+| `word_export_file`                                     | W     |   | Export docx / pdf (base64)                                                                           |
+| `word_insert_image`                                    | W     | D | Insert an image before / after / replacing the selection                                             |
+| `word_transfer_content`                                | W     | D | Move OOXML between selection, body, tables, search hits, headers and footers                         |
+| `apply_style`                                          | W     | D | Apply a built-in style (selection or all)                                                            |
+| `format_selection`                                     | W/E   | D | Format the selection (font, size, bold, italic, colour, highlight)                                   |
+| `set_paragraph_format`                                 | W     | D | Paragraph format (alignment, indent, line spacing, list)                                             |
+| `search`                                               | W     |   | Find text, returns the hits                                                                          |
+| `add_comment` / `read_comments`                        | W/E   | D | Add / read comments                                                                                  |
+| `read_properties`                                      | W/E   |   | Document properties (title, author, word count…)                                                     |
+| `word_list_sections`                                   | W     |   | List sections                                                                                        |
+| `word_read_headers_footers` / `word_set_header_footer` | W     | D | Read / write headers and footers                                                                     |
+| `word_insert_break`                                    | W     | D | Insert a page or section break                                                                       |
+| `word_insert_caption`                                  | W     | D | Insert a caption (static numbering verified; dynamic `SEQ` must be opted into)                       |
+| `locate_select`                                        | W/E   |   | Locate and select (bookmark, named range, text, Excel range) — side-effect free                      |
 
 ### Excel
 
-| action | hosts | D | Purpose |
-|---|---|---|---|
-| `list_sheets` | E | | List worksheets (name, position, visibility) |
-| `read_range` | E | | Read a range (values, formulas, number formats) |
-| `write_range` | E | D | Batch write `values` or `formulas` (chunked above 5000 cells) |
-| `format_range` | E | D | Format a range and read the resulting format back |
-| `insert_chart` | E | D | Data → chart (Column / Line / Bar / Pie / Area / Scatter…) |
-| `add_sheet` / `rename_sheet` / `delete_sheet` | E | D | Worksheet management (`delete_sheet` supports `dryRun`) |
-| `apply_sort` | E | D | Multi-field sort |
-| `apply_filter` | E | D | AutoFilter |
-| `evaluate_formula` | E | | Evaluate expressions such as `SUM(A1:A5, C1:C5)` (whitelist: SUM / AVERAGE / COUNT / MAX / MIN / PRODUCT) |
-| `list_tables` / `create_table` | E | D | Enumerate / create native table objects |
-| `delete_table` / `convert_table_to_range` | E | D | Delete the table and its data / drop the table object but keep the data |
-| `read_conditional_formats` / `add_conditional_format` / `delete_conditional_format` / `clear_conditional_formats` | E | D | Conditional-format lifecycle (ExcelApi 1.6+) |
-| `read_data_validation` / `set_data_validation` / `clear_data_validation` / `validate_data` | E | D | Data-validation lifecycle (1.8+; `validate_data` details need 1.9+) |
+| action                                                                                                            | hosts | D | Purpose                                                                                                   |
+| ----------------------------------------------------------------------------------------------------------------- | ----- | - | --------------------------------------------------------------------------------------------------------- |
+| `list_sheets`                                                                                                     | E     |   | List worksheets (name, position, visibility)                                                              |
+| `read_range`                                                                                                      | E     |   | Read a range (values, formulas, number formats)                                                           |
+| `write_range`                                                                                                     | E     | D | Batch write `values` or `formulas` (chunked above 5000 cells)                                             |
+| `format_range`                                                                                                    | E     | D | Format a range and read the resulting format back                                                         |
+| `insert_chart`                                                                                                    | E     | D | Data → chart (Column / Line / Bar / Pie / Area / Scatter…)                                                |
+| `add_sheet` / `rename_sheet` / `delete_sheet`                                                                     | E     | D | Worksheet management (`delete_sheet` supports `dryRun`)                                                   |
+| `apply_sort`                                                                                                      | E     | D | Multi-field sort                                                                                          |
+| `apply_filter`                                                                                                    | E     | D | AutoFilter                                                                                                |
+| `evaluate_formula`                                                                                                | E     |   | Evaluate expressions such as `SUM(A1:A5, C1:C5)` (whitelist: SUM / AVERAGE / COUNT / MAX / MIN / PRODUCT) |
+| `list_tables` / `create_table`                                                                                    | E     | D | Enumerate / create native table objects                                                                   |
+| `delete_table` / `convert_table_to_range`                                                                         | E     | D | Delete the table and its data / drop the table object but keep the data                                   |
+| `read_conditional_formats` / `add_conditional_format` / `delete_conditional_format` / `clear_conditional_formats` | E     | D | Conditional-format lifecycle (ExcelApi 1.6+)                                                              |
+| `read_data_validation` / `set_data_validation` / `clear_data_validation` / `validate_data`                        | E     | D | Data-validation lifecycle (1.8+; `validate_data` details need 1.9+)                                       |
 
 ### PowerPoint
 
-| action | hosts | D | Purpose |
-|---|---|---|---|
-| `read_slides` | P | | Read the currently selected slide range (use `read_document` for the whole deck) |
-| `ppt_read_notes` | P | | Speaker notes for the whole file (parses OOXML notesSlides) |
-| `ppt_inspect_slides` | P | | Structure snapshot: shape ID, type, name, geometry, z-order, text |
-| `ppt_list_placeholders` | P | | Placeholder types and bounds |
-| `ppt_add_slides` / `ppt_add_elements` | P | D | Batch-create slides, then add editable elements by the returned `slideId` |
-| `ppt_delete_slides` / `ppt_delete_shapes` | P | D | Delete by explicit ID (refuses to empty the deck) |
-| `ppt_insert_image` | P | D | Insert an image (positioned, or into the selection / a placeholder) |
-| `ppt_insert_table` | P | D | Native editable table via PowerPointApi 1.8+ |
-| `ppt_group_shapes` / `ppt_ungroup_shape` / `ppt_set_z_order` | P | D | Group / ungroup / z-order |
-| `ppt_align_shapes` / `ppt_distribute_shapes` | P | D | Align / distribute using deterministic geometry over shape bounds |
-| `ppt_render_slides` | P | | Render slides to PNG |
-| `ppt_export_file` | P | | Native Office export |
+| action                                                       | hosts | D | Purpose                                                                          |
+| ------------------------------------------------------------ | ----- | - | -------------------------------------------------------------------------------- |
+| `read_slides`                                                | P     |   | Read the currently selected slide range (use `read_document` for the whole deck) |
+| `ppt_read_notes`                                             | P     |   | Speaker notes for the whole file (parses OOXML notesSlides)                      |
+| `ppt_inspect_slides`                                         | P     |   | Structure snapshot: shape ID, type, name, geometry, z-order, text                |
+| `ppt_list_placeholders`                                      | P     |   | Placeholder types and bounds                                                     |
+| `ppt_add_slides` / `ppt_add_elements`                        | P     | D | Batch-create slides, then add editable elements by the returned `slideId`        |
+| `ppt_delete_slides` / `ppt_delete_shapes`                    | P     | D | Delete by explicit ID (refuses to empty the deck)                                |
+| `ppt_insert_image`                                           | P     | D | Insert an image (positioned, or into the selection / a placeholder)              |
+| `ppt_insert_table`                                           | P     | D | Native editable table via PowerPointApi 1.8+                                     |
+| `ppt_group_shapes` / `ppt_ungroup_shape` / `ppt_set_z_order` | P     | D | Group / ungroup / z-order                                                        |
+| `ppt_align_shapes` / `ppt_distribute_shapes`                 | P     | D | Align / distribute using deterministic geometry over shape bounds                |
+| `ppt_render_slides`                                          | P     |   | Render slides to PNG                                                             |
+| `ppt_export_file`                                            | P     |   | Native Office export                                                             |
 
 ### Boundaries
 
@@ -229,7 +247,7 @@ The bridge listens on `127.0.0.1`, but **listening on loopback is not security b
 - **No `Access-Control-Allow-*` headers at all** (no wildcard CORS)
 - **A request that carries `Origin` must have `Origin` equal to the service's own origin**, otherwise `403 forbidden_origin`
 - **The `Host` header is validated**, which blocks DNS rebinding (when an attacker's domain resolves to 127.0.0.1, `Host` still carries the attacker's domain)
-- **Static files are allow-listed**: only the five files the pane needs are served. `manifest.xml`, `*.ps1`, `capabilities.json` and `package.json` are not on the HTTP surface
+- **Static files are allow-listed**: only the five files the pane needs are served. `manifest.xml`, `*.ps1`, `capabilities.json` and `package.json` are not on the HTTP surface (nor are `i18n/*.json` — they are assembled per language and returned through `/office/i18n`, which is protected by the same origin check as the rest of `/office/*`)
 
 Requests without an `Origin` (local curl, or an agent calling through pwsh) pass through — those are the intended callers.
 
@@ -264,20 +282,21 @@ Restart the bridge and it takes effect (hot reload — no need to reopen the pan
 
 ## Troubleshooting
 
-| Symptom | What to do |
-|---|---|
-| Pane shows "bridge not connected" | Check the plugin is "running" in the settings panel, or `curl http://127.0.0.1:3000/office/status` |
-| Commands time out | The add-in is offline: make sure the document is open and the pane says connected |
-| Commands return `addin_offline` immediately | The pane is closed: open the document → Home / Developer → Add-ins → Developer Add-ins → open "DSH Office 执行器" |
-| The pane never appears | Windows: make sure the bridge has run at least once (it does the registration), then **close and reopen** the document; also check Office is not running as administrator (loopback exemptions require a normal-privilege process) |
-| Edited `server/actions/*` but nothing changed | Restart the bridge (the pane hot-reloads itself) |
-| Edited `taskpane.js` but nothing changed | Restart the bridge, then wait for the next heartbeat (≤5s) to reload the pane; if it still does not, reopen the pane |
-| The pane cannot connect after changing the port | Close and reopen your Office documents (the add-in URL lives in the manifest and has to be reloaded) |
-| Edits land in the wrong place | Check the cursor / selection is where you expect; watch the execution log at the bottom of the pane |
+| Symptom                                         | What to do                                                                                                                                                                                                                         |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pane shows "bridge not connected"               | Check the plugin is "running" in the settings panel, or `curl http://127.0.0.1:3000/office/status`                                                                                                                                 |
+| Commands time out                               | The add-in is offline: make sure the document is open and the pane says connected                                                                                                                                                  |
+| Commands return `addin_offline` immediately     | The pane is closed: open the document → Home / Developer → Add-ins → Developer Add-ins → open "DSH Office 执行器"                                                                                                                     |
+| The pane never appears                          | Windows: make sure the bridge has run at least once (it does the registration), then **close and reopen** the document; also check Office is not running as administrator (loopback exemptions require a normal-privilege process) |
+| Edited `server/actions/*` but nothing changed   | Restart the bridge (the pane hot-reloads itself)                                                                                                                                                                                   |
+| Edited `taskpane.js` but nothing changed        | Restart the bridge, then wait for the next heartbeat (≤5s) to reload the pane; if it still does not, reopen the pane                                                                                                               |
+| The pane cannot connect after changing the port | Close and reopen your Office documents (the add-in URL lives in the manifest and has to be reloaded)                                                                                                                               |
+| Edits land in the wrong place                   | Check the cursor / selection is where you expect; watch the execution log at the bottom of the pane                                                                                                                                |
 
 ## Notes for AI callers
 
 The full error table is available at `GET /office/errors` (each code comes with handling advice and whether it is retryable).
+
 
 - Call `GET /office/status` first and confirm the target document's instance is online with a fresh heartbeat
 - **`instance` is required** — omitting it with several documents open lets the wrong one execute the command
@@ -286,27 +305,27 @@ The full error table is available at `GET /office/errors` (each code comes with 
 - On `rejected`, stop and respect the user's decision; do not resend
 - **"Nothing found" is not an error**: `search` / `replace_all(dryRun)` return `ok:true + count:0`; report that honestly
 
-| code | Meaning | Handling |
-|---|---|---|
-| `instance_required` | `instance` missing | Look up the instanceId via status and resend |
-| `addin_offline` | Pane closed / offline | Ask the user to open the pane, **do not retry** |
-| `busy` | A command is still running | Retry shortly |
-| `timeout` | No result within 90s | Check status; one retry is reasonable |
-| `bad_json` / `body_too_large` / `bad_args` | Malformed / oversized body, bad arguments | Fix and resend |
-| `unknown_action` | No such action | Check capabilities for the right name |
-| `unsupported_host` | Action does not support this application | Switch action or application |
-| `confirm_required` | User approval needed | Hand it to the pane; never pre-send `confirm:true` |
-| `rejected` | User refused / approval timed out | Stop, **do not resend** |
-| `not_found` | Locate / search target missing | Report honestly, **do not repeat the same lookup** |
-| `readonly` | Document is read-only / in view mode | Tell the user to save an editable copy |
-| `requirement` / `unsupported` | The API is missing in this environment | Report honestly, never fake success |
-| `execution` | Runtime exception | Report the error verbatim |
+| code                                       | Meaning                                   | Handling                                           |
+| ------------------------------------------ | ----------------------------------------- | -------------------------------------------------- |
+| `instance_required`                        | `instance` missing                        | Look up the instanceId via status and resend       |
+| `addin_offline`                            | Pane closed / offline                     | Ask the user to open the pane, **do not retry**    |
+| `busy`                                     | A command is still running                | Retry shortly                                      |
+| `timeout`                                  | No result within 90s                      | Check status; one retry is reasonable              |
+| `bad_json` / `body_too_large` / `bad_args` | Malformed / oversized body, bad arguments | Fix and resend                                     |
+| `unknown_action`                           | No such action                            | Check capabilities for the right name              |
+| `unsupported_host`                         | Action does not support this application  | Switch action or application                       |
+| `confirm_required`                         | User approval needed                      | Hand it to the pane; never pre-send `confirm:true` |
+| `rejected`                                 | User refused / approval timed out         | Stop, **do not resend**                            |
+| `not_found`                                | Locate / search target missing            | Report honestly, **do not repeat the same lookup** |
+| `readonly`                                 | Document is read-only / in view mode      | Tell the user to save an editable copy             |
+| `requirement` / `unsupported`              | The API is missing in this environment    | Report honestly, never fake success                |
+| `execution`                                | Runtime exception                         | Report the error verbatim                          |
 
 ## Development
 
 ```bash
 npm install     # only devDependencies for lint; the plugin itself has no runtime deps
-npm test        # 105 tests
+npm test        # 131 tests
 npm run lint
 npm run check   # lint + test
 
@@ -326,13 +345,13 @@ The server concatenates the fragments in `parts.json` order into **a single scri
 
 Each fragment is a **self-contained IIFE**; they share no lexical scope and exchange everything through `window.__OFFICE_ACTIONS__`:
 
-| Fragment | Mount point |
-|---|---|
-| `runtime.js` | `A.isSetSupported` / `A.validateMatrix` / `A.sleep` / `A.notFound` |
-| `word.js` | `A.hosts.Word = { actions, selectTargets, previewReaders, afterContent, environmentProbe }` |
-| `excel.js` | `A.hosts.Excel = { … }` |
-| `ppt.js` | `A.hosts.PowerPoint = { … }` |
-| `common.js` | `A.hosts.Common = { actions, previewReaders, afterContent }` (host-agnostic, Common API only) |
+| Fragment      | Mount point                                                                                                                            |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `runtime.js`  | `A.isSetSupported` / `A.validateMatrix` / `A.sleep` / `A.notFound`                                                                     |
+| `word.js`     | `A.hosts.Word = { actions, selectTargets, previewReaders, afterContent, environmentProbe }`                                            |
+| `excel.js`    | `A.hosts.Excel = { … }`                                                                                                                |
+| `ppt.js`      | `A.hosts.PowerPoint = { … }`                                                                                                           |
+| `common.js`   | `A.hosts.Common = { actions, previewReaders, afterContent }` (host-agnostic, Common API only)                                          |
 | `registry.js` | Assembly: flatten into the registry, reconcile against `capabilities.json`, expose `__ACTIONS__` / `__EXECUTE__` / `__AFTER_CONTENT__` |
 
 Three boundaries are enforced by tests (`test/actions-boundary.test.mjs`) — they are what makes the split meaningful rather than cosmetic:
@@ -347,8 +366,12 @@ Three boundaries are enforced by tests (`test/actions-boundary.test.mjs`) — th
 
 ## License
 
-[MIT](LICENSE). The license and provenance of the one third-party component (pako) are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE). The license and provenance of the one third-party component (pako) are in [THIRD\_PARTY\_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ---
 
 *Not an official Microsoft product. This project is not affiliated with Microsoft Corporation.*
+
+---
+
+This project is a fork of <https://github.com/Mikuzjc/dsh-office-for-mso>.
