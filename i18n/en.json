@@ -1,0 +1,618 @@
+{
+  "pane": {
+    "title": "DSH Office Runner",
+    "subtitle": "Drives this document from a DSH session",
+    "initializing": "Starting Office…",
+    "connected": "Connected — waiting for DSH commands",
+    "disconnected": "Bridge unreachable, retrying…",
+    "host": "Host",
+    "document": "Document",
+    "documentUntitled": "(unsaved document)",
+    "modeLabel": "Confirm mode for overwriting actions",
+    "modeAsk": "Ask",
+    "modeAuto": "Auto",
+    "modeHint": "Ask: overwriting actions wait for your approval here. Auto: they run immediately and return the before/after state. Keep this pane open.",
+    "logTitle": "Recent activity",
+    "logEmpty": "(empty)",
+    "approvalTitle": "Overwriting action needs approval",
+    "approvalCurrent": "Current",
+    "approvalAfter": "After",
+    "approvalReading": "Reading preview…",
+    "approvalUnavailable": "(preview unavailable)",
+    "approvalWillReplace": "Will replace {count} occurrence(s)",
+    "approvalConfirm": "Apply",
+    "approvalReject": "Reject",
+    "logReady": "Office ready ({host})",
+    "logMode": "Confirm mode: {mode}",
+    "logActionsUpdated": "actions hot-reloaded: {version}",
+    "logActionsFailed": "⚠️ actions hot-reload failed (version mismatch or not executed), will retry",
+    "logVersionCheckFailed": "⚠️ actions version check failed: {message}",
+    "logPendingApproval": "Awaiting approval: {action}",
+    "logExecuting": "Running: {action} {args}",
+    "logDone": "Done: {action}",
+    "logFailed": "Failed: {action} → {error}",
+    "logReloading": "Pane code changed, reloading…",
+    "rejectMessage": "The user rejected this action in the task pane",
+    "timeoutMessage": "Approval timed out with no response; cancelled"
+  },
+  "server": {
+    "messages": {
+      "forbiddenOrigin": "Cross-origin request rejected: this bridge only serves its own add-in page and local callers",
+      "notFound": "not found",
+      "unknownEndpoint": "unknown endpoint",
+      "badJson": "request body is not valid JSON",
+      "bodyTooLarge": "request body exceeds the limit (max {max} bytes)",
+      "actionRequired": "action required",
+      "invalidHost": "invalid host: {host} (valid: {valid})",
+      "instanceRequired": "An add-in instance is required (instanceId): call GET /office/status first and pick the target from `instances` (identify the document by docUrl), then resend with `instance`. With several documents open, omitting it makes the wrong document execute the command.",
+      "busy": "a command is already pending (the previous one is still executing); retry shortly",
+      "addinOfflineInstanceMissing": "No such add-in instance (instanceId={instance}): make sure the task pane is open in the target document, or re-read /office/status for the current instance",
+      "addinOfflineStale": "That add-in instance is offline (its task pane was closed): reopen the task pane in that document",
+      "addinOfflineHost": "The \"{host}\" task pane is not open: open the document and enable \"DSH Office Runner\" under Home/Developer → Add-ins → Developer Add-ins, keep it open, then retry",
+      "timeout": "timeout: no add-in heartbeat or execution result",
+      "confirmModeInvalid": "confirmMode must be \"auto\" or \"ask\"",
+      "unknownCommandId": "unknown or expired commandId",
+      "addInError": "the add-in returned an error",
+      "actionsBundleUnavailable": "failed to assemble the actions bundle: {message}",
+      "logManifestWriteFailed": "could not write the runtime manifest, skipping auto-registration: {message}",
+      "logNonWindows": "not Windows, skipping add-in auto-registration; load the manifest by hand: {manifest}",
+      "logManifestNoId": "manifest.xml has no <Id>, skipping auto-registration",
+      "logRegistered": "add-in registered (WEF: {guid}) → {url}",
+      "logPortChanged": "if the port just changed, close and reopen your Office documents to refresh the pane",
+      "logRegisterFailed": "add-in auto-registration failed (run sideload.ps1 manually); the manifest is at {manifest}",
+      "logRegisterSkipped": "add-in auto-registration skipped: {message}",
+      "logListening": "listening on {url}",
+      "logTaskpaneUrl": "add-in taskpane: {url}",
+      "logCommandEndpoint": "command endpoint: POST /office/command (timeout {timeout}ms, host/instance routed)",
+      "logCapabilityCount": "capabilities: {count} actions",
+      "logBridgeAnnounced": "bridge announcement → {file}",
+      "logBridgeAnnounceFailed": "could not write the bridge announcement: {message}"
+    },
+    "errors": {
+      "instance_required": {
+        "meaning": "The command has no `instance` (with several documents open you must name the target instance)",
+        "action": "Call GET /office/status and pick the target from `instances` (identify the document by docUrl), then resend with `instance`"
+      },
+      "addin_offline": {
+        "meaning": "The target task pane is not open, or has gone offline",
+        "action": "Ask the user to open the \"DSH Office Runner\" pane in that document; do not retry"
+      },
+      "busy": {
+        "meaning": "The previous command is still executing (the queue is occupied)",
+        "action": "Wait a moment and resend the same command"
+      },
+      "bad_json": {
+        "meaning": "The request body is not valid JSON",
+        "action": "Check the POST body format and resend"
+      },
+      "body_too_large": {
+        "meaning": "The request body exceeds the server limit (64 MiB by default)",
+        "action": "Shrink the body (write in batches, or use a smaller image/HTML payload) and resend"
+      },
+      "bad_args": {
+        "meaning": "Missing or invalid arguments (no action, invalid host, missing required parameter)",
+        "action": "Fix the arguments as the error text describes and resend"
+      },
+      "timeout": {
+        "meaning": "The command produced no result before the deadline (90s by default)",
+        "action": "Call GET /office/status to confirm the pane is online; retry once if it is, otherwise ask the user to reopen the pane"
+      },
+      "unknown_action": {
+        "meaning": "No such action name",
+        "action": "Call GET /office/capabilities for the supported names and resend with the right one"
+      },
+      "unsupported_host": {
+        "meaning": "That action is not supported in the current application (e.g. `search` is Word-only)",
+        "action": "Switch to a supported action or a different application, as the error text describes"
+      },
+      "confirm_required": {
+        "meaning": "In ask mode an overwriting action needs the user's approval",
+        "action": "Show `result.preview` to the user and wait for them to approve in the Office pane (the pane attaches confirm:true). The AI must never send confirm:true on its own"
+      },
+      "rejected": {
+        "meaning": "The user rejected the action in the pane (or approval timed out, which counts as rejection)",
+        "action": "Stop, respect the decision, and offer an alternative; do not resend"
+      },
+      "not_found": {
+        "meaning": "The locate/search target does not exist (bookmark, text, named range, range address, …)",
+        "action": "Tell the user honestly that nothing was found and do not repeat the same lookup; suggest different keywords or a different anchor"
+      },
+      "readonly": {
+        "meaning": "The document is read-only or in view mode, so overwriting actions were refused",
+        "action": "Tell the user the document is read-only and to save an editable copy or switch to edit mode; do not retry"
+      },
+      "requirement": {
+        "meaning": "The current Office environment lacks the required API (e.g. the comments API is unavailable)",
+        "action": "Tell the user honestly that the feature is unavailable here; never fake success"
+      },
+      "unsupported": {
+        "meaning": "That argument combination is not supported in this environment (e.g. dryRun for Excel replace_all)",
+        "action": "Use a supported call shape, as the error text describes"
+      },
+      "execution": {
+        "meaning": "An exception occurred during execution",
+        "action": "Report the error to the user verbatim; if it is an Office.js environment limitation, judge from the error text"
+      }
+    },
+    "semantics": [
+      {
+        "scope": "search / replace_all(dryRun)",
+        "behavior": "No matches returns ok:true + count:0 (not an error)",
+        "action": "Tell the user nothing was found; do not retry"
+      },
+      {
+        "scope": "read_* / list_* / read_range",
+        "behavior": "Empty content returns ok:true + an empty array/string (not an error)",
+        "action": "Just handle the empty result normally"
+      },
+      {
+        "scope": "read_selection (Word, no selection)",
+        "behavior": "Returns the cursor context \"left | right\" (| = cursor position); not an error",
+        "action": "Treat it as cursor-position information"
+      },
+      {
+        "scope": "Overwriting writes (executed after confirm)",
+        "behavior": "A successful result carries previousState/afterState/document",
+        "action": "Verify the write against afterState/document instead of trusting it blindly"
+      }
+    ]
+  },
+  "capabilities": {
+    "read_selection": {
+      "args": {
+        "withStyles": "boolean, optional: also return styling"
+      }
+    },
+    "write_selection": {
+      "args": {
+        "text": "string, required: text that replaces the selection"
+      }
+    },
+    "read_document": {
+      "args": {
+        "sheet": "string, optional (Excel): worksheet name"
+      }
+    },
+    "replace_all": {
+      "args": {
+        "search": "string, required",
+        "replace": "string, required",
+        "dryRun": "boolean, optional: only return the hit count, do not execute"
+      }
+    },
+    "append_text": {
+      "args": {
+        "text": "string, required: paragraph appended at the end of the document"
+      }
+    },
+    "set_table_borders": {
+      "args": {
+        "color": "string, required: #RRGGBB",
+        "tableIndexes": "number[], optional: 1-based, defaults to all tables",
+        "locations": "array of Top|Bottom|Left|Right|InsideHorizontal|InsideVertical, optional",
+        "enableGrid": "boolean, optional: apply TableGrid first so the full grid exists"
+      }
+    },
+    "set_font": {
+      "args": {
+        "font": "string, required: font family name"
+      }
+    },
+    "word_list_paragraphs": {
+      "args": {
+        "filter": "all|empty|nonEmpty, optional, defaults to all"
+      }
+    },
+    "word_delete_paragraphs": {
+      "args": {
+        "targets": "array, required: [{index,expectedText}], index is 0-based"
+      }
+    },
+    "insert_paragraph": {
+      "args": {
+        "text": "string, required",
+        "style": "string, optional: built-in style such as Heading1",
+        "location": "string, optional: end|start|afterSelection|afterSelectionParagraph"
+      }
+    },
+    "insert_table": {
+      "args": {
+        "rows": "array, required: rectangular 2-D array, at most 1000 rows / 63 columns / 10000 cells",
+        "location": "string, optional: start|end|beforeSelection|afterSelection",
+        "style": "string, optional: localized/custom table style name only",
+        "styleBuiltIn": "string, optional: language-neutral built-in style enum, e.g. GridTable4_Accent1; cannot be combined with style",
+        "headerRow": "boolean, optional: treat the first row as a header row"
+      }
+    },
+    "word_insert_html": {
+      "args": {
+        "html": "string, required: 8 MiB max",
+        "target": "body|selection, optional, defaults to body",
+        "mode": "replace|append|prepend|before|after, optional, defaults to append"
+      }
+    },
+    "word_set_page_setup": {
+      "args": {
+        "sections": "all|number[], optional: 0-based, defaults to all",
+        "topMargin": "number, optional (points)",
+        "bottomMargin": "number, optional (points)",
+        "leftMargin": "number, optional (points)",
+        "rightMargin": "number, optional (points)",
+        "headerDistance": "number, optional (points)",
+        "footerDistance": "number, optional (points)"
+      }
+    },
+    "word_insert_equation": {
+      "args": {
+        "expression": "structured equation node: text|group|fraction|subscript|superscript",
+        "target": "object, optional: {kind:selection|body|search,query/occurrence/matchCase/matchWholeWord}; occurrence is 0-based",
+        "mode": "replace|before|after|prepend|append, optional, defaults to after",
+        "display": "boolean, optional: defaults to true"
+      }
+    },
+    "word_export_file": {
+      "args": {
+        "type": "docx|pdf, defaults to docx"
+      }
+    },
+    "word_insert_image": {
+      "args": {
+        "base64": "string, required: PNG/JPEG base64",
+        "mode": "before|after|replace, optional, defaults to after",
+        "width": "number, optional (px)",
+        "height": "number, optional (px)"
+      }
+    },
+    "word_transfer_content": {
+      "args": {
+        "source": "object, required: {kind:selection|table|search,index/query/occurrence/matchCase}",
+        "destination": "object, required: {kind:selection|body|header|footer,section/type}",
+        "operation": "copy|move, optional, defaults to copy",
+        "mode": "replace|append|prepend|before|after, optional, defaults to append",
+        "expectedText": "string, optional: verify the source text before writing",
+        "overwrite": "boolean, optional: must be true to replace a non-empty target"
+      }
+    },
+    "apply_style": {
+      "args": {
+        "style": "string, required: Heading1 / Title / Normal, …",
+        "scope": "string, optional: selection|all"
+      }
+    },
+    "format_selection": {
+      "args": {
+        "font": "string, optional",
+        "size": "number, optional",
+        "bold": "boolean, optional",
+        "italic": "boolean, optional",
+        "color": "string, optional (#RRGGBB)",
+        "highlight": "string, optional (Word)"
+      }
+    },
+    "set_paragraph_format": {
+      "args": {
+        "alignment": "string, optional: left|center|right|justify",
+        "indent": "number, optional (cm)",
+        "lineSpacing": "number, optional",
+        "listType": "string, optional: bulleted|numbered|none"
+      }
+    },
+    "search": {
+      "args": {
+        "query": "string, required",
+        "matchCase": "boolean, optional",
+        "wildcard": "boolean, optional: use wildcards"
+      }
+    },
+    "add_comment": {
+      "args": {
+        "text": "string, required",
+        "selectionText": "string, optional (Word): comment on the selection containing this text",
+        "cell": "string, optional (Excel): A1 cell address"
+      }
+    },
+    "word_list_sections": {
+      "args": {
+        "textLimit": "number, optional"
+      }
+    },
+    "word_read_headers_footers": {
+      "args": {
+        "section": "number|all",
+        "types": "array of primary|firstPage|evenPages"
+      }
+    },
+    "word_set_header_footer": {
+      "args": {
+        "kind": "header|footer",
+        "section": "number|all",
+        "type": "primary|firstPage|evenPages",
+        "text": "string",
+        "mode": "replace|append|prepend"
+      }
+    },
+    "word_insert_break": {
+      "args": {
+        "type": "page|line|sectionNext|sectionContinuous|sectionEven|sectionOdd",
+        "location": "start|end|beforeSelection|afterSelection"
+      }
+    },
+    "word_insert_caption": {
+      "description": "Static numbering needs WordApi 1.1+; a dynamic SEQ field needs WordApi 1.5+ (unavailable on this machine)",
+      "args": {
+        "label": "string",
+        "title": "string",
+        "sequenceId": "ASCII identifier",
+        "dynamic": "boolean, optional, defaults to false; true attempts a dynamic SEQ field",
+        "number": "number, optional: static numbering starts at 1",
+        "position": "beforeSelection|afterSelection",
+        "separator": "string, optional"
+      }
+    },
+    "read_range": {
+      "args": {
+        "address": "string, required: Sheet!A1:B10",
+        "limit": "number, optional: maximum number of cells"
+      }
+    },
+    "write_range": {
+      "args": {
+        "address": "string, required",
+        "values": "array, optional: 2-D array",
+        "formulas": "array, optional: 2-D array (A1 formulas)"
+      }
+    },
+    "format_range": {
+      "args": {
+        "address": "string, required",
+        "font": "string, optional",
+        "size": "number, optional",
+        "bold": "boolean, optional",
+        "fill": "string, optional (#RRGGBB)",
+        "numberFormat": "string, optional",
+        "autoFit": "boolean, optional",
+        "tableStyle": "string, optional (e.g. TableStyleMedium2)",
+        "tableName": "required when tableStyle is set"
+      }
+    },
+    "insert_chart": {
+      "args": {
+        "type": "string, required: Line|Column|Bar|Pie|Area|Scatter, …",
+        "dataRange": "string, required: Sheet!A1:B10",
+        "title": "string, optional"
+      }
+    },
+    "add_sheet": {
+      "args": {
+        "name": "string, required"
+      }
+    },
+    "rename_sheet": {
+      "args": {
+        "oldName": "string, required",
+        "newName": "string, required"
+      }
+    },
+    "delete_sheet": {
+      "args": {
+        "name": "string, required",
+        "dryRun": "boolean, optional"
+      }
+    },
+    "apply_sort": {
+      "args": {
+        "address": "string, required",
+        "fields": "array, required: [{column:1,ascending:true}]"
+      }
+    },
+    "apply_filter": {
+      "args": {
+        "address": "string, required",
+        "columns": "array, optional: [{column,filterType,criteria}]"
+      }
+    },
+    "evaluate_formula": {
+      "args": {
+        "formula": "string, required: e.g. SUM(A1:A10)"
+      }
+    },
+    "list_tables": {
+      "args": {
+        "sheet": "string, optional",
+        "includeValues": "boolean, optional",
+        "limit": "number, optional"
+      }
+    },
+    "create_table": {
+      "args": {
+        "address": "string",
+        "hasHeaders": "boolean",
+        "name": "string, optional",
+        "style": "string, optional"
+      }
+    },
+    "delete_table": {
+      "args": {
+        "name": "string"
+      }
+    },
+    "convert_table_to_range": {
+      "args": {
+        "name": "string"
+      }
+    },
+    "read_conditional_formats": {
+      "args": {
+        "address": "string"
+      }
+    },
+    "add_conditional_format": {
+      "args": {
+        "address": "string",
+        "type": "Custom|CellValue|ContainsText",
+        "rule": "object",
+        "format": "object, optional"
+      }
+    },
+    "delete_conditional_format": {
+      "args": {
+        "address": "string",
+        "id": "string"
+      }
+    },
+    "clear_conditional_formats": {
+      "args": {
+        "address": "string"
+      }
+    },
+    "read_data_validation": {
+      "args": {
+        "address": "string"
+      }
+    },
+    "set_data_validation": {
+      "args": {
+        "address": "string",
+        "rule": "object, a single validation type",
+        "ignoreBlanks": "boolean, optional",
+        "errorAlert": "object, optional",
+        "prompt": "object, optional"
+      }
+    },
+    "clear_data_validation": {
+      "args": {
+        "address": "string"
+      }
+    },
+    "validate_data": {
+      "description": "details needs ExcelApi 1.9+",
+      "args": {
+        "address": "string",
+        "details": "boolean, optional"
+      }
+    },
+    "read_slides": {
+      "description": "Reads the currently selected slide range, not the whole deck; use read_document for the whole presentation"
+    },
+    "ppt_add_slides": {
+      "args": {
+        "count": "number, optional: 1-50, defaults to 1",
+        "clearPlaceholders": "boolean, optional: defaults to false"
+      }
+    },
+    "ppt_add_elements": {
+      "args": {
+        "slideId": "string, required: target slide ID",
+        "coordinateSpace": "object, required: element design coordinates {width,height}",
+        "targetSize": "object, required: real target size in points {width,height}",
+        "elements": "array, required: text|shape|line elements; shared x/y/w/h; text supports font/size/color/bold/italic/align/valign/margins/autoFit/runs, shape supports shapeType/fill/lineColor, line supports connectorType/color/lineWidth/dashStyle"
+      }
+    },
+    "ppt_delete_slides": {
+      "args": {
+        "slideIds": "string[], required: exact slide IDs; refuses to delete every slide"
+      }
+    },
+    "ppt_delete_shapes": {
+      "args": {
+        "slideId": "string, required",
+        "shapeIds": "string[], required: exact shape IDs; returns the remaining IDs after deletion"
+      }
+    },
+    "ppt_render_slides": {
+      "args": {
+        "width": "number, optional: PNG width, defaults to 960",
+        "height": "number, optional: PNG height, defaults to 540"
+      }
+    },
+    "ppt_inspect_slides": {
+      "args": {
+        "slideIds": "string[], optional"
+      }
+    },
+    "ppt_list_placeholders": {
+      "args": {
+        "slideId": "string, optional"
+      }
+    },
+    "ppt_insert_image": {
+      "args": {
+        "base64": "string",
+        "mode": "positioned|selectionOrPlaceholder",
+        "left": "number",
+        "top": "number",
+        "width": "number, optional",
+        "height": "number, optional"
+      }
+    },
+    "ppt_insert_table": {
+      "description": "style needs PowerPointApi 1.9+",
+      "args": {
+        "slideId": "string",
+        "values": "rectangular 2-D array",
+        "left": "number, optional",
+        "top": "number, optional",
+        "width": "number, optional",
+        "height": "number, optional",
+        "style": "PowerPoint.TableStyle enum string, optional, e.g. MediumStyle2Accent1"
+      }
+    },
+    "ppt_group_shapes": {
+      "args": {
+        "slideId": "string",
+        "shapeIds": "string[]",
+        "name": "string, optional"
+      }
+    },
+    "ppt_ungroup_shape": {
+      "args": {
+        "slideId": "string",
+        "groupShapeId": "string"
+      }
+    },
+    "ppt_set_z_order": {
+      "args": {
+        "slideId": "string",
+        "shapeIds": "string[]",
+        "operation": "BringForward|BringToFront|SendBackward|SendToBack"
+      }
+    },
+    "ppt_align_shapes": {
+      "args": {
+        "slideId": "string",
+        "shapeIds": "string[]",
+        "mode": "left|center|right|top|middle|bottom"
+      }
+    },
+    "ppt_distribute_shapes": {
+      "args": {
+        "slideId": "string",
+        "shapeIds": "string[]",
+        "mode": "horizontal|vertical"
+      }
+    },
+    "get_document_info": {
+      "args": {
+        "keys": "array, optional: settings keys to read (e.g. [\"lang\",\"theme\"])"
+      }
+    },
+    "set_setting": {
+      "args": {
+        "key": "string, required: the settings key",
+        "value": "any, required: any JSON value (persisted with the document, readable across sessions)"
+      }
+    },
+    "locate_select": {
+      "args": {
+        "bookmark": "string, optional: Word bookmark / Excel named range",
+        "anchor": "string, optional: same as bookmark",
+        "text": "string, optional: locate the first matching text",
+        "range": "string, optional (Excel): A1:B5 or Sheet!A1:B5",
+        "address": "string, optional (Excel): same as range",
+        "sheet": "string, optional (Excel): the worksheet to use",
+        "blinks": "number, optional: number of blinks (0 = select and hold; 1-5 blinks)",
+        "interval": "number, optional: blink interval in ms (default 300, 100-800)"
+      }
+    }
+  }
+}

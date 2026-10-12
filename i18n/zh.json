@@ -1,0 +1,618 @@
+{
+  "pane": {
+    "title": "DSH Office 执行器",
+    "subtitle": "在 DSH 会话里操控这份文档",
+    "initializing": "正在初始化 Office…",
+    "connected": "已连接：等待 DSH 指令",
+    "disconnected": "桥接服务未连接，等待重试…",
+    "host": "宿主",
+    "document": "文档",
+    "documentUntitled": "(未保存的文档)",
+    "modeLabel": "覆盖操作确认模式",
+    "modeAsk": "审批模式",
+    "modeAuto": "自动模式",
+    "modeHint": "审批模式：覆盖类操作先在此确认。自动模式：直接执行，结果附修改前后状态。窗格须保持开启。",
+    "logTitle": "最近执行日志",
+    "logEmpty": "(空)",
+    "approvalTitle": "待确认的覆盖操作",
+    "approvalCurrent": "当前状态",
+    "approvalAfter": "修改后",
+    "approvalReading": "读取预览中…",
+    "approvalUnavailable": "(预览不可用)",
+    "approvalWillReplace": "将替换 {count} 处",
+    "approvalConfirm": "更改",
+    "approvalReject": "拒绝",
+    "logReady": "Office 就绪（{host}）",
+    "logMode": "确认模式：{mode}",
+    "logActionsUpdated": "actions 已热更新：{version}",
+    "logActionsFailed": "⚠️ actions 热更新失败（版本不匹配或未执行），将重试",
+    "logVersionCheckFailed": "⚠️ actions 版本检查失败：{message}",
+    "logPendingApproval": "待审批：{action}",
+    "logExecuting": "执行：{action} {args}",
+    "logDone": "完成：{action}",
+    "logFailed": "失败：{action} → {error}",
+    "logReloading": "检测到窗格代码已更新，自动重载…",
+    "rejectMessage": "用户在窗格拒绝了该操作",
+    "timeoutMessage": "审批超时未操作，已取消"
+  },
+  "server": {
+    "messages": {
+      "forbiddenOrigin": "跨来源请求被拒绝：本桥接服务只服务它自己的加载项页面和本机调用方",
+      "notFound": "未找到",
+      "unknownEndpoint": "未知端点",
+      "badJson": "请求体不是合法 JSON",
+      "bodyTooLarge": "请求体超过上限（最大 {max} 字节）",
+      "actionRequired": "缺少 action",
+      "invalidHost": "非法的 host: {host}（可选: {valid}）",
+      "instanceRequired": "必须指定加载项实例（instanceId）：先 GET /office/status 查看 instances（按 docUrl 识别目标文档），带 instance 重发；多文档时未指定实例会导致指令被错误文档执行",
+      "busy": "上一条指令仍在执行中，请稍后重试",
+      "addinOfflineInstanceMissing": "指定的加载项实例不存在（instanceId={instance}）：请确认目标文档的窗格已开启，或重新查 /office/status 获取当前实例",
+      "addinOfflineStale": "指定的加载项实例已离线（窗格关闭）：请重新打开该文档的窗格",
+      "addinOfflineHost": "「{host}」加载项窗格未开启：请打开该文档，并在 开始/开发人员 → 加载项 → 开发人员加载项 中打开「DSH Office 执行器」窗格并保持开启，然后重试",
+      "timeout": "超时：没有收到加载项心跳或执行结果",
+      "confirmModeInvalid": "confirmMode 只能是 \"auto\" 或 \"ask\"",
+      "unknownCommandId": "commandId 未知或已过期",
+      "addInError": "加载项返回了错误",
+      "actionsBundleUnavailable": "actions 分片拼装失败：{message}",
+      "logManifestWriteFailed": "无法生成运行期清单，跳过自动注册: {message}",
+      "logNonWindows": "非 Windows 平台，跳过加载项自动注册；手动加载清单：{manifest}",
+      "logManifestNoId": "manifest.xml 缺少 <Id>，跳过自动注册",
+      "logRegistered": "加载项已注册 (WEF: {guid}) → {url}",
+      "logPortChanged": "若端口刚变更，请关闭并重新打开 Office 文档以刷新窗格",
+      "logRegisterFailed": "加载项自动注册失败（可手动运行 sideload.ps1）；清单在 {manifest}",
+      "logRegisterSkipped": "加载项自动注册跳过: {message}",
+      "logListening": "监听 {url}",
+      "logTaskpaneUrl": "加载项窗格: {url}",
+      "logCommandEndpoint": "指令端点: POST /office/command（超时 {timeout}ms，按 host/instance 路由）",
+      "logCapabilityCount": "能力表: {count} 个 action",
+      "logBridgeAnnounced": "端口公告 → {file}",
+      "logBridgeAnnounceFailed": "端口公告写入失败: {message}"
+    },
+    "errors": {
+      "instance_required": {
+        "meaning": "指令缺少 instance 参数（多文档必须指定目标实例）",
+        "action": "GET /office/status 查看 instances（按 docUrl 识别目标文档），带 instance 重发"
+      },
+      "addin_offline": {
+        "meaning": "目标加载项窗格未开启或已离线",
+        "action": "提醒用户打开对应文档的「DSH Office 执行器」窗格；不要重试"
+      },
+      "busy": {
+        "meaning": "上一条指令仍在执行中（队列占用）",
+        "action": "稍等片刻后重发同一条指令"
+      },
+      "bad_json": {
+        "meaning": "请求体不是合法 JSON",
+        "action": "检查 POST body 格式后重发"
+      },
+      "body_too_large": {
+        "meaning": "请求体超过服务端上限（默认 64 MiB）",
+        "action": "缩小请求体（如分批写入、改用更小的图片/HTML）后重发"
+      },
+      "bad_args": {
+        "meaning": "参数缺失或非法（如缺 action、host 非法、缺必填参数）",
+        "action": "按 error 文本修正参数后重发"
+      },
+      "timeout": {
+        "meaning": "指令发出后超时未返回（默认 90s）",
+        "action": "GET /office/status 确认窗格在线；在线可重试一次，仍超时提醒用户重开窗格"
+      },
+      "unknown_action": {
+        "meaning": "action 名称不存在",
+        "action": "GET /office/capabilities 查看支持的 action 名，用正确名称重发"
+      },
+      "unsupported_host": {
+        "meaning": "该 action 不支持当前应用（如 search 仅 Word）",
+        "action": "按 error 文本换用支持的 action 或换应用"
+      },
+      "confirm_required": {
+        "meaning": "ask 模式下覆盖类操作需用户审批",
+        "action": "把 result.preview 展示给用户；等待用户在 Office 窗格批准（窗格会附加 confirm:true）。AI 不得预先发送 confirm:true"
+      },
+      "rejected": {
+        "meaning": "用户在窗格拒绝了该操作（或审批超时视为拒绝）",
+        "action": "停止该操作、尊重用户决定，可询问替代方案；不要重发"
+      },
+      "not_found": {
+        "meaning": "定位/查找目标不存在（书签、文本、命名区域、区域地址等）",
+        "action": "把「未找到」如实告知用户，不要重试同一查找；可建议换关键词或换定位方式"
+      },
+      "readonly": {
+        "meaning": "文档处于只读/查看模式，覆盖类操作被拒绝",
+        "action": "告知用户文档为只读，请另存为可编辑副本或切换编辑模式后重试；不要重试"
+      },
+      "requirement": {
+        "meaning": "当前 Office 环境缺少所需 API（如批注 API 不可用）",
+        "action": "如实告知用户该功能在当前环境不可用，绝不假装成功"
+      },
+      "unsupported": {
+        "meaning": "该参数组合在当前环境不支持（如 Excel replace_all 的 dryRun）",
+        "action": "按 error 文本换用支持的调用方式"
+      },
+      "execution": {
+        "meaning": "执行期异常",
+        "action": "把 error 原样报告给用户；若为 Office.js 环境限制，按 error 文本判断"
+      }
+    },
+    "semantics": [
+      {
+        "scope": "search / replace_all(dryRun)",
+        "behavior": "无命中返回 ok:true + count:0（非错误）",
+        "action": "把「未找到」告知用户，不要重试"
+      },
+      {
+        "scope": "read_* / list_* / read_range",
+        "behavior": "空内容返回 ok:true + 空数组/空字符串（非错误）",
+        "action": "正常处理空结果即可"
+      },
+      {
+        "scope": "read_selection（Word 无选区）",
+        "behavior": "返回光标上下文 \"左 | 右\"（| = 光标位置），非错误",
+        "action": "把它当作光标位置信息使用"
+      },
+      {
+        "scope": "覆盖类写入（confirm 后执行）",
+        "behavior": "成功结果附 previousState/afterState/document",
+        "action": "用 afterState/document 核验写入结果，不盲目信任"
+      }
+    ]
+  },
+  "capabilities": {
+    "read_selection": {
+      "args": {
+        "withStyles": "boolean 可选：同时返回样式"
+      }
+    },
+    "write_selection": {
+      "args": {
+        "text": "string 必填：替换选区的文本"
+      }
+    },
+    "read_document": {
+      "args": {
+        "sheet": "string 可选(Excel)：指定工作表名"
+      }
+    },
+    "replace_all": {
+      "args": {
+        "search": "string 必填",
+        "replace": "string 必填",
+        "dryRun": "boolean 可选：仅返回命中数不执行"
+      }
+    },
+    "append_text": {
+      "args": {
+        "text": "string 必填：文末追加段落"
+      }
+    },
+    "set_table_borders": {
+      "args": {
+        "color": "string 必填：#RRGGBB",
+        "tableIndexes": "number[] 可选：从1开始，默认全部",
+        "locations": "Top|Bottom|Left|Right|InsideHorizontal|InsideVertical 数组，可选",
+        "enableGrid": "boolean 可选：先应用 TableGrid 以启用完整网格"
+      }
+    },
+    "set_font": {
+      "args": {
+        "font": "string 必填：字体名"
+      }
+    },
+    "word_list_paragraphs": {
+      "args": {
+        "filter": "all|empty|nonEmpty 可选，默认 all"
+      }
+    },
+    "word_delete_paragraphs": {
+      "args": {
+        "targets": "array 必填：[{index,expectedText}]，index 从0开始"
+      }
+    },
+    "insert_paragraph": {
+      "args": {
+        "text": "string 必填",
+        "style": "string 可选：内置样式如 Heading1",
+        "location": "string 可选：end|start|afterSelection|afterSelectionParagraph"
+      }
+    },
+    "insert_table": {
+      "args": {
+        "rows": "array 必填：矩形二维数组，最多1000行/63列/10000单元格",
+        "location": "string 可选：start|end|beforeSelection|afterSelection",
+        "style": "string 可选：仅本地化/自定义表格样式名",
+        "styleBuiltIn": "string 可选：跨语言内置样式枚举，如 GridTable4_Accent1；不可与 style 同用",
+        "headerRow": "boolean 可选：首行为标题行"
+      }
+    },
+    "word_insert_html": {
+      "args": {
+        "html": "string 必填：最大 8 MiB",
+        "target": "body|selection 可选，默认 body",
+        "mode": "replace|append|prepend|before|after 可选，默认 append"
+      }
+    },
+    "word_set_page_setup": {
+      "args": {
+        "sections": "all|number[] 可选：从0开始，默认 all",
+        "topMargin": "number 可选(points)",
+        "bottomMargin": "number 可选(points)",
+        "leftMargin": "number 可选(points)",
+        "rightMargin": "number 可选(points)",
+        "headerDistance": "number 可选(points)",
+        "footerDistance": "number 可选(points)"
+      }
+    },
+    "word_insert_equation": {
+      "args": {
+        "expression": "结构化公式节点：text|group|fraction|subscript|superscript",
+        "target": "object 可选：{kind:selection|body|search,query/occurrence/matchCase/matchWholeWord}，occurrence 从0开始",
+        "mode": "replace|before|after|prepend|append 可选，默认 after",
+        "display": "boolean 可选：默认 true"
+      }
+    },
+    "word_export_file": {
+      "args": {
+        "type": "docx|pdf，默认 docx"
+      }
+    },
+    "word_insert_image": {
+      "args": {
+        "base64": "string 必填：PNG/JPEG base64",
+        "mode": "before|after|replace 可选，默认 after",
+        "width": "number 可选(px)",
+        "height": "number 可选(px)"
+      }
+    },
+    "word_transfer_content": {
+      "args": {
+        "source": "object 必填：{kind:selection|table|search,index/query/occurrence/matchCase}",
+        "destination": "object 必填：{kind:selection|body|header|footer,section/type}",
+        "operation": "copy|move 可选，默认 copy",
+        "mode": "replace|append|prepend|before|after 可选，默认 append",
+        "expectedText": "string 可选：写前核对源文本",
+        "overwrite": "boolean 可选：替换非空目标时须 true"
+      }
+    },
+    "apply_style": {
+      "args": {
+        "style": "string 必填：Heading1/标题 1/正文等",
+        "scope": "string 可选：selection|all"
+      }
+    },
+    "format_selection": {
+      "args": {
+        "font": "string 可选",
+        "size": "number 可选",
+        "bold": "boolean 可选",
+        "italic": "boolean 可选",
+        "color": "string 可选(#RRGGBB)",
+        "highlight": "string 可选(Word)"
+      }
+    },
+    "set_paragraph_format": {
+      "args": {
+        "alignment": "string 可选：left|center|right|justify",
+        "indent": "number 可选(cm)",
+        "lineSpacing": "number 可选",
+        "listType": "string 可选：bulleted|numbered|none"
+      }
+    },
+    "search": {
+      "args": {
+        "query": "string 必填",
+        "matchCase": "boolean 可选",
+        "wildcard": "boolean 可选：通配符"
+      }
+    },
+    "add_comment": {
+      "args": {
+        "text": "string 必填",
+        "selectionText": "string 可选(Word)：给含该文本的选区加批注",
+        "cell": "string 可选(Excel)：A1 单元格"
+      }
+    },
+    "word_list_sections": {
+      "args": {
+        "textLimit": "number 可选"
+      }
+    },
+    "word_read_headers_footers": {
+      "args": {
+        "section": "number|all",
+        "types": "primary|firstPage|evenPages 数组"
+      }
+    },
+    "word_set_header_footer": {
+      "args": {
+        "kind": "header|footer",
+        "section": "number|all",
+        "type": "primary|firstPage|evenPages",
+        "text": "string",
+        "mode": "replace|append|prepend"
+      }
+    },
+    "word_insert_break": {
+      "args": {
+        "type": "page|line|sectionNext|sectionContinuous|sectionEven|sectionOdd",
+        "location": "start|end|beforeSelection|afterSelection"
+      }
+    },
+    "word_insert_caption": {
+      "description": "静态编号需 WordApi 1.1+；动态 SEQ 需 WordApi 1.5+（本机不可用）",
+      "args": {
+        "label": "string",
+        "title": "string",
+        "sequenceId": "ASCII identifier",
+        "dynamic": "boolean 可选，默认 false；true 尝试动态 SEQ",
+        "number": "number 可选，静态编号默认 1",
+        "position": "beforeSelection|afterSelection",
+        "separator": "string 可选"
+      }
+    },
+    "read_range": {
+      "args": {
+        "address": "string 必填：Sheet!A1:B10",
+        "limit": "number 可选：最大格数"
+      }
+    },
+    "write_range": {
+      "args": {
+        "address": "string 必填",
+        "values": "array 可选：二维数组",
+        "formulas": "array 可选：二维数组(A1 公式)"
+      }
+    },
+    "format_range": {
+      "args": {
+        "address": "string 必填",
+        "font": "string 可选",
+        "size": "number 可选",
+        "bold": "boolean 可选",
+        "fill": "string 可选(#RRGGBB)",
+        "numberFormat": "string 可选",
+        "autoFit": "boolean 可选",
+        "tableStyle": "string 可选(如 TableStyleMedium2)",
+        "tableName": "设置 tableStyle 时必填"
+      }
+    },
+    "insert_chart": {
+      "args": {
+        "type": "string 必填：Line|Column|Bar|Pie|Area|Scatter 等",
+        "dataRange": "string 必填：Sheet!A1:B10",
+        "title": "string 可选"
+      }
+    },
+    "add_sheet": {
+      "args": {
+        "name": "string 必填"
+      }
+    },
+    "rename_sheet": {
+      "args": {
+        "oldName": "string 必填",
+        "newName": "string 必填"
+      }
+    },
+    "delete_sheet": {
+      "args": {
+        "name": "string 必填",
+        "dryRun": "boolean 可选"
+      }
+    },
+    "apply_sort": {
+      "args": {
+        "address": "string 必填",
+        "fields": "array 必填：[{column:1,ascending:true}]"
+      }
+    },
+    "apply_filter": {
+      "args": {
+        "address": "string 必填",
+        "columns": "array 可选：[{column,filterType,criteria}]"
+      }
+    },
+    "evaluate_formula": {
+      "args": {
+        "formula": "string 必填：如 SUM(A1:A10)"
+      }
+    },
+    "list_tables": {
+      "args": {
+        "sheet": "string 可选",
+        "includeValues": "boolean 可选",
+        "limit": "number 可选"
+      }
+    },
+    "create_table": {
+      "args": {
+        "address": "string",
+        "hasHeaders": "boolean",
+        "name": "string 可选",
+        "style": "string 可选"
+      }
+    },
+    "delete_table": {
+      "args": {
+        "name": "string"
+      }
+    },
+    "convert_table_to_range": {
+      "args": {
+        "name": "string"
+      }
+    },
+    "read_conditional_formats": {
+      "args": {
+        "address": "string"
+      }
+    },
+    "add_conditional_format": {
+      "args": {
+        "address": "string",
+        "type": "Custom|CellValue|ContainsText",
+        "rule": "object",
+        "format": "object 可选"
+      }
+    },
+    "delete_conditional_format": {
+      "args": {
+        "address": "string",
+        "id": "string"
+      }
+    },
+    "clear_conditional_formats": {
+      "args": {
+        "address": "string"
+      }
+    },
+    "read_data_validation": {
+      "args": {
+        "address": "string"
+      }
+    },
+    "set_data_validation": {
+      "args": {
+        "address": "string",
+        "rule": "object 单一验证类型",
+        "ignoreBlanks": "boolean 可选",
+        "errorAlert": "object 可选",
+        "prompt": "object 可选"
+      }
+    },
+    "clear_data_validation": {
+      "args": {
+        "address": "string"
+      }
+    },
+    "validate_data": {
+      "description": "details 需 ExcelApi 1.9+",
+      "args": {
+        "address": "string",
+        "details": "boolean 可选"
+      }
+    },
+    "read_slides": {
+      "description": "读取当前选中的幻灯片范围（不是全文件页数）；整份演示文稿用 read_document"
+    },
+    "ppt_add_slides": {
+      "args": {
+        "count": "number 可选：1-50，默认1",
+        "clearPlaceholders": "boolean 可选：默认 false"
+      }
+    },
+    "ppt_add_elements": {
+      "args": {
+        "slideId": "string 必填：目标幻灯片 ID",
+        "coordinateSpace": "object 必填：元素设计坐标 {width,height}",
+        "targetSize": "object 必填：实际目标尺寸 points {width,height}",
+        "elements": "array 必填：text|shape|line 元素；通用 x/y/w/h，文本支持 font/size/color/bold/italic/align/valign/margins/autoFit/runs，shape 支持 shapeType/fill/lineColor，line 支持 connectorType/color/lineWidth/dashStyle"
+      }
+    },
+    "ppt_delete_slides": {
+      "args": {
+        "slideIds": "string[] 必填：精确幻灯片 ID；拒绝删除全部页面"
+      }
+    },
+    "ppt_delete_shapes": {
+      "args": {
+        "slideId": "string 必填",
+        "shapeIds": "string[] 必填：精确 shape ID；删除后返回剩余 IDs"
+      }
+    },
+    "ppt_render_slides": {
+      "args": {
+        "width": "number 可选：PNG宽度，默认960",
+        "height": "number 可选：PNG高度，默认540"
+      }
+    },
+    "ppt_inspect_slides": {
+      "args": {
+        "slideIds": "string[] 可选"
+      }
+    },
+    "ppt_list_placeholders": {
+      "args": {
+        "slideId": "string 可选"
+      }
+    },
+    "ppt_insert_image": {
+      "args": {
+        "base64": "string",
+        "mode": "positioned|selectionOrPlaceholder",
+        "left": "number",
+        "top": "number",
+        "width": "number 可选",
+        "height": "number 可选"
+      }
+    },
+    "ppt_insert_table": {
+      "description": "style 需 PowerPointApi 1.9+",
+      "args": {
+        "slideId": "string",
+        "values": "矩形二维数组",
+        "left": "number 可选",
+        "top": "number 可选",
+        "width": "number 可选",
+        "height": "number 可选",
+        "style": "PowerPoint.TableStyle 枚举字符串可选，如 MediumStyle2Accent1"
+      }
+    },
+    "ppt_group_shapes": {
+      "args": {
+        "slideId": "string",
+        "shapeIds": "string[]",
+        "name": "string 可选"
+      }
+    },
+    "ppt_ungroup_shape": {
+      "args": {
+        "slideId": "string",
+        "groupShapeId": "string"
+      }
+    },
+    "ppt_set_z_order": {
+      "args": {
+        "slideId": "string",
+        "shapeIds": "string[]",
+        "operation": "BringForward|BringToFront|SendBackward|SendToBack"
+      }
+    },
+    "ppt_align_shapes": {
+      "args": {
+        "slideId": "string",
+        "shapeIds": "string[]",
+        "mode": "left|center|right|top|middle|bottom"
+      }
+    },
+    "ppt_distribute_shapes": {
+      "args": {
+        "slideId": "string",
+        "shapeIds": "string[]",
+        "mode": "horizontal|vertical"
+      }
+    },
+    "get_document_info": {
+      "args": {
+        "keys": "array 可选：要读取的 settings 键列表（如 [\"lang\",\"theme\"]）"
+      }
+    },
+    "set_setting": {
+      "args": {
+        "key": "string 必填：设置键",
+        "value": "any 必填：任意 JSON 值（随文档持久化，跨会话可读）"
+      }
+    },
+    "locate_select": {
+      "args": {
+        "bookmark": "string 可选：Word 书签 / Excel 命名区域名",
+        "anchor": "string 可选：同 bookmark",
+        "text": "string 可选：定位首个匹配文本",
+        "range": "string 可选(Excel)：A1:B5 或 Sheet!A1:B5",
+        "address": "string 可选(Excel)：同 range",
+        "sheet": "string 可选(Excel)：指定工作表",
+        "blinks": "number 可选：闪烁次数(默认0=只选中保持,1-5才闪)",
+        "interval": "number 可选：间隔ms(默认300,100-800)"
+      }
+    }
+  }
+}

@@ -37,34 +37,69 @@ let CONFIRM_MODE = process.env.OFFICE_CONFIRM_MODE || 'ask';
 // 改能力表只改 capabilities.json；actions 分片里只放实现，不再重复 hosts/destructive。
 const CAPABILITIES = require('./capabilities.json');
 
+// ---- 文案（i18n）----
+// 结构与文案分离：capabilities.json 只留代码真正依赖的元数据（name/hosts/destructive），
+// 给人看、给 AI 看的文字全在 i18n/<lang>.json。这样改一句参数说明不会动到决定
+// 「平台校验」和「审批拦截」的数据，而且「加了 action 却忘了写说明」变成一个可测的缺口。
+const I18N_DIR = path.join(__dirname, '..', 'i18n');
+const LANGS = ['zh', 'en'];
+const I18N = {};
+for (const lang of LANGS) I18N[lang] = JSON.parse(fs.readFileSync(path.join(I18N_DIR, `${lang}.json`), 'utf8'));
+
+// 语言探测优先级：?lang= → Accept-Language → 环境变量 OFFICE_LANG → 系统区域 → zh。
+// 判定规则与项目其余部分一致：en* 用英文，其余一律中文（不做「不认识就回退英文」）。
+function normalizeLang(value) {
+  if (typeof value !== 'string') return null;
+  const tag = value.trim().toLowerCase();
+  if (tag.startsWith('en')) return 'en';
+  if (tag.startsWith('zh')) return 'zh';
+  return null;
+}
+const DEFAULT_LANG =
+  normalizeLang(process.env.OFFICE_LANG)
+  || normalizeLang(Intl.DateTimeFormat().resolvedOptions().locale)
+  || 'zh';
+
+function langOf(url, req) {
+  return normalizeLang(url.searchParams.get('lang'))
+    || normalizeLang(req.headers['accept-language'])
+    || DEFAULT_LANG;
+}
+
+/** 取服务端文案；{name} 占位符用 vars 替换。 */
+function msg(lang, key, vars) {
+  let text = (I18N[lang] && I18N[lang].server.messages[key]) || key;
+  if (vars) for (const k of Object.keys(vars)) text = text.split('{' + k + '}').join(String(vars[k]));
+  return text;
+}
+
 // ---- 错误码注册表（供 AI 层 GET /office/errors 发现：code/含义/应如何处理/是否可重试）----
+// 这里只放结构（code/layer/retry）；含义与处理建议是文案，按请求语言从 i18n 取。
 // layer: server=桥接服务入口校验；addin=加载项执行。retry: true=修好后可重发；false=不要无脑重试。
 const ERROR_CODES = [
-  { code: 'instance_required', layer: 'server', meaning: '指令缺少 instance 参数（多文档必须指定目标实例）', aiAction: 'GET /office/status 查看 instances（按 docUrl 识别目标文档），带 instance 重发', retry: true },
-  { code: 'addin_offline', layer: 'server', meaning: '目标加载项窗格未开启或已离线', aiAction: '提醒用户打开对应文档的「DSH Office 执行器」窗格；不要重试', retry: false },
-  { code: 'busy', layer: 'server', meaning: '上一条指令仍在执行中（队列占用）', aiAction: '稍等片刻后重发同一条指令', retry: true },
-  { code: 'bad_json', layer: 'server', meaning: '请求体不是合法 JSON', aiAction: '检查 POST body 格式后重发', retry: true },
-  { code: 'body_too_large', layer: 'server', meaning: '请求体超过服务端上限（默认 64 MiB）', aiAction: '缩小请求体（如分批写入、改用更小的图片/HTML）后重发', retry: true },
-  { code: 'bad_args', layer: 'server|addin', meaning: '参数缺失或非法（如缺 action、host 非法、缺必填参数）', aiAction: '按 error 文本修正参数后重发', retry: true },
-  { code: 'timeout', layer: 'server', meaning: '指令发出后超时未返回（默认 90s）', aiAction: 'GET /office/status 确认窗格在线；在线可重试一次，仍超时提醒用户重开窗格', retry: true },
-  { code: 'unknown_action', layer: 'addin', meaning: 'action 名称不存在', aiAction: 'GET /office/capabilities 查看支持的 action 名，用正确名称重发', retry: true },
-  { code: 'unsupported_host', layer: 'addin', meaning: '该 action 不支持当前应用（如 search 仅 Word）', aiAction: '按 error 文本换用支持的 action 或换应用', retry: true },
-  { code: 'confirm_required', layer: 'addin', meaning: 'ask 模式下覆盖类操作需用户审批', aiAction: '把 result.preview 展示给用户；等待用户在 Office 窗格批准（窗格会附加 confirm:true）。AI 不得预先发送 confirm:true', retry: true },
-  { code: 'rejected', layer: 'addin', meaning: '用户在窗格拒绝了该操作（或审批超时视为拒绝）', aiAction: '停止该操作、尊重用户决定，可询问替代方案；不要重发', retry: false },
-  { code: 'not_found', layer: 'addin', meaning: '定位/查找目标不存在（书签、文本、命名区域、区域地址等）', aiAction: '把「未找到」如实告知用户，不要重试同一查找；可建议换关键词或换定位方式', retry: false },
-  { code: 'readonly', layer: 'addin', meaning: '文档处于只读/查看模式，覆盖类操作被拒绝', aiAction: '告知用户文档为只读，请另存为可编辑副本或切换编辑模式后重试；不要重试', retry: false },
-  { code: 'requirement', layer: 'addin', meaning: '当前 Office 环境缺少所需 API（如批注 API 不可用）', aiAction: '如实告知用户该功能在当前环境不可用，绝不假装成功', retry: false },
-  { code: 'unsupported', layer: 'addin', meaning: '该参数组合在当前环境不支持（如 Excel replace_all 的 dryRun）', aiAction: '按 error 文本换用支持的调用方式', retry: true },
-  { code: 'execution', layer: 'addin', meaning: '执行期异常', aiAction: '把 error 原样报告给用户；若为 Office.js 环境限制，按 error 文本判断', retry: false },
+  { code: 'instance_required', layer: 'server', retry: true },
+  { code: 'addin_offline', layer: 'server', retry: false },
+  { code: 'busy', layer: 'server', retry: true },
+  { code: 'bad_json', layer: 'server', retry: true },
+  { code: 'body_too_large', layer: 'server', retry: true },
+  { code: 'bad_args', layer: 'server|addin', retry: true },
+  { code: 'timeout', layer: 'server', retry: true },
+  { code: 'unknown_action', layer: 'addin', retry: true },
+  { code: 'unsupported_host', layer: 'addin', retry: true },
+  { code: 'confirm_required', layer: 'addin', retry: true },
+  { code: 'rejected', layer: 'addin', retry: false },
+  { code: 'not_found', layer: 'addin', retry: false },
+  { code: 'readonly', layer: 'addin', retry: false },
+  { code: 'requirement', layer: 'addin', retry: false },
+  { code: 'unsupported', layer: 'addin', retry: true },
+  { code: 'execution', layer: 'addin', retry: false },
 ];
 
-// ---- 结果语义约定（"无匹配"不是错误：只读/查找类空结果 = ok:true + count:0/空数组）----
-const RESULT_SEMANTICS = [
-  { scope: 'search / replace_all(dryRun)', behavior: '无命中返回 ok:true + count:0（非错误）', aiAction: '把「未找到」告知用户，不要重试' },
-  { scope: 'read_* / list_* / read_range', behavior: '空内容返回 ok:true + 空数组/空字符串（非错误）', aiAction: '正常处理空结果即可' },
-  { scope: 'read_selection（Word 无选区）', behavior: '返回光标上下文 "左 | 右"（| = 光标位置），非错误', aiAction: '把它当作光标位置信息使用' },
-  { scope: '覆盖类写入（confirm 后执行）', behavior: '成功结果附 previousState/afterState/document', aiAction: '用 afterState/document 核验写入结果，不盲目信任' },
-];
+/** 错误码 + 该语言的含义/处理建议。结果语义约定（"无匹配"≠错误）整条都是文案，直接从 i18n 取。 */
+function errorCatalog(lang) {
+  const dict = I18N[lang].server.errors;
+  return ERROR_CODES.map((e) => ({ ...e, meaning: dict[e.code].meaning, aiAction: dict[e.code].action }));
+}
 
 // ---- 指令队列（一次只处理一条，先到先得）----
 let pending = null;        // { commandId, action, args, host, instance, resolve, timer }  host/instance: null = 任意
@@ -128,12 +163,20 @@ function stateDir() {
   return path.join(home, 'dsh-office-for-mso');
 }
 
-// 代码版本：taskpane.js 的 mtime（毫秒）。窗格心跳比对发现不一致 → 自动 reload，无需手动重开窗格。
+// 代码版本：taskpane.js 与 i18n 字典的 mtime 最大值（毫秒）。
+// 窗格心跳比对发现不一致 → 自动 reload，无需手动重开窗格。
+// 把 i18n 一起算进来，是因为改文案（i18n/*.json）后窗格必须重新取字典，
+// 否则会出现「改了文案但窗格没反应」——这与改 taskpane.js 是同一类问题，所以用同一个机制。
+const CODE_VERSION_FILES = [
+  path.join(ROOT, 'taskpane.js'),
+  ...LANGS.map((l) => path.join(I18N_DIR, `${l}.json`)),
+];
 function getCodeVersion() {
-  try {
-    const st = fs.statSync(path.join(ROOT, 'taskpane.js'));
-    return String(st.mtimeMs);
-  } catch (e) { return '0'; }
+  let max = 0;
+  for (const file of CODE_VERSION_FILES) {
+    try { max = Math.max(max, fs.statSync(file).mtimeMs); } catch (e) { /* 缺文件时忽略 */ }
+  }
+  return String(max);
 }
 
 // actions 版本：**所有分片** mtime 的最大值（毫秒），与 /office/actions-version 一致。
@@ -184,11 +227,11 @@ function ensureSideloaded() {
   try {
     manifest = writeRuntimeManifest(PORT);
   } catch (e) {
-    console.log('[dsh-office-for-mso] 无法生成运行期清单，跳过自动注册:', e.message);
+    console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logManifestWriteFailed', { message: e.message })}`);
     return;
   }
   if (process.platform !== 'win32') {
-    console.log(`[dsh-office-for-mso] 非 Windows 平台，跳过加载项自动注册；手动加载清单：${manifest}`);
+    console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logNonWindows', { manifest })}`);
     return;
   }
   const { spawnSync } = require('node:child_process');
@@ -196,18 +239,18 @@ function ensureSideloaded() {
   try {
     const xml = fs.readFileSync(manifest, 'utf8');
     const m = xml.match(/<Id>\s*([0-9a-fA-F-]{36})\s*<\/Id>/);
-    if (!m) { console.log('[dsh-office-for-mso] manifest.xml 缺少 <Id>，跳过自动注册'); return; }
+    if (!m) { console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logManifestNoId')}`); return; }
     const guid = m[1];
     const key = 'HKCU\\Software\\Microsoft\\Office\\16.0\\WEF\\Developer';
     // Always refresh the registry value so a port change rewrites the path Office reads.
     if (reg(['add', key, '/v', guid, '/t', 'REG_SZ', '/d', manifest, '/f'])) {
-      console.log(`[dsh-office-for-mso] 加载项已注册 (WEF: ${guid}) → http://127.0.0.1:${PORT}/taskpane.html`);
-      console.log('[dsh-office-for-mso] 若端口刚变更，请关闭并重新打开 Office 文档以刷新窗格');
+      console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logRegistered', { guid, url: `http://127.0.0.1:${PORT}/taskpane.html` })}`);
+      console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logPortChanged')}`);
     } else {
-      console.log(`[dsh-office-for-mso] 加载项自动注册失败（可手动运行 sideload.ps1）；清单在 ${manifest}`);
+      console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logRegisterFailed', { manifest })}`);
     }
   } catch (e) {
-    console.log('[dsh-office-for-mso] 加载项自动注册跳过:', e.message);
+    console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logRegisterSkipped', { message: e.message })}`);
   }
 }
 
@@ -255,12 +298,12 @@ function readBody(req) {
 }
 
 // 统一的 body 读取失败应答：区分「太大」和「不是 JSON」
-function sendBodyError(res, error) {
+function sendBodyError(res, error, lang) {
   if (error && error.code === 'body_too_large') {
     // 请求体没读完就回包，这条连接不能再复用（否则剩余字节会被当成下一个请求）
-    sendJson(res, 413, { ok: false, code: 'body_too_large', error: error.message }, { connection: 'close' });
+    sendJson(res, 413, { ok: false, code: 'body_too_large', error: msg(lang, 'bodyTooLarge', { max: MAX_BODY_BYTES }) }, { connection: 'close' });
   } else {
-    sendJson(res, 400, { ok: false, code: 'bad_json', error: 'bad json' });
+    sendJson(res, 400, { ok: false, code: 'bad_json', error: msg(lang, 'badJson') });
   }
 }
 
@@ -274,10 +317,12 @@ function pruneInstances(now) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
   const p = url.pathname;
+  // 本次请求的应答语言（决定所有错误文案与能力表说明用哪种语言）
+  const lang = langOf(url, req);
 
   // ---- 来源校验：任何请求都必须来自本机自身来源（或本机无 Origin 的 agent 调用）----
   if (!isLocalRequest(req)) {
-    sendJson(res, 403, { ok: false, code: 'forbidden_origin', error: 'cross-origin request rejected: this bridge only serves its own add-in page and local callers' });
+    sendJson(res, 403, { ok: false, code: 'forbidden_origin', error: msg(lang, 'forbiddenOrigin') });
     return;
   }
 
@@ -285,7 +330,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && !p.startsWith('/office/')) {
     let file = '';
     try { file = p === '/' ? 'taskpane.html' : decodeURIComponent(p.slice(1)); } catch { /* 非法百分号编码 → 走 404 */ }
-    if (!STATIC_FILES.has(file)) { sendJson(res, 404, { error: 'not found' }); return; }
+    if (!STATIC_FILES.has(file)) { sendJson(res, 404, { error: msg(lang, 'notFound') }); return; }
     // user-actions.js：用户定制文件（gitignore）；不存在时返回空对象，保证窗格总能加载
     if (file === 'user-actions.js') {
       const ua = path.join(ROOT, 'user-actions.js');
@@ -304,7 +349,7 @@ const server = http.createServer(async (req, res) => {
       catch (e) {
         // 拼不出来就说清楚是哪一段缺了，而不是给窗格一个空脚本（那会表现成「所有 action 都不认识」）
         res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
-        res.end(`actions bundle unavailable: ${String(e && e.message || e)}\n`);
+        res.end(msg(lang, 'actionsBundleUnavailable', { message: String(e && e.message || e) }) + '\n');
         return;
       }
       res.writeHead(200, { 'Content-Type': MIME['.js'], 'Cache-Control': 'no-store' });
@@ -328,7 +373,7 @@ const server = http.createServer(async (req, res) => {
       fs.createReadStream(full).pipe(res);
       return;
     }
-    sendJson(res, 404, { error: 'not found' });
+    sendJson(res, 404, { error: msg(lang, 'notFound') });
     return;
   }
 
@@ -337,34 +382,34 @@ const server = http.createServer(async (req, res) => {
   // POST /office/command —— DSH 侧发指令，同步等待结果；body.host 可选（Word/Excel/PowerPoint），缺省=任意文档
   if (req.method === 'POST' && p === '/office/command') {
     let body;
-    try { body = await readBody(req); } catch (e) { sendBodyError(res, e); return; }
-    if (!body.action || typeof body.action !== 'string') { sendJson(res, 400, { ok: false, code: 'bad_args', error: 'action required' }); return; }
+    try { body = await readBody(req); } catch (e) { sendBodyError(res, e, lang); return; }
+    if (!body.action || typeof body.action !== 'string') { sendJson(res, 400, { ok: false, code: 'bad_args', error: msg(lang, 'actionRequired') }); return; }
     const host = body.host && typeof body.host === 'string' ? body.host : null;
-    if (host && !VALID_HOSTS.includes(host)) { sendJson(res, 400, { ok: false, code: 'bad_args', error: `invalid host: ${host} (valid: ${VALID_HOSTS.join('/')})` }); return; }
+    if (host && !VALID_HOSTS.includes(host)) { sendJson(res, 400, { ok: false, code: 'bad_args', error: msg(lang, 'invalidHost', { host, valid: VALID_HOSTS.join('/') }) }); return; }
     const instance = body.instance && typeof body.instance === 'string' ? body.instance : null; // 必填：指定加载项实例（多文档精确路由，防误执行）
     if (!instance) {
-      sendJson(res, 200, { ok: false, code: 'instance_required', error: '必须指定加载项实例（instanceId）：先 GET /office/status 查看 instances（按 docUrl 识别目标文档），带 instance 重发；多文档时未指定实例会导致指令被错误文档执行' });
+      sendJson(res, 200, { ok: false, code: 'instance_required', error: msg(lang, 'instanceRequired') });
       return;
     }
-    if (pending) { sendJson(res, 409, { ok: false, code: 'busy', error: 'a command is already pending (previous command still executing); retry shortly' }); return; }
+    if (pending) { sendJson(res, 409, { ok: false, code: 'busy', error: msg(lang, 'busy') }); return; }
     // 快速失败：目标 host/instance 窗格不在线时立即返回明确错误（而不是傻等 90s 超时）
     const now = Date.now();
     pruneInstances(now);
     if (!instances[instance]) {
-      sendJson(res, 200, { ok: false, code: 'addin_offline', error: `指定的加载项实例不存在（instanceId=${instance}）：请确认目标文档的窗格已开启，或重新查 /office/status 获取当前实例` });
+      sendJson(res, 200, { ok: false, code: 'addin_offline', error: msg(lang, 'addinOfflineInstanceMissing', { instance }) });
       return;
     }
     if (now - instances[instance].lastBeat > OFFLINE_MS) {
-      sendJson(res, 200, { ok: false, code: 'addin_offline', error: '指定的加载项实例已离线（窗格关闭）：请重新打开该文档的窗格' });
+      sendJson(res, 200, { ok: false, code: 'addin_offline', error: msg(lang, 'addinOfflineStale') });
       return;
     }
     if (host && (!heartbeats[host] || now - heartbeats[host] > OFFLINE_MS)) {
-      sendJson(res, 200, { ok: false, code: 'addin_offline', error: `「${host}」加载项窗格未开启：请打开该文档，并在 开始/开发人员 → 加载项 → 开发人员加载项 中打开「DSH Office 执行器」窗格并保持开启，然后重试` });
+      sendJson(res, 200, { ok: false, code: 'addin_offline', error: msg(lang, 'addinOfflineHost', { host }) });
       return;
     }
     const commandId = crypto.randomUUID();
     const result = await new Promise((resolve) => {
-      const timer = setTimeout(() => resolve({ ok: false, code: 'timeout', error: 'timeout: no add-in heartbeat or execution', timeout: true }), COMMAND_TIMEOUT_MS);
+      const timer = setTimeout(() => resolve({ ok: false, code: 'timeout', error: msg(lang, 'timeout'), timeout: true }), COMMAND_TIMEOUT_MS);
       pending = { commandId, action: body.action, args: body.args || {}, host, instance, resolve: (r) => { clearTimeout(timer); resolve(r); } };
     });
     if (pending && pending.commandId === commandId) pending = null; // 清理（超时路径）
@@ -387,17 +432,17 @@ const server = http.createServer(async (req, res) => {
   // POST /office/result —— 加载项回传结果
   if (req.method === 'POST' && p === '/office/result') {
     let body;
-    try { body = await readBody(req); } catch (e) { sendBodyError(res, e); return; }
+    try { body = await readBody(req); } catch (e) { sendBodyError(res, e, lang); return; }
     if (pending && pending.commandId === body.commandId) {
       const r = pending.resolve;
       pending = null;
       // 错误也转发 code/result（如 confirm_required 的 result.preview），否则 AI 拿不到预览
       r(body.ok === false
-        ? { ok: false, error: body.error || 'add-in error', code: body.code, result: body.result }
+        ? { ok: false, error: body.error || msg(lang, 'addInError'), code: body.code, result: body.result }
         : { ok: true, result: body.result });
       sendJson(res, 200, { ok: true });
     } else {
-      sendJson(res, 404, { ok: false, error: 'unknown or expired commandId' });
+      sendJson(res, 404, { ok: false, error: msg(lang, 'unknownCommandId') });
     }
     return;
   }
@@ -470,30 +515,44 @@ const server = http.createServer(async (req, res) => {
       CONFIRM_MODE = body.confirmMode;
       sendJson(res, 200, { ok: true, confirmMode: CONFIRM_MODE });
     } else {
-      sendJson(res, 400, { ok: false, code: 'bad_args', error: 'confirmMode must be "auto" or "ask"' });
+      sendJson(res, 400, { ok: false, code: 'bad_args', error: msg(lang, 'confirmModeInvalid') });
     }
     return;
   }
 
-  // GET /office/capabilities —— 能力发现：返回 action 注册表（名称/平台/是否破坏性/参数说明）
+  // GET /office/capabilities —— 能力发现：结构（capabilities.json）+ 该语言的参数说明（i18n）
+  // 对外形状与拆分前一致（name/hosts/destructive/requirement/args/description），只是文案按语言取。
   if (req.method === 'GET' && p === '/office/capabilities') {
-    sendJson(res, 200, { version: '2.0.0', actions: CAPABILITIES });
+    const text = I18N[lang].capabilities;
+    const actions = CAPABILITIES.map((entry) => {
+      const t = text[entry.name];
+      return t ? { ...entry, ...t } : { ...entry };
+    });
+    sendJson(res, 200, { version: '2.0.0', lang, actions });
     return;
   }
 
   // GET /office/errors —— 错误码发现：返回错误码枚举 + 结果语义约定（"无匹配"≠错误）
   if (req.method === 'GET' && p === '/office/errors') {
-    sendJson(res, 200, { version: '1.1.0', codes: ERROR_CODES, semantics: RESULT_SEMANTICS });
+    sendJson(res, 200, { version: '1.1.0', lang, codes: errorCatalog(lang), semantics: I18N[lang].server.semantics });
     return;
   }
 
-  sendJson(res, 404, { error: 'unknown endpoint' });
+  // GET /office/i18n —— 窗格 UI 文案。窗格在 Office.onReady 之后按 Office 界面语言取一次；
+  // 与 /office/* 其余端点一样受来源校验保护，所以不进静态白名单。
+  if (req.method === 'GET' && p === '/office/i18n') {
+    sendJson(res, 200, { lang, pane: I18N[lang].pane });
+    return;
+  }
+
+  sendJson(res, 404, { error: msg(lang, 'unknownEndpoint') });
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`[dsh-office-for-mso] listening on http://127.0.0.1:${PORT}`);
-  console.log(`  add-in taskpane: http://127.0.0.1:${PORT}/taskpane.html`);
-  console.log(`  command endpoint: POST /office/command  (timeout ${COMMAND_TIMEOUT_MS}ms, host/instance routed)`);
-  console.log(`  capabilities: ${CAPABILITIES.length} actions`);
+  const L = DEFAULT_LANG;
+  console.log(`[dsh-office-for-mso] ${msg(L, 'logListening', { url: `http://127.0.0.1:${PORT}` })}`);
+  console.log(`  ${msg(L, 'logTaskpaneUrl', { url: `http://127.0.0.1:${PORT}/taskpane.html` })}`);
+  console.log(`  ${msg(L, 'logCommandEndpoint', { timeout: COMMAND_TIMEOUT_MS })}`);
+  console.log(`  ${msg(L, 'logCapabilityCount', { count: CAPABILITIES.length })}`);
   ensureSideloaded();
 });
