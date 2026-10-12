@@ -115,6 +115,35 @@ describe('package.json 清单', () => {
     }
   });
 
+  test('files 覆盖 i18n 字典（漏掉会让插件装上却起不来）', () => {
+    assert.ok(pkg.files.includes('i18n'), 'files 里必须有 i18n');
+    // 服务端启动时对 LANGS 逐个 JSON.parse：少一个就是启动期直接抛错，
+    // 但打包不会报任何错，所以只能在这里静态兜住。
+    const src = fs.readFileSync(path.join(ROOT, 'server', 'server.js'), 'utf8');
+    const langs = /const LANGS = \[([^\]]*)\]/.exec(src);
+    assert.ok(langs, 'server.js 里找不到 LANGS');
+    const declared = [...langs[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    assert.ok(declared.length >= 2, 'LANGS 至少要有两种语言');
+    for (const lang of declared) {
+      assert.ok(fs.existsSync(path.join(ROOT, 'i18n', `${lang}.json`)),
+        `LANGS 声明了 ${lang} 但没有 i18n/${lang}.json`);
+    }
+  });
+
+  test('README 里引用的相对图片都存在且在白名单内（否则发布包缺图）', () => {
+    for (const readme of ['README.md', 'README.en.md']) {
+      const text = fs.readFileSync(path.join(ROOT, readme), 'utf8');
+      for (const m of text.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)) {
+        const rel = m[1].trim();
+        if (/^[a-z][a-z0-9+.-]*:/i.test(rel)) continue; // 外链 / data: 跳过
+        assert.ok(fs.existsSync(path.join(ROOT, rel)), `${readme} 引用了不存在的 ${rel}`);
+        const top = rel.split('/')[0];
+        assert.ok(pkg.files.includes(top),
+          `${readme} 引用的 ${rel} 不在 files 里 —— 发布包会缺这个文件`);
+      }
+    }
+  });
+
   test('声明了 test / lint 脚本', () => {
     assert.ok(pkg.scripts?.test, '缺 npm test');
     assert.ok(pkg.scripts?.lint, '缺 npm run lint');
