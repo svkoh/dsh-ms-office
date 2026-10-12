@@ -222,6 +222,24 @@ function writeRuntimeManifest(port) {
   return file;
 }
 
+// ---- 把实际端口写成机器可读的公告 ----
+// 端口是可变的（3000 被占会落到备用口），而调用方（agent）看不到插件设置页。
+// 没有这个文件，「不要写死端口」就只是一句无法执行的空话——所以它是那条规则的落点。
+// 与 manifest.xml 一样写在 stateDir()，源码树保持干净。
+function writeBridgeAnnouncement(port) {
+  const file = path.join(stateDir(), 'bridge.json');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const payload = {
+    plugin: 'dsh-office-for-mso',
+    url: `http://127.0.0.1:${port}`,
+    port,
+    pid: process.pid,
+    startedAt: new Date().toISOString(),
+  };
+  fs.writeFileSync(file, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+  return file;
+}
+
 function ensureSideloaded() {
   let manifest;
   try {
@@ -554,5 +572,10 @@ server.listen(PORT, '127.0.0.1', () => {
   console.log(`  ${msg(L, 'logTaskpaneUrl', { url: `http://127.0.0.1:${PORT}/taskpane.html` })}`);
   console.log(`  ${msg(L, 'logCommandEndpoint', { timeout: COMMAND_TIMEOUT_MS })}`);
   console.log(`  ${msg(L, 'logCapabilityCount', { count: CAPABILITIES.length })}`);
+  try {
+    console.log(`  ${msg(L, 'logBridgeAnnounced', { file: writeBridgeAnnouncement(PORT) })}`);
+  } catch (e) {
+    console.log(`  ${msg(L, 'logBridgeAnnounceFailed', { message: e.message })}`);
+  }
   ensureSideloaded();
 });
