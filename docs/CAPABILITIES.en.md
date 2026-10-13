@@ -27,7 +27,7 @@ curl "$(jq -r .url "$DSH_HOME/dsh-office-for-mso/bridge.json")/office/capabiliti
 | ------------------- | ----- | - | ------------------------------------------------------------------------------------- |
 | `read_selection`    | W/E/P |   | Read the selection; `withStyles` adds style details                                   |
 | `write_selection`   | W/E/P | D | Replace the selection with `text`                                                     |
-| `read_document`     | W/E/P |   | Word full text / Excel used range (`sheet` picks a sheet) / PowerPoint per-slide text |
+| `read_document`     | W/E/P |   | Word full text / Excel used range (`sheet` picks a sheet; at most 5000 cells loaded) / PowerPoint per-slide text |
 | `get_environment`   | W/E/P |   | Host version, platform, requirement-set support                                       |
 | `get_document_info` | W/E/P |   | Document url / title / mode (read-only detection) / settings values                   |
 | `set_setting`       | W/E/P | D | Persist a key-value pair in the document (survives sessions)                          |
@@ -62,7 +62,7 @@ curl "$(jq -r .url "$DSH_HOME/dsh-office-for-mso/bridge.json")/office/capabiliti
 | `word_list_sections`                                   | W     |   | List sections                                                                                        |
 | `word_read_headers_footers` / `word_set_header_footer` | W     | D | Read / write headers and footers                                                                     |
 | `word_insert_break`                                    | W     | D | Insert a page or section break                                                                       |
-| `word_insert_caption`                                  | W     | D | Insert a caption (static numbering verified; dynamic `SEQ` must be opted into)                       |
+| `word_insert_caption`                                  | W     | D | Insert a caption (static numbering supported; dynamic `SEQ` must be opted into)                       |
 | `locate_select`                                        | W/E   |   | Locate and select (bookmark, named range, text, Excel range) — side-effect free                      |
 
 ## Excel
@@ -70,7 +70,7 @@ curl "$(jq -r .url "$DSH_HOME/dsh-office-for-mso/bridge.json")/office/capabiliti
 | action                                                                                                            | hosts | D | Purpose                                                                                                   |
 | ----------------------------------------------------------------------------------------------------------------- | ----- | - | --------------------------------------------------------------------------------------------------------- |
 | `list_sheets`                                                                                                     | E     |   | List worksheets (name, position, visibility)                                                              |
-| `read_range`                                                                                                      | E     |   | Read a range (values, formulas, number formats)                                                           |
+| `read_range`                                                                                                      | E     |   | Read a range (values, formulas, number formats), loading at most 5000 cells                                                           |
 | `write_range`                                                                                                     | E     | D | Batch write `values` or `formulas` (chunked above 5000 cells)                                             |
 | `format_range`                                                                                                    | E     | D | Format a range and read the resulting format back                                                         |
 | `insert_chart`                                                                                                    | E     | D | Data → chart (Column / Line / Bar / Pie / Area / Scatter…)                                                |
@@ -82,6 +82,8 @@ curl "$(jq -r .url "$DSH_HOME/dsh-office-for-mso/bridge.json")/office/capabiliti
 | `delete_table` / `convert_table_to_range`                                                                         | E     | D | Delete the table and its data / drop the table object but keep the data                                   |
 | `read_conditional_formats` / `add_conditional_format` / `delete_conditional_format` / `clear_conditional_formats` | E     | D | Conditional-format lifecycle (ExcelApi 1.6+)                                                              |
 | `read_data_validation` / `set_data_validation` / `clear_data_validation` / `validate_data`                        | E     | D | Data-validation lifecycle (1.8+; `validate_data` details need 1.9+)                                       |
+
+Read large sheets in separate regions and check truncation information; the 5000-cell limit applies before actual loading. `apply_filter.column` is 1-based within the target range. Values accepts `criteria:{values:["a"]}` or `criteria:["a"]`; Custom uses condition objects such as `criteria:{criterion1:">2"}`. Check capabilities for the filter-mode argument.
 
 ## PowerPoint
 

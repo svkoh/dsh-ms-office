@@ -41,6 +41,10 @@ For people changing this plugin. Usage lives in the [README](../README.en.md); t
 
 Every pane has its own `instanceId`. `GET /office/status` returns the online documents with `docUrl` (the path, used to tell documents apart) and `docTitle`. Commands must carry `instance`; without it they are refused — that is the mechanism preventing a command from being executed by the wrong document when several are open.
 
+### Commands and health states
+
+See the [integration reference](AGENT.en.md) for the command protocol. The default is `COMMAND_TIMEOUT_MS=180000`; approval lasts at most 120 seconds and cannot exceed `expiresAt`. Every pane execution uses an atomic `/start` claim, and results carry `instance` plus boolean `ok`. External `args.confirm` is ignored; internal approval uses a single-use closure bound to the command. Timeouts during execution become `execution_unknown` and retain the instance slot until a late result arrives, preventing blind retries from duplicating writes. The settings panel distinguishes `starting` / `healthy` / `unhealthy` / `stopped`; a child process being present does not prove availability. Post-write verification failures add `verificationWarnings` instead of misreporting a successful write; complete document readback is not guaranteed.
+
 ### Hot reload
 
 Before each poll the pane compares the version of `/actions.js` (the maximum mtime across all fragments) and reloads it if it changed; the heartbeat also compares the mtime of `server/taskpane.js` and `i18n/*.json` (`codeVersion`) and reloads the whole pane when it changed.
@@ -159,7 +163,7 @@ PORT=3000 node server/server.js
 
 **Bump `version` in `package.json` whenever you change the plugin's bytes** — downstream compares version numbers, and the same version with different bytes is not reinstalled.
 
-**Adding tests**: `node --test`, no framework dependency. There is a ready-made helper that boots the bridge on a random port (`test/helpers/server.mjs`).
+**Adding tests**: `node --test`, no framework dependency. The helper boots the bridge on a random port (`test/helpers/server.mjs`). Test environments must set `OFFICE_SKIP_SIDELOAD=1` to prevent Office add-in registration. Node vm tests use Office stubs and do not establish real Office validation.
 
 ## License
 

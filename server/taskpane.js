@@ -105,7 +105,11 @@ function log(line) {
 
 async function api(path, opts) {
   const r = await fetch(BRIDGE + path, opts);
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  if (!r.ok) {
+    const error = new Error(`HTTP ${r.status}`);
+    error.status = r.status;
+    throw error;
+  }
   return r.json();
 }
 
@@ -307,7 +311,40 @@ function execute(action, args) {
 let confirmMode = 'ask';
 window.__CONFIRM_MODE__ = 'ask';
 let approvalActive = false;
-let approvalPending = null; // { cmd, preview, meta, resolve }
+let approvalPending = null; // 当前审批对象，独立持有 timer / resolve
+let createApprovedExecution = null;
+window.__REGISTER_APPROVAL_EXECUTOR__ = (factory) => { createApprovedExecution = factory; };
+
+function actionMeta(action) {
+  return (window.__USER_ACTIONS__ || {})[action] || (window.__ACTIONS__ || {})[action] || {};
+}
+
+async function startCommand(cmd) {
+  const expiry = typeof cmd.expiresAt === 'number' ? cmd.expiresAt : Date.parse(cmd.expiresAt);
+  if (!Number.isFinite(expiry) || expiry <= Date.now()) {
+    const error = new Error('command expired');
+    error.status = 409;
+    throw error;
+  }
+  const started = await api('/office/commands/' + encodeURIComponent(cmd.commandId) + '/start', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: INSTANCE_ID }),
+  });
+  if (!started || !started.ok || started.commandId !== cmd.commandId || started.status !== 'executing') {
+    throw new Error('command cannot start');
+  }
+}
+
+function postResult(cmd, out) {
+  return api('/office/result', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ commandId: cmd.commandId, instance: INSTANCE_ID, ok: out.ok,
+      result: out.result, error: out.error, code: out.code }),
+  }).catch((e) => {
+    if (e.status === 404 || e.status === 409) return { ok: false, code: 'rejected', error: e.message };
+    throw e;
+  });
+}
 
 function syncModeUI() {
   if (!modeSeg) return;
@@ -336,6 +373,8 @@ function renderApproval() {
   const box = document.getElementById('approval');
   if (!box) return;
   if (!approvalPending) { box.hidden = true; return; }
+  const confirmButton = document.getElementById('approval-confirm');
+  if (confirmButton) confirmButton.disabled = !!approvalPending.reading || !approvalPending.previewOk;
   box.hidden = false;
   document.getElementById('ap-action').textContent =
     `${approvalPending.cmd.action} @ ${approvalPending.cmd.host || hostName()}`;
@@ -370,9 +409,9 @@ function renderApproval() {
 //   replace_all → 选中第一处命中；write_range/format_range → 选中目标区域；
 //   insert_paragraph/append_text → 选中插入点（文末最后一段；afterSelection 保持选区不动）。
 // 无 selectTarget 的动作（如 write_selection 针对当前选区）不动光标。
-// ask 模式由窗格保持审批语义：调用方不应预先传 confirm:true；仅用户点击批准后，窗格才为该次执行附加它。
+// ask 模式由窗格持有一次性批准执行入口；调用方提供的 confirm 参数不授予权限。
 async function locateInsertionPoint(cmd) {
-  const meta = (window.__ACTIONS__ || {})[cmd.action] || {};
+  const meta = actionMeta(cmd.action);
   if (meta.selectTarget) {
     try { await meta.selectTarget(hostName(), cmd.args || {}); } catch (e) { /* 定位失败不影响审批 */ }
   }
@@ -380,45 +419,65 @@ async function locateInsertionPoint(cmd) {
 
 async function showApproval(cmd) {
   approvalActive = true;
-  const meta = (window.__ACTIONS__ || {})[cmd.action] || {};
-  // 先把面板弹出来、预览位置显示"读取中"，再去做 re-read。
-  // 顺序反过来（读完再弹）在大文档上会让用户盯着一个没反应的窗格——re-read 是要跑一趟 Office.js 的。
-  approvalPending = { cmd, preview: null, meta, reading: true };
-  renderApproval();
-  // 预选闪烁必须放在审批面板弹出之后：闪烁在面板之前发生的话，用户看到面板时闪烁早已结束（"没闪"）
-  // 面板已显示 → 再闪烁定位目标（不阻塞审批等待；用户点击确认时闪烁可能未结束，无副作用）
-  locateInsertionPoint(cmd).catch(() => {});
-  const p = await (meta.preview
-    ? Promise.resolve(meta.preview(hostName(), cmd.args || {}))
-    : Promise.resolve(okResult(null))
-  ).catch((e) => errResult('execution', String(e && e.message || e)));
-  approvalPending.preview = p.ok ? p.result : null;
-  approvalPending.reading = false;
-  renderApproval();
-  // 等待用户在窗格点击（确认/拒绝）；审批挂起 120s 未操作 → 自动解除（视为拒绝），防 poll 永久卡死
-  const decision = await new Promise((resolve) => {
-    approvalPending.resolve = resolve;
-    setTimeout(() => { if (approvalPending && approvalPending.resolve) approvalPending.resolve('timeout'); }, 120000);
+  const meta = actionMeta(cmd.action);
+  const pending = { cmd, preview: null, meta, reading: true, previewOk: false, timer: null };
+  approvalPending = pending;
+  const expiry = typeof cmd.expiresAt === 'number' ? cmd.expiresAt : Date.parse(cmd.expiresAt);
+  const remaining = Number.isFinite(expiry) ? Math.max(0, expiry - Date.now()) : 0;
+  const decisionP = new Promise((resolve) => {
+    let settled = false;
+    pending.resolve = (decision) => {
+      if (settled || (decision === 'confirm' && !pending.previewOk)) return;
+      settled = true;
+      clearTimeout(pending.timer);
+      resolve(decision);
+    };
+    pending.timer = setTimeout(() => pending.resolve('timeout'), Math.min(120000, remaining));
   });
-  const { cmd: c } = approvalPending;
-  approvalPending = null;
-  approvalActive = false;
   renderApproval();
-  if (decision === 'reject' || decision === 'timeout') {
-    return api('/office/result', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ commandId: c.commandId, ok: false, error: decision === 'reject' ? t('rejectMessage') : t('timeoutMessage'), code: 'rejected' }),
-    });
+  let out;
+  let reportResult = true;
+  try {
+    const previewP = Promise.resolve().then(async () => {
+      await locateInsertionPoint(cmd);
+      if (approvalPending !== pending) return errResult('rejected', 'approval closed');
+      if (typeof meta.preview !== 'function') return errResult('execution', 'approval preview unavailable');
+      return meta.preview(hostName(), cmd.args || {});
+    }).catch((e) => errResult('execution', String(e && e.message || e)));
+    const first = await Promise.race([
+      previewP.then((preview) => ({ preview })),
+      decisionP.then((decision) => ({ decision })),
+    ]);
+    if (first.decision) {
+      out = errResult('rejected', first.decision === 'reject' ? t('rejectMessage') : t('timeoutMessage'));
+    } else if (!first.preview || !first.preview.ok) {
+      out = errResult(first.preview && first.preview.code || 'execution', first.preview && first.preview.error || 'approval preview failed');
+    } else {
+      pending.preview = first.preview.result;
+      pending.previewOk = true;
+      pending.reading = false;
+      renderApproval();
+      const decision = await decisionP;
+      if (decision !== 'confirm') {
+        out = errResult('rejected', decision === 'reject' ? t('rejectMessage') : t('timeoutMessage'));
+      } else {
+        if (!createApprovedExecution) throw new Error('approval executor unavailable');
+        const runApproved = createApprovedExecution(cmd);
+        try { await startCommand(cmd); }
+        catch (e) { reportResult = false; throw e; }
+        out = await runApproved();
+        if (out.ok && out.result && typeof out.result === 'object') out.result.approvedBy = 'user';
+      }
+    }
+  } catch (e) {
+    out = errResult('rejected', String(e && e.message || e));
+  } finally {
+    clearTimeout(pending.timer);
+    if (approvalPending === pending) approvalPending = null;
+    approvalActive = false;
+    renderApproval();
   }
-  const out = await execute(c.action, Object.assign({}, c.args || {}, { confirm: true }));
-  // 标记：该操作经用户审批后执行（区别于自动模式直行）
-  if (out.ok && out.result && typeof out.result === 'object') out.result.approvedBy = 'user';
-  return api('/office/result', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ commandId: c.commandId, ok: out.ok, result: out.result, error: out.error, code: out.code }),
-  });
+  return reportResult ? postResult(cmd, out) : out;
 }
 
 // ================= 后台循环 =================
@@ -438,23 +497,22 @@ async function poll() {
     const cmd = await api('/office/poll?host=' + encodeURIComponent(host) + '&instance=' + encodeURIComponent(INSTANCE_ID));
     setConnected(); // 轮询成功 = 桥接已连上，恢复状态
     if (cmd && cmd.commandId) {
-      const meta = (window.__ACTIONS__ || {})[cmd.action] || {};
-      if (meta.destructive && confirmMode === 'ask' && !(cmd.args || {}).confirm) {
+      const meta = actionMeta(cmd.action);
+      cmd.args = Object.assign({}, cmd.args || {});
+      delete cmd.args.confirm;
+      if (meta.destructive && confirmMode === 'ask') {
         log(t('logPendingApproval', { action: cmd.action }));
         await showApproval(cmd); // ask 模式：窗格挂起等用户审批
       } else {
         log(t('logExecuting', { action: cmd.action, args: JSON.stringify(cmd.args || {}).slice(0, 80) }));
+        await startCommand(cmd);
         const out = await execute(cmd.action, cmd.args || {});
-        await api('/office/result', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ commandId: cmd.commandId, ok: out.ok, result: out.result, error: out.error, code: out.code }),
-        });
+        await postResult(cmd, out);
         log(out.ok ? t('logDone', { action: cmd.action }) : t('logFailed', { action: cmd.action, error: out.error }));
       }
     }
   } catch (e) {
-    setStatusKey('err', 'disconnected');
+    if (e.status !== 404 && e.status !== 409) setStatusKey('err', 'disconnected');
   } finally {
     busy = false;
   }

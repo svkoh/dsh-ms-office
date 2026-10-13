@@ -69,7 +69,9 @@ powershell -ExecutionPolicy Bypass -File server\sideload.ps1 -Remove
 
 ## Security
 
-**Every destructive operation needs your approval by default.** The current state is read first, the pane shows "now → after", and nothing runs until you click "Apply". The AI **cannot** bypass this in advance — the pane attaches `confirm:true` only after you approve, and an approval left untouched for 120s counts as a rejection.
+**Every destructive operation needs your approval by default.** The pane shows "now → after" and a failed preview prevents execution. After you click "Apply", it invokes a single-use internal approval entry bound to the command. External `args.confirm` is ignored; internal approval uses no `confirm` argument. Approval lasts at most 120 seconds and cannot extend beyond command expiry.
+
+The default command deadline is 180 seconds. A timeout during execution can become `execution_unknown` and keep the instance slot until a late result arrives. Query the original command and inspect the document before resending writes. Scripts can use `idempotencyKey` to reuse one operation; see the [integration reference](docs/AGENT.en.md).
 
 **Read-only documents are protected.** When the document is in read-only / view mode, destructive operations are refused outright.
 
@@ -79,8 +81,8 @@ powershell -ExecutionPolicy Bypass -File server\sideload.ps1 -Remove
 
 | Symptom                                     | What to do                                                                                                                                                                                                                         |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pane shows "bridge not connected"           | Check the plugin is "running" in the settings panel                                                                                                                                                                                 |
-| Commands time out                           | The add-in is offline: make sure the document is open and the pane says connected                                                                                                                                                   |
+| Pane shows "bridge not connected"           | Check settings state: `starting` / `healthy` / `unhealthy` / `stopped`; once healthy, check the pane connection |
+| Commands time out                           | Query the original command; inspect the document before resending if state is `execution_unknown` |
 | Commands return `addin_offline` immediately | The pane is closed: open the document → Home / Developer → Add-ins → Developer Add-ins → open "DSH Office 执行器"                                                                                                                     |
 | The pane never appears                      | Windows: make sure the bridge has run at least once (it does the registration), then **close and reopen** the document; also check Office is not running as administrator (loopback exemptions require a normal-privilege process)  |
 | The pane cannot connect after changing port | Close and reopen your Office documents (the add-in URL lives in the manifest and has to be reloaded)                                                                                                                                |

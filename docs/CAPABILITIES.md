@@ -27,7 +27,7 @@ curl "$(jq -r .url "$DSH_HOME/dsh-office-for-mso/bridge.json")/office/capabiliti
 | ------------------- | ----- | - | ------------------------------------------- |
 | `read_selection`    | W/E/P |   | 读当前选区；`withStyles` 附带样式                     |
 | `write_selection`   | W/E/P | D | 用 `text` 替换当前选区                             |
-| `read_document`     | W/E/P |   | Word 全文 / Excel 已用区域（`sheet` 指定表）/ PPT 逐页文本 |
+| `read_document`     | W/E/P |   | Word 全文 / Excel 已用区域（`sheet` 指定表，最多加载 5000 格）/ PPT 逐页文本 |
 | `get_environment`   | W/E/P |   | 宿主版本、平台、requirementSets 支持情况                |
 | `get_document_info` | W/E/P |   | 文档 url / title / mode（只读判断）/ settings 键值    |
 | `set_setting`       | W/E/P | D | 往文档里写持久化键值（随文档保存，跨会话可读）                     |
@@ -62,7 +62,7 @@ curl "$(jq -r .url "$DSH_HOME/dsh-office-for-mso/bridge.json")/office/capabiliti
 | `word_list_sections`                                   | W   |   | 列出节                                                         |
 | `word_read_headers_footers` / `word_set_header_footer` | W   | D | 读 / 写页眉页脚                                                   |
 | `word_insert_break`                                    | W   | D | 插入分页 / 分节符                                                  |
-| `word_insert_caption`                                  | W   | D | 插入题注（静态编号已实测；动态 `SEQ` 需显式开启）                                |
+| `word_insert_caption`                                  | W   | D | 插入题注（支持静态编号；动态 `SEQ` 需显式开启）                                |
 | `locate_select`                                        | W/E |   | 定位并选中（书签 / 命名区域 / 文本 / Excel 区域），零副作用                       |
 
 ## Excel
@@ -70,7 +70,7 @@ curl "$(jq -r .url "$DSH_HOME/dsh-office-for-mso/bridge.json")/office/capabiliti
 | action                                                                                                            | 平台 | D | 说明                                                                            |
 | ----------------------------------------------------------------------------------------------------------------- | -- | - | ----------------------------------------------------------------------------- |
 | `list_sheets`                                                                                                     | E  |   | 列出工作表（名称 / 位置 / 可见性）                                                          |
-| `read_range`                                                                                                      | E  |   | 读区域（值 / 公式 / 数字格式）                                                            |
+| `read_range`                                                                                                      | E  |   | 读区域（值 / 公式 / 数字格式），最多实际加载 5000 格                                                            |
 | `write_range`                                                                                                     | E  | D | 批量写 `values` 或 `formulas`（>5000 格自动分块）                                        |
 | `format_range`                                                                                                    | E  | D | 区域格式化并回读实际格式                                                                  |
 | `insert_chart`                                                                                                    | E  | D | 数据 → 图表（Column / Line / Bar / Pie / Area / Scatter…）                          |
@@ -82,6 +82,8 @@ curl "$(jq -r .url "$DSH_HOME/dsh-office-for-mso/bridge.json")/office/capabiliti
 | `delete_table` / `convert_table_to_range`                                                                         | E  | D | 删表及数据 / 只移除表对象保留数据                                                            |
 | `read_conditional_formats` / `add_conditional_format` / `delete_conditional_format` / `clear_conditional_formats` | E  | D | 条件格式生命周期（ExcelApi 1.6+）                                                       |
 | `read_data_validation` / `set_data_validation` / `clear_data_validation` / `validate_data`                        | E  | D | 数据验证生命周期（1.8+；`validate_data` 的 details 需 1.9+）                               |
+
+大表应分区域读取并检查截断信息，5000 格限制发生在实际加载之前。`apply_filter.column` 相对目标区域从 1 开始；Values 可用 `criteria:{values:["a"]}` 或 `criteria:["a"]`，Custom 用条件对象如 `criteria:{criterion1:">2"}`，筛选方式字段以 capabilities 为准。
 
 ## PowerPoint
 

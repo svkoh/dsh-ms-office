@@ -426,57 +426,76 @@
     });
   }
 
+  const PPT_NS = 'http://schemas.openxmlformats.org/presentationml/2006/main';
+  const PPT_REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const DRAWING_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+
+  function pptXml(entries, name) {
+    if (!entries[name]) throw new Error(`Missing PPT part: ${name}`);
+    const doc = new DOMParser().parseFromString(new TextDecoder('utf-8').decode(inflateEntry(entries[name])), 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length) throw new Error(`Invalid PPT XML: ${name}`);
+    return doc;
+  }
+
+  // Resolve OPC part names without fetching external relationships or leaving the ZIP.
+  function pptPartTarget(source, target) {
+    if (!target || /[\\?#]/.test(target) || /^[a-z][a-z0-9+.-]*:/i.test(target)) throw new Error('Invalid PPT relationship target');
+    const parts = target.startsWith('/') ? [] : source.split('/').slice(0, -1);
+    for (const part of target.split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') { if (!parts.length) throw new Error('PPT relationship escapes package'); parts.pop(); }
+      else parts.push(part);
+    }
+    return parts.join('/');
+  }
+
+  function pptRelationships(entries, source) {
+    const parts = source.split('/'), file = parts.pop();
+    const name = [...parts, '_rels', file + '.rels'].join('/');
+    if (!entries[name]) return [];
+    return Array.from(pptXml(entries, name).getElementsByTagNameNS('*', 'Relationship'));
+  }
+
+  function orderedPptSlides(entries) {
+    const source = 'ppt/presentation.xml';
+    const doc = pptXml(entries, source);
+    const rels = new Map(pptRelationships(entries, source).map((rel) => [rel.getAttribute('Id'), rel]));
+    const list = doc.getElementsByTagNameNS(PPT_NS, 'sldIdLst')[0];
+    if (!list) return [];
+    return Array.from(list.getElementsByTagNameNS(PPT_NS, 'sldId')).map((slide, index) => {
+      const rel = rels.get(slide.getAttributeNS(PPT_REL_NS, 'id'));
+      if (!rel || rel.getAttribute('TargetMode') === 'External' || !/\/slide$/.test(rel.getAttribute('Type') || '')) throw new Error('Missing or invalid PPT slide relationship');
+      const name = pptPartTarget(source, rel.getAttribute('Target'));
+      if (!entries[name]) throw new Error(`Missing PPT part: ${name}`);
+      return { name, index: index + 1, id: slide.getAttribute('id') };
+    });
+  }
+
+  function pptPartText(entries, name) {
+    const text = pptXml(entries, name).getElementsByTagNameNS(DRAWING_NS, 't');
+    return Array.from(text, (t) => t.textContent).join('').trim();
+  }
+
   function extractPptText(chunks) {
     const entries = concatChunksToZip(chunks);
-    const slideNames = Object.keys(entries)
-      .filter((n) => /^ppt\/slides\/slide\d+\.xml$/.test(n))
-      .sort((a, b) => parseInt(a.match(/slide(\d+)/)[1], 10) - parseInt(b.match(/slide(\d+)/)[1], 10));
-    const decoder = new TextDecoder('utf-8');
-    const parts = [];
-    for (const name of slideNames) {
-      const xml = decoder.decode(inflateEntry(entries[name]));
-      const doc = new DOMParser().parseFromString(xml, 'application/xml');
-      const aT = doc.getElementsByTagName('a:t');
-      let slideText = '';
-      for (const t of aT) slideText += t.textContent;
-      const num = name.match(/slide(\d+)/)[1];
-      parts.push(`--- 幻灯片 ${num} ---\n${slideText.trim()}`);
-    }
-    return okResult({ host: 'PowerPoint', slides: slideNames.length, text: parts.join('\n\n') });
+    const slides = orderedPptSlides(entries);
+    const parts = slides.map((slide) => `--- 幻灯片 ${slide.index} ---\n${pptPartText(entries, slide.name)}`);
+    return okResult({ host: 'PowerPoint', slides: slides.length, text: parts.join('\n\n'), slideIds: slides.map((slide) => slide.id) });
   }
 
   function extractPptNotes(chunks) {
     const entries = concatChunksToZip(chunks);
-    const decoder = new TextDecoder('utf-8');
-    const slideNums = Object.keys(entries)
-      .filter((n) => /^ppt\/slides\/slide\d+\.xml$/.test(n))
-      .map((n) => parseInt(n.match(/slide(\d+)/)[1], 10));
-    const notesMap = {};
-    for (const sn of slideNums) {
-      const relsName = `ppt/slides/_rels/slide${sn}.xml.rels`;
-      const relsEntry = entries[relsName];
-      if (!relsEntry) continue;
-      const relsDoc = new DOMParser().parseFromString(decoder.decode(inflateEntry(relsEntry)), 'application/xml');
-      const rels = relsDoc.getElementsByTagName('Relationship');
-      let notesTarget = null;
-      for (const rel of rels) {
-        if (rel.getAttribute('Type') && rel.getAttribute('Type').indexOf('notesSlide') >= 0) {
-          notesTarget = rel.getAttribute('Target');
-          break;
-        }
-      }
-      if (!notesTarget) continue;
-      const notesName = 'ppt/notesSlides/' + notesTarget.split('/').pop();
-      const notesEntry = entries[notesName];
-      if (!notesEntry) continue;
-      const notesDoc = new DOMParser().parseFromString(decoder.decode(inflateEntry(notesEntry)), 'application/xml');
-      const aT = notesDoc.getElementsByTagName('a:t');
-      let text = '';
-      for (const t of aT) text += t.textContent;
-      notesMap[sn] = text.trim();
+    const slides = orderedPptSlides(entries);
+    const parts = [], slideIds = [];
+    for (const slide of slides) {
+      const rel = pptRelationships(entries, slide.name).find((item) => /\/notesSlide$/.test(item.getAttribute('Type') || ''));
+      if (!rel || rel.getAttribute('TargetMode') === 'External') continue;
+      const name = pptPartTarget(slide.name, rel.getAttribute('Target'));
+      const text = pptPartText(entries, name);
+      parts.push(`--- 幻灯片 ${slide.index} 备注 ---\n${text || '(无备注文本)'}`);
+      slideIds.push(slide.id);
     }
-    const parts = Object.keys(notesMap).sort((a, b) => Number(a) - Number(b)).map((sn) => `--- 幻灯片 ${sn} 备注 ---\n${notesMap[sn] || '(无备注文本)'}`);
-    return okResult({ host: 'PowerPoint', notes: parts.join('\n\n'), slidesWithNotes: parts.length });
+    return okResult({ host: 'PowerPoint', notes: parts.join('\n\n'), slidesWithNotes: parts.length, slideIds });
   }
 
   function concatChunksToZip(chunks) {

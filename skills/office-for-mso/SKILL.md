@@ -62,7 +62,8 @@ $DSH_HOME/dsh-office-for-mso/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
 ```
 
 - **`instance` 必填。** 多文档同时打开时省略它，指令可能落到错误的文档上——这是硬性拒绝，不是警告。
-- 同步等待，最长约 90s（超时返回 `timeout`）。
+- 同步等待最终结果，默认最长 180s（超时返回 `timeout`）；调用脚本的 HTTP 超时应略长于此值。
+- 同一实例一次只执行一条指令，不同实例可独立执行。写入请求建议携带顶层 `idempotencyKey`（非空字符串，最长 128 字符）；同实例同 key 和相同参数会复用原命令或结果，不同参数会被拒绝。
 - 返回 `{ ok, commandId, host, instance, result }`，失败时是 `{ ok: false, code, error, result? }`。
 - **请求体按 UTF-8 字节发。** 脚本里发中文，先把 JSON 编码成 UTF-8 再发（PowerShell：
   `[Text.Encoding]::UTF8.GetBytes($json)` 配 `Content-Type: application/json; charset=utf-8`）。
@@ -71,14 +72,15 @@ $DSH_HOME/dsh-office-for-mso/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
 
 ## 5. 处理结果
 
-- 覆盖类操作在 `ask` 模式下返回 `confirm_required`，并带上 `result.preview`。
-  **把 preview 展示给用户，然后等窗格里的审批结果**——`confirm:true` 只能由窗格在用户批准后附加，
-  **你不得预先发送它**。
+- 覆盖类操作在 `ask` 模式下由窗格读取预览并等待用户批准；调用方保持等待，不必重发。
+  预览失败时不会执行，审批最长 120 秒且不得超过命令期限。外部 `args.confirm` 会被忽略；批准通过绑定该次命令的一次性内部入口执行。
+- `timeout`：用返回的 `commandId` 查询 `GET /office/commands/:id`。`expired` 表示未开始执行；`execution_unknown` 表示已领取但结果未知，必须等待迟到结果或核对文档，**不要盲目重发或换 key 重试写入**。历史与幂等状态最多 1000 条、完成后最多一小时，服务重启后丢失。
 - `rejected`：用户拒绝或审批超时。停下来，尊重决定，**不要重发**。
 - `addin_offline`：窗格没开。提醒用户，**不要重试**。
 - `bad_encoding`：请求体不是合法 UTF-8（多半是脚本按本地代码页发了中文）。改成 UTF-8 重发，**不要重发同一份字节**。
 - 「没找到」不是错误：`search` / `replace_all(dryRun)` 无命中返回 `ok:true + count:0`，如实转述。
-- 写入成功后结果里带 `previousState` / `afterState` / `document`——**用它核验，不要盲信**。
+- 写入成功后按实际返回的 `previousState` / `afterState` / `document` 核验；字段不保证全部存在，核验失败会附 `verificationWarnings`，不要把它当成写入未发生。
+- Excel `read_range` / `read_document` 最多实际加载 5000 格，检查 `truncated` 并按区域读取大表。`apply_filter` 的 `column` 从 1 开始，`criteria` 是筛选条件对象（Values 亦可用字符串数组简写）。
 
 完整错误码与处理建议（含每个码是否可重试）：`GET /office/errors?lang=<zh|en>`。
 
@@ -86,5 +88,5 @@ $DSH_HOME/dsh-office-for-mso/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
 
 - 桥接服务只接受本机自身来源的请求：`Origin` 不是它自己的、或 `Host` 不匹配的一律 403。
 - 覆盖类写操作默认走窗格审批（`confirmMode=ask`）；用户可在窗格切到自动模式。
-- **不要伪造 `confirm:true`。**
+- 把审批交给窗格中的用户，外部批准参数不授予执行权。
 - 只操作用户本机已打开、且窗格在线的文档。

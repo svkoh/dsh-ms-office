@@ -44,6 +44,14 @@
       "bodyTooLarge": "request body exceeds the limit (max {max} bytes)",
       "badEncoding": "request body is not valid UTF-8 (JSON must be sent as UTF-8 bytes)",
       "actionRequired": "action required",
+      "bodyObjectRequired": "request body must be a JSON object",
+      "commandArgsInvalid": "host, instance, args or idempotencyKey has an invalid type or value",
+      "idempotencyConflict": "idempotencyKey was already used with different command arguments",
+      "instanceHostMismatch": "host does not match the target document instance",
+      "commandInstanceMismatch": "instance does not match the command target",
+      "resultArgsInvalid": "commandId and instance must be strings, and ok must be a boolean",
+      "commandNotStarted": "the command must be claimed before returning a successful result",
+      "requestFailed": "the bridge could not process this request",
       "invalidHost": "invalid host: {host} (valid: {valid})",
       "instanceRequired": "An add-in instance is required (instanceId): call GET /office/status first and pick the target from `instances` (identify the document by docUrl), then resend with `instance`. With several documents open, omitting it makes the wrong document execute the command.",
       "busy": "a command is already pending (the previous one is still executing); retry shortly",
@@ -99,8 +107,8 @@
         "action": "Fix the arguments as the error text describes and resend"
       },
       "timeout": {
-        "meaning": "The command produced no result before the deadline (90s by default)",
-        "action": "Call GET /office/status to confirm the pane is online; retry once if it is, otherwise ask the user to reopen the pane"
+        "meaning": "No result arrived before the deadline (180s by default); a timeout after execution starts does not undo writes",
+        "action": "Query GET /office/commands/:id with commandId. For execution_unknown, await a late result or verify manually; do not blindly resend. Only expired with executionStarted=false confirms execution never started"
       },
       "unknown_action": {
         "meaning": "No such action name",
@@ -112,7 +120,7 @@
       },
       "confirm_required": {
         "meaning": "In ask mode an overwriting action needs the user's approval",
-        "action": "Show `result.preview` to the user and wait for them to approve in the Office pane (the pane attaches confirm:true). The AI must never send confirm:true on its own"
+        "action": "Wait for the user to preview and approve in the Office pane. Approval authorizes a private execution entry for that command only; caller-supplied confirm:true is ignored"
       },
       "rejected": {
         "meaning": "The user rejected the action in the pane (or approval timed out, which counts as rejection)",
@@ -357,7 +365,7 @@
     "read_range": {
       "args": {
         "address": "string, required: Sheet!A1:B10",
-        "limit": "number, optional: maximum number of cells"
+        "limit": "number, optional: positive integer maximum cells to load; default and hard cap are 5000"
       }
     },
     "write_range": {
@@ -413,7 +421,7 @@
     "apply_filter": {
       "args": {
         "address": "string, required",
-        "columns": "array, optional: [{column,filterType,criteria}]"
+        "columns": "array, optional: [{column:1,filterType:'Values',criteria:{values:['a']}}]; column is 1-based, Values also accepts criteria:['a']; Custom uses criteria:{criterion1:'>2'}"
       }
     },
     "evaluate_formula": {

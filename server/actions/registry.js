@@ -97,9 +97,11 @@
   window.__ACTIONS__ = ACTIONS_TABLE;
 
   // ---- 5. 分发器（窗格 execute 转发到这里，便于热更新拦截逻辑）----
-  // confirmMode: ask（默认，与服务端 OFFICE_CONFIRM_MODE 默认一致）= re-read 后必须用户确认（confirm:true）才执行；
-  //              auto = 覆盖操作自动 re-read 后执行，结果附 previousState 供 AI 核验，不打扰用户。
-  window.__EXECUTE__ = function (action, args) {
+  // 外部参数不构成批准。批准入口仅交给窗格闭包，授权绑定该次 commandId。
+  function executeInternal(action, inputArgs, commandId) {
+    const args = Object.assign({}, inputArgs || {});
+    delete args.confirm;
+    const approved = typeof commandId === 'string' && commandId.length > 0;
     // 用户定制优先（user-actions.js 可同名覆盖内置 action 或新增）。
     // 注意：user-actions.js 里的 action 不经过 capabilities.json，必须自带 hosts/destructive/preview。
     const userActions = window.__USER_ACTIONS__ || {};
@@ -121,31 +123,37 @@
       return errResult('execution', String(e && e.message || e) + debug);
     });
     // 写后验证：覆盖操作执行成功后，再读一次被操作区域（afterState）+ 附整个文档全文（避免盲人摸象）
-    const withAfterState = (r) => {
-      if (meta.destructive && r.ok && meta.preview && r.result && typeof r.result === 'object') {
-        return Promise.resolve(meta.preview(host, args)).then((a) => {
-          if (a.ok) r.result.afterState = a.result;
-          // 附整个文档：Word 全文 / Excel 工作表已用区域；PPT 全文件读取慢，跳过
-          if (host !== 'PowerPoint') {
-            const readDoc = implFor(host, 'read_document');
-            if (!readDoc) return r;
-            return Promise.resolve(readDoc({})).then((d) => {
-              if (d.ok) r.result.document = d.result.text;
-              return r;
-            });
+    const withAfterState = async (r) => {
+      if (meta.destructive && r.ok && r.result && typeof r.result === 'object') {
+        const warnings = [];
+        if (meta.preview) {
+          try {
+            const a = await meta.preview(host, args);
+            if (a && a.ok) r.result.afterState = a.result;
+            else warnings.push({ stage: 'afterState', error: a && a.error || 'verification failed' });
+          } catch (e) { warnings.push({ stage: 'afterState', error: String(e && e.message || e) }); }
+        }
+        if (host !== 'PowerPoint') {
+          const readDoc = implFor(host, 'read_document');
+          if (readDoc) {
+            try {
+              const d = await readDoc({});
+              if (d && d.ok) r.result.document = d.result.text;
+              else warnings.push({ stage: 'document', error: d && d.error || 'verification failed' });
+            } catch (e) { warnings.push({ stage: 'document', error: String(e && e.message || e) }); }
           }
-          return r;
-        });
+        }
+        if (warnings.length) r.result.verificationWarnings = warnings;
       }
-      return Promise.resolve(r);
+      return r;
     };
     // 覆盖类操作：先取确认模式（缺省 ask=审批，与服务端默认一致；拉取失败也兜底 ask，绝不悄悄回退 auto）
     const modeP = window.__CONFIRM_MODE__ !== undefined
       ? Promise.resolve(window.__CONFIRM_MODE__)
       : fetch('/office/config').then((r) => r.json()).then((c) => { window.__CONFIRM_MODE__ = (c && c.confirmMode) || 'ask'; return window.__CONFIRM_MODE__; }).catch(() => { window.__CONFIRM_MODE__ = 'ask'; return 'ask'; });
-    if (meta.destructive && args && args.confirm !== true) {
-      if (!meta.preview) return errResult('confirm_required', `覆盖类操作 ${action} 需先预览确认（confirm:true）`);
-      return modeP.then((mode) => Promise.resolve(meta.preview(host, args)).then((p) => {
+    if (meta.destructive && !approved) {
+      if (!meta.preview) return errResult('confirm_required', `覆盖类操作 ${action} 需窗格预览确认`);
+      return modeP.then((mode) => Promise.resolve().then(() => meta.preview(host, args)).then((p) => {
         if (!p.ok) return p;
         if (mode === 'auto') {
           // 自动模式：改前 re-read（previousState）→ 执行 → 改后验证（afterState）；标记 approvedBy=auto
@@ -158,10 +166,25 @@
           });
         }
         // ask 模式：必须用户确认；先选中将要修改的目标（审批可视化，失败不阻塞）
-        const preSelect = meta.selectTarget ? Promise.resolve(meta.selectTarget(host, args)).catch(() => {}) : Promise.resolve();
-        return preSelect.then(() => ({ ok: false, code: 'confirm_required', error: '覆盖类操作需确认：请向用户展示当前状态预览（result.preview），确认后带 confirm:true 重发', result: { preview: p.result, action, args, selectedTarget: true } }));
-      }));
+        const preSelect = meta.selectTarget ? Promise.resolve().then(() => meta.selectTarget(host, args)).catch(() => {}) : Promise.resolve();
+        return preSelect.then(() => ({ ok: false, code: 'confirm_required', error: '覆盖类操作需在 Office 窗格中批准', result: { preview: p.result, action, args, selectedTarget: true } }));
+      })).catch((e) => errResult('execution', String(e && e.message || e)));
     }
-    return withAfterState(run());
-  };
+    return run().then(withAfterState);
+  }
+  window.__EXECUTE__ = (action, args) => executeInternal(action, args, null);
+  if (typeof window.__REGISTER_APPROVAL_EXECUTOR__ === 'function') {
+    window.__REGISTER_APPROVAL_EXECUTOR__((cmd) => {
+      // 每次注册的入口只签发一次性、绑定命令与参数快照的执行函数。
+      const commandId = cmd.commandId;
+      const action = cmd.action;
+      const args = Object.assign({}, cmd.args || {});
+      let used = false;
+      return () => {
+        if (used || typeof commandId !== 'string' || !commandId) return errResult('rejected', 'invalid or consumed approval');
+        used = true;
+        return executeInternal(action, args, commandId);
+      };
+    });
+  }
 })();

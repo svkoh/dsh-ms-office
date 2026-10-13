@@ -2,141 +2,131 @@
 
 > English · [中文](AGENT.md)
 
-For **callers**: how to write a script or an agent that drives this bridge.
-
-> If you are writing the "make the AI use this capability" instructions instead, that is the
-> [skill document](../skills/office-for-mso/SKILL.md) — the same protocol from the other side:
-> the skill says **what to do**, this document says **what is actually on the wire**.
+The HTTP protocol for callers. For instructions an AI should follow, see the [skill document](../skills/office-for-mso/SKILL.en.md).
 
 ## Finding the bridge address
 
-`http://127.0.0.1:3000` by default, but **the port is configurable and the service picks a free one when it is taken**, so never assume 3000.
+The default is `http://127.0.0.1:3000`, but the port is configurable and the service chooses another when it is occupied. Read the announcement file maintained by the service rather than guessing:
 
-The live address is in the announcement file the service maintains — **read it, do not guess**:
-
-```
+```text
 $DSH_HOME/dsh-office-for-mso/bridge.json      # ~/.dsh when $DSH_HOME is unset
 ```
 
 ```json
-{
-  "plugin": "dsh-office-for-mso",
-  "url": "http://127.0.0.1:3000",
-  "port": 3000,
-  "pid": 1234,
-  "startedAt": "2026-10-12T12:00:00.000Z"
-}
+{ "plugin": "dsh-office-for-mso", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234, "startedAt": "…" }
 ```
 
-Take `url` and append the paths below. Every `/office/...` path is relative to it.
-
-- **File missing** → the bridge is not running. Ask the user to confirm it is "running" in the plugin settings; **do not retry in a loop**.
-- If the port differs from last time, **trust the file** (the user may have changed it).
+Append the paths below to `url`. If the file is missing, check the bridge state in plugin settings; do not retry in a loop. The panel distinguishes `starting`, `healthy`, `unhealthy` and `stopped`; a process being present does not prove the service is healthy. Trust the announcement when the port changes.
 
 ## Endpoints
 
-| Method + path               | Purpose                                                            |
-| --------------------------- | ------------------------------------------------------------------ |
-| `GET /office/status`        | Online document instances (with heartbeat time) — confirm the target is online |
-| `GET /office/capabilities`  | Capability table: name / hosts / destructive / arg text per action  |
-| `POST /office/command`      | Send a command                                                     |
-| `GET /office/errors`        | Error catalogue: meaning, handling advice, retryability             |
-| `GET /office/i18n`          | Pane UI dictionary (normally only the pane uses this)              |
-| `POST /office/config`       | Switch approval mode (`confirmMode`: `ask` / `auto`)               |
-| `GET /actions.js`           | The concatenated action implementations (loaded by the pane)        |
+| Method + path | Purpose |
+|---|---|
+| `GET /office/status` | Online document instances, heartbeats and unfinished commands |
+| `GET /office/capabilities` | Action names, hosts, destructive flags and argument descriptions |
+| `POST /office/command` | Submit a command and wait for its final response |
+| `GET /office/commands/:id` | Query command state, expiry and recorded response |
+| `POST /office/commands/:id/start` | Pane only: atomically claim execution |
+| `POST /office/result` | Pane only: submit a result with its instance |
+| `GET /office/errors` | Error catalogue, handling advice and retryability |
+| `GET /office/i18n` | Pane UI dictionary |
+| `POST /office/config` | Switch approval mode (`confirmMode`: `ask` / `auto`) |
+| `GET /actions.js` | Concatenated action implementations loaded by the pane |
 
-All endpoints accept `?lang=zh|en` (see [Language](#language)).
+Text endpoints accept `?lang=zh|en`; see [Language](#language).
 
-### `GET /office/status`
+### Confirming the target instance
+
+`GET /office/status` returns `instances: [{ instanceId, host, docUrl, docTitle, online, lastBeat }]`.
+
+- Identify the document by `docUrl`; use `docTitle` when an unsaved document has no URL.
+- If several instances match, ask the user which one rather than guessing.
+- If the target is offline, ask the user to open the document and pane; do not retry in a loop.
+- `pendingCommands` lists unfinished commands; the legacy `pending` field remains for compatibility. Different instances can run concurrently, with at most one unfinished command per instance.
+
+### Sending a command
+
+`POST /office/command`:
 
 ```json
 {
-  "instances": [
-    {
-      "instanceId": "…",
-      "host": "Word",
-      "docUrl": "file:///C:/…/report.docx",
-      "docTitle": "report.docx",
-      "online": true,
-      "lastBeat": 1760000000000
-    }
-  ]
+  "action": "read_selection",
+  "instance": "<instanceId>",
+  "args": {},
+  "idempotencyKey": "<optional-key-for-this-operation>"
 }
 ```
 
-- **Identify the document by `docUrl`**; when it is empty (unsaved document) use `docTitle`.
-- If several instances look like the target, **ask the user which one** — do not guess.
-- Target offline → ask the user to open the document and the pane. **Do not retry in a loop.**
+- `instance` is required; omitting it is rejected.
+- The request waits for execution, rejection or timeout; the default is `COMMAND_TIMEOUT_MS=180000` (180 seconds).
+- Optional top-level `idempotencyKey` is a string of at most 128 characters. The same instance, key and parameters reuse the original wait or response; the same key with different parameters returns HTTP 409. Keep the original key when retrying a network request for one logical operation.
+- Success: `{ ok: true, commandId, host, instance, result }`; failure: `{ ok: false, code, error, result? }`.
+- The body must be UTF-8 bytes. PowerShell can use `[Text.Encoding]::UTF8.GetBytes($json)` with `Content-Type: application/json; charset=utf-8`. Invalid UTF-8 returns `bad_encoding`; a leading UTF-8 BOM is stripped.
 
-### `POST /office/command`
+Verify a write against whichever `previousState` / `afterState` / `document` fields are actually returned. Availability depends on the action, host and successful reads; Excel readback loads at most 5000 cells, so do not assume a complete document is always returned. A post-write verification failure appears in `result.verificationWarnings`; the write itself can still be `ok:true`.
 
-```json
-{ "action": "read_selection", "instance": "<instanceId>", "args": {} }
-```
+### Querying state, timeouts and idempotency
 
-- **`instance` is required.** Omitting it with several documents open can land the command on the wrong one — this is a hard refusal, not a warning.
-- Synchronous, up to about 90s (returns `timeout` beyond that).
-- Success: `{ ok: true, commandId, host, instance, result }`
-- Failure: `{ ok: false, code, error, result? }`
-- **The body must be UTF-8 bytes.** When a script sends non-ASCII text, encode the JSON as UTF-8 first
-  (PowerShell: `[Text.Encoding]::UTF8.GetBytes($json)` with `Content-Type: application/json; charset=utf-8`).
-  A body that is not valid UTF-8 is rejected with `bad_encoding` instead of being silently mangled into the
-  document — silently corrupting a user's document is worse than an error. A leading UTF-8 BOM is stripped;
-  an empty body is not an encoding error.
+`GET /office/commands/:id` returns top-level `commandId`, `status`, `expiresAt` and `response`. `response` is the recorded result and may be a timeout response; it alone does not prove whether Office finished a write.
 
-After a successful write, `result` carries `previousState` / `afterState` / `document` — **verify with it, do not trust blindly**.
+| status | Meaning |
+|---|---|
+| `pending` | Queued or awaiting pane approval; execution has not been claimed |
+| `executing` | The pane has atomically claimed execution |
+| `completed` | A pane result arrived; inspect its `ok` for success or failure |
+| `expired` | Expired before execution; releases the instance slot |
+| `execution_unknown` | Timed out after execution was claimed; outcome is uncertain |
+
+`execution_unknown` keeps the instance slot until a late pane result arrives. **Do not blindly resend a write or retry with a new key**; query the original command and inspect the document first. History holds at most 1000 commands, with completed entries retained for at most one hour. History and idempotency records are in memory and do not survive a service restart.
 
 ## Approval protocol
 
-Destructive actions (`destructive: true`) do **not** execute directly while `confirmMode=ask` (the default):
+Destructive actions (`destructive: true`) use pane approval in the default `confirmMode=ask`:
 
-1. The service returns `confirm_required` together with `result.preview` (the current state and what it would become)
-2. **Show the preview to the user**, then wait for the pane's verdict
-3. The user clicks "Apply" → the command runs; "Reject" or 120s of inactivity → `rejected`
+1. The pane reads the current state and shows "now → after"; a failed preview prevents execution.
+2. The caller keeps waiting while the user approves or rejects in the pane; no command resend is needed.
+3. Approval lasts at most 120 seconds and cannot extend beyond `expiresAt`; rejection or approval timeout returns `rejected`.
+4. After approval, the pane atomically claims execution and invokes a single-use internal closure bound to `commandId`.
 
-**`confirm:true` is attached only by the pane after the user approves; a caller must never pre-send it.** The server ignores any `confirm` sent by a caller.
+**External `args.confirm` is ignored.** Internal pane approval does not use a `confirm` argument; JSON parameters cannot replace user approval. The ordinary dispatcher may return `confirm_required`, but this is not an instruction to resend with `confirm:true`.
 
-To switch to automatic mode: the dropdown at the top of the pane, or `POST /office/config {"confirmMode":"auto"}`. Automatic mode still re-reads before writing and returns `previousState` / `afterState` for verification.
+Every pane execution path, including reads and automatic mode, first calls `POST /office/commands/:id/start` with `{ "instance": "<instanceId>" }`. The server atomically changes an unexpired `pending` command to `executing`; duplicate or expired claims return HTTP 409. The pane submits `{ commandId, instance, ok, result?, error?, code? }` to `POST /office/result`, where `ok` must be a boolean. Callers should not invoke these pane endpoints.
+
+The user can switch to automatic mode in the pane, or set `POST /office/config {"confirmMode":"auto"}`. Automatic mode still previews before executing; verify against the state fields actually returned.
 
 ## Error codes
 
-| code                                       | Meaning                                   | Handling                                           |
-| ------------------------------------------ | ----------------------------------------- | -------------------------------------------------- |
-| `instance_required`                        | `instance` missing                        | Look up the instanceId via status and resend       |
-| `addin_offline`                            | Pane closed / offline                     | Ask the user to open the pane, **do not retry**    |
-| `busy`                                     | A command is still running                | Retry shortly                                      |
-| `timeout`                                  | No result within 90s                      | Check status; one retry is reasonable              |
-| `bad_json` / `body_too_large` / `bad_args` | Malformed / oversized body, bad arguments | Fix and resend                                     |
-| `bad_encoding`                             | Body is not valid UTF-8                   | Resend as UTF-8, not the local codepage            |
-| `unknown_action`                           | No such action                            | Check capabilities for the right name              |
-| `unsupported_host`                         | Action does not support this application  | Switch action or application                       |
-| `confirm_required`                         | User approval needed                      | Hand it to the pane; never pre-send `confirm:true` |
-| `rejected`                                 | User refused / approval timed out         | Stop, **do not resend**                            |
-| `not_found`                                | Locate / search target missing            | Report honestly, **do not repeat the same lookup** |
-| `readonly`                                 | Document is read-only / in view mode      | Tell the user to save an editable copy             |
-| `requirement` / `unsupported`              | The API is missing in this environment    | Report honestly, never fake success                |
-| `execution`                                | Runtime exception                         | Report the error verbatim                          |
+| code | Meaning | Handling |
+|---|---|---|
+| `instance_required` | Missing `instance` | Look up the target instanceId via status |
+| `addin_offline` | Pane closed or offline | Ask the user to open it; do not retry |
+| `busy` | The instance has an unfinished command | Query that command; do not send another write while its outcome is unknown |
+| `timeout` | No result before the command deadline | Query command state; do not blindly retry `execution_unknown` |
+| `bad_json` / `body_too_large` / `bad_args` | Invalid body or arguments | Fix and resend |
+| `bad_encoding` | Invalid UTF-8 body | Resend as UTF-8 rather than the local codepage |
+| `unknown_action` | Action does not exist | Query capabilities |
+| `unsupported_host` | The application does not support the action | Switch action or application |
+| `confirm_required` | Pane approval needed | Leave it to the pane; do not resend approval arguments |
+| `rejected` | User declined or approval timed out | Stop; do not resend |
+| `not_found` | Locate or search target missing | Report honestly; do not repeat the same lookup |
+| `readonly` | Document is read-only or in view mode | Ask the user to save an editable copy |
+| `requirement` / `unsupported` | An API is missing in this environment | Report honestly |
+| `execution` | Runtime exception | Report the error and check command state |
 
-`GET /office/errors` returns the same catalogue (with fuller handling advice and retryability).
+The complete catalogue is available from `GET /office/errors`. A search or dry run with no hits can return `ok:true` and a zero hit count; report it faithfully.
 
-**"Nothing found" is not an error**: `search` / `replace_all(dryRun)` return `ok:true + count:0`; report that honestly.
+## Excel arguments and read limits
+
+`apply_filter.column` is **1-based** within the target range. Value filters accept `criteria: {"values":["a"]}` or the Values array shorthand `criteria: ["a"]`; Custom filters use a condition object such as `criteria: {"criterion1":">2"}`. Check capabilities for the filter-mode argument.
+
+`read_range` and Excel `read_document` load at most 5000 cells. Read large sheets in separate regions and check returned truncation information; do not treat a bounded readback as the complete sheet.
 
 ## Language
 
-`?lang=` → `Accept-Language` → `OFFICE_LANG` env var → system locale → Chinese.
-A tag starting with `en` selects English, one starting with `zh` selects Chinese, anything else falls back to Chinese.
-
-`?lang=` has the highest priority — **if you are serving an English-speaking user, pass `?lang=en` explicitly** and the error meanings, `aiAction` text and arg descriptions all come back in English. The response echoes the effective language in its `lang` field.
-
-**Language only affects text**: the data that decides behaviour — `hosts` / `destructive` / `requirement` — is byte-identical across both languages.
+`?lang=` → `Accept-Language` → `OFFICE_LANG` → system locale → Chinese. `en*` selects English, `zh*` selects Chinese, other tags fall back to Chinese. Pass `?lang=en` for an English-speaking user; text responses echo the effective `lang`. Language affects text only: `hosts` / `destructive` / `requirement` remain unchanged.
 
 ## Security contract
 
-The bridge only accepts requests from its own origin on the local machine:
+The bridge returns no `Access-Control-Allow-*` headers. A request carrying `Origin` must match the service's own origin, otherwise it returns `403 forbidden_origin`; `Host` is also validated to block DNS rebinding. Local script requests without an `Origin` can use the bridge normally.
 
-- No `Access-Control-Allow-*` headers at all
-- A request carrying `Origin` must have `Origin` equal to the service's own origin, otherwise `403 forbidden_origin`
-- The `Host` header is validated, which blocks DNS rebinding
-- Requests without an `Origin` (local curl / pwsh) pass through — those are the intended callers
-
-There is exactly one rule for callers: **never forge `confirm:true`** — leave approval to the user.
+Leave approval to the user in the pane. Query the original command after a timeout to avoid duplicate edits.

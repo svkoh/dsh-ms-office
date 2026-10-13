@@ -44,6 +44,14 @@
       "bodyTooLarge": "请求体超过上限（最大 {max} 字节）",
       "badEncoding": "请求体不是合法 UTF-8（JSON 必须按 UTF-8 字节发送）",
       "actionRequired": "缺少 action",
+      "bodyObjectRequired": "请求体必须是 JSON 对象",
+      "commandArgsInvalid": "host、instance、args 或 idempotencyKey 的类型或值不合法",
+      "idempotencyConflict": "idempotencyKey 已用于参数不同的另一条指令",
+      "instanceHostMismatch": "host 与目标文档实例的应用类型不一致",
+      "commandInstanceMismatch": "instance 与指令的目标实例不一致",
+      "resultArgsInvalid": "commandId 和 instance 必须是字符串，ok 必须是布尔值",
+      "commandNotStarted": "必须先领取指令，才能回传执行成功的结果",
+      "requestFailed": "桥接服务无法处理此请求",
       "invalidHost": "非法的 host: {host}（可选: {valid}）",
       "instanceRequired": "必须指定加载项实例（instanceId）：先 GET /office/status 查看 instances（按 docUrl 识别目标文档），带 instance 重发；多文档时未指定实例会导致指令被错误文档执行",
       "busy": "上一条指令仍在执行中，请稍后重试",
@@ -99,8 +107,8 @@
         "action": "按 error 文本修正参数后重发"
       },
       "timeout": {
-        "meaning": "指令发出后超时未返回（默认 90s）",
-        "action": "GET /office/status 确认窗格在线；在线可重试一次，仍超时提醒用户重开窗格"
+        "meaning": "指令未在等待期限内返回（默认 180s）；开始执行后的超时不代表写入已撤销",
+        "action": "用 commandId 查询 GET /office/commands/:id；execution_unknown 时等待迟到结果或人工核验，不要盲目重发；只有 expired 且 executionStarted=false 才能确认未开始执行"
       },
       "unknown_action": {
         "meaning": "action 名称不存在",
@@ -112,7 +120,7 @@
       },
       "confirm_required": {
         "meaning": "ask 模式下覆盖类操作需用户审批",
-        "action": "把 result.preview 展示给用户；等待用户在 Office 窗格批准（窗格会附加 confirm:true）。AI 不得预先发送 confirm:true"
+        "action": "等待用户在 Office 窗格预览并批准；批准仅授权该次命令的内部执行入口，调用方的 confirm:true 会被忽略"
       },
       "rejected": {
         "meaning": "用户在窗格拒绝了该操作（或审批超时视为拒绝）",
@@ -357,7 +365,7 @@
     "read_range": {
       "args": {
         "address": "string 必填：Sheet!A1:B10",
-        "limit": "number 可选：最大格数"
+        "limit": "number 可选：正整数，最大读取格数；默认且上限为 5000"
       }
     },
     "write_range": {
@@ -413,7 +421,7 @@
     "apply_filter": {
       "args": {
         "address": "string 必填",
-        "columns": "array 可选：[{column,filterType,criteria}]"
+        "columns": "array 可选：[{column:1,filterType:'Values',criteria:{values:['a']}}]；column 从 1 开始，Values 可简写 criteria:['a']；Custom 使用 criteria:{criterion1:'>2'}"
       }
     },
     "evaluate_formula": {

@@ -41,6 +41,10 @@
 
 每个窗格有自己的 `instanceId`。`GET /office/status` 返回在线文档列表，含 `docUrl`（文档路径，用来识别是哪一份）和 `docTitle`。发指令必须带 `instance`，否则拒绝——这是防止「多文档同时打开时指令被错误文档执行」的机制。
 
+### 命令与健康状态
+
+命令协议见[集成方文档](AGENT.md)。默认 `COMMAND_TIMEOUT_MS=180000`，审批最长 120 秒且不超过 `expiresAt`。所有窗格执行先原子 `/start`，结果携带 `instance` 和布尔值 `ok`；外部 `args.confirm` 被忽略，内部批准使用绑定命令的一次性闭包。执行中超时标为 `execution_unknown` 并保留实例占位直到迟到结果，避免盲重试重复写入。设置面板区分 `starting` / `healthy` / `unhealthy` / `stopped`，不能仅凭子进程存在判定服务可用。写后核验失败附 `verificationWarnings`，不误报已成功写入失败；回读不保证完整全文。
+
 ### 热更新
 
 窗格每次轮询前比对 `/actions.js` 的版本（= 全部分片 mtime 的最大值），变了就动态重载；心跳里还会比对 `server/taskpane.js` 与 `i18n/*.json` 的 mtime（`codeVersion`），变了就自动 reload 整个窗格。
@@ -159,7 +163,7 @@ PORT=3000 node server/server.js
 
 **改了插件字节就要升 `package.json` 的 `version`**——下游按版本号判新旧，同版本不同字节不会被重新安装。
 
-**加测试**：`node --test`，零框架依赖。桥接服务有现成的启动 helper（`test/helpers/server.mjs`），会在随机端口上起真实服务。
+**加测试**：`node --test`，零框架依赖。桥接服务有现成的启动 helper（`test/helpers/server.mjs`），会在随机端口上起服务。测试环境必须设置 `OFFICE_SKIP_SIDELOAD=1`，禁止注册 Office 加载项。Node vm 测试使用 Office 对象桩，不构成 Office 实机验证。
 
 ## 许可
 

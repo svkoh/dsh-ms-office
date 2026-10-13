@@ -69,7 +69,8 @@ Take the `url` field and append the paths below to it. Every `/office/...` path 
 
 - **`instance` is required.** With several documents open, omitting it can land the command on the wrong
   document — this is a hard rejection, not a warning.
-- It waits synchronously, up to roughly 90s (`timeout`).
+- It waits for the final result, up to 180s by default (`timeout`); set the calling script's HTTP timeout slightly longer.
+- Commands are serialized per instance; different instances execute independently. For writes, supply a top-level `idempotencyKey` (non-empty string, at most 128 characters). The same instance, key and arguments reuse the original command or result; changed arguments are rejected.
 - Returns `{ ok, commandId, host, instance, result }`, or `{ ok: false, code, error, result? }` on failure.
 - **Send the body as UTF-8 bytes.** When a script writes non-ASCII text, encode the JSON as UTF-8 first
   (PowerShell: `[Text.Encoding]::UTF8.GetBytes($json)` with `Content-Type: application/json; charset=utf-8`).
@@ -79,15 +80,18 @@ Take the `url` field and append the paths below to it. Every `/office/...` path 
 
 ## 5. Handle the result
 
-- In `ask` mode an overwriting action returns `confirm_required` plus `result.preview`.
-  **Show the preview to the user and wait for the pane's approval** — `confirm:true` is attached by the
-  pane only after the user approves, and **you must never send it yourself**.
+- In `ask` mode the pane shows a preview and waits for user approval; keep waiting on the original request rather than resending. Approval lasts at most 120 seconds and cannot exceed `expiresAt`; a failed preview prevents execution.
+- External `args.confirm` is ignored. Internal approval invokes a single-use closure bound to `commandId`, without a `confirm` argument. Do not resend approval arguments when seeing `confirm_required`.
+- `timeout`: query `GET /office/commands/:id` first. It returns top-level `commandId`, `status`, `expiresAt` and `response`; states are `pending` / `executing` / `completed` / `expired` / `execution_unknown`. `response` may be a timeout response and does not prove a write never happened.
+- `execution_unknown` keeps the instance occupied until a late result arrives; do not blindly resend writes. Query the original command and inspect the document. History holds at most 1000 commands, completed entries last at most one hour, and records do not survive a restart. `/office/status` exposes `pendingCommands` and retains legacy `pending`.
 - `rejected`: the user declined, or approval timed out. Stop, respect the decision, **do not resend**.
 - `addin_offline`: the pane is not open. Tell the user, **do not retry**.
 - `bad_encoding`: the body was not valid UTF-8 (usually a script sent non-ASCII text in the local codepage).
   Resend it as UTF-8 — **do not resend the same bytes**.
 - "Nothing found" is not an error: `search` / `replace_all(dryRun)` return `ok:true + count:0`. Report that faithfully.
-- A successful write returns `previousState` / `afterState` / `document` — **verify against them rather than trusting blindly**.
+- Verify against the `previousState` / `afterState` / `document` fields actually returned; fields may be absent or truncated. Do not assume complete document readback on every write. `verificationWarnings` means verification was incomplete; `ok:true` still reports a successful write.
+- Excel `read_range` / `read_document` load at most 5000 cells; read large sheets in separate regions. `apply_filter.column` is 1-based. Values filters accept `criteria:{values:["a"]}` or shorthand `criteria:["a"]`; Custom uses condition objects such as `criteria:{criterion1:">2"}`. Check capabilities for the filter-mode argument.
+- `POST /office/commands/:id/start` and `/office/result` are pane-only; callers must not claim execution or submit results themselves.
 
 Full error codes and what to do about each (including whether it is retryable): `GET /office/errors?lang=<zh|en>`.
 
@@ -96,5 +100,5 @@ Full error codes and what to do about each (including whether it is retryable): 
 - The bridge only accepts requests from its own local origin: a mismatched `Origin`, or a `Host` that does not
   match, is rejected with 403.
 - Overwriting writes go through pane approval by default (`confirmMode=ask`); the user can switch the pane to auto.
-- **Never forge `confirm:true`.**
+- Leave approval to the user in the pane; external approval parameters grant no execution rights.
 - Only touch documents the user has open locally and whose pane is online.

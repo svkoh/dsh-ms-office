@@ -31,6 +31,7 @@ export async function startBridge(opts = {}) {
       PORT: String(port),
       DSH_OFFICE_STATE_DIR: stateDir,
       ...(opts.env || {}),
+      OFFICE_SKIP_SIDELOAD: '1',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

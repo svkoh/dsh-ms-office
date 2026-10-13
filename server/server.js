@@ -24,8 +24,12 @@ const crypto = require('node:crypto');
 
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = __dirname;
-const COMMAND_TIMEOUT_MS = Number(process.env.COMMAND_TIMEOUT_MS || 90000);
-const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 64 * 1024 * 1024);
+const COMMAND_TIMEOUT_MS = positiveInt(process.env.COMMAND_TIMEOUT_MS, 180000);
+const MAX_BODY_BYTES = positiveInt(process.env.MAX_BODY_BYTES, 64 * 1024 * 1024);
+function positiveInt(value, fallback) {
+  const n = Number(value);
+  return Number.isSafeInteger(n) && n > 0 ? n : fallback;
+}
 const VALID_HOSTS = ['Word', 'Excel', 'PowerPoint'];
 // 覆盖类操作确认模式：auto=自动 re-read 后执行（结果附 previousState，不打扰用户）；ask=窗格显示审批面板，用户点确认才执行
 // 默认 ask（审批模式）：所有覆盖类操作都经用户确认，最安全；可用环境变量 OFFICE_CONFIRM_MODE 覆盖
@@ -84,7 +88,7 @@ const ERROR_CODES = [
   { code: 'body_too_large', layer: 'server', retry: true },
   { code: 'bad_encoding', layer: 'server', retry: true },
   { code: 'bad_args', layer: 'server|addin', retry: true },
-  { code: 'timeout', layer: 'server', retry: true },
+  { code: 'timeout', layer: 'server', retry: false },
   { code: 'unknown_action', layer: 'addin', retry: true },
   { code: 'unsupported_host', layer: 'addin', retry: true },
   { code: 'confirm_required', layer: 'addin', retry: true },
@@ -102,11 +106,57 @@ function errorCatalog(lang) {
   return ERROR_CODES.map((e) => ({ ...e, meaning: dict[e.code].meaning, aiAction: dict[e.code].action }));
 }
 
-// ---- 指令队列（一次只处理一条，先到先得）----
-let pending = null;        // { commandId, action, args, host, instance, resolve, timer }  host/instance: null = 任意
-const heartbeats = {};     // host -> 最近心跳时间戳（按 host 摘要）
-const instances = {};      // instanceId -> { host, docUrl, docTitle, lastBeat }
-const hellos = {};         // host -> { ts, version } 窗格启动上报（诊断用）
+// 同一实例串行，不同文档可独立执行。执行超时不能假定 Office 已撤销写入。
+const pendingByInstance = new Map();
+const commands = new Map();
+const idempotency = new Map();
+const MAX_COMMANDS = 1000;
+const MAX_ACTIVE_COMMANDS = 64;
+const COMMAND_HISTORY_MS = 60 * 60 * 1000;
+const heartbeats = Object.create(null);
+const instances = Object.create(null);
+const hellos = Object.create(null);
+
+function commandView(command) {
+  return {
+    commandId: command.commandId, action: command.action, host: command.host,
+    instance: command.instance, status: command.status, expiresAt: command.expiresAt,
+    ...(command.response ? { response: command.response } : {}),
+  };
+}
+
+function pruneCommands(now) {
+  for (const [id, command] of commands) {
+    if (pendingByInstance.get(command.instance) === command) continue;
+    if (now - command.finishedAt > COMMAND_HISTORY_MS || commands.size >= MAX_COMMANDS) {
+      commands.delete(id);
+      if (command.idempotencyKey) idempotency.delete(command.idempotencyKey);
+    }
+  }
+}
+
+function finishCommand(command, result) {
+  clearTimeout(command.timer);
+  command.status = 'completed';
+  command.finishedAt = Date.now();
+  command.response = { commandId: command.commandId, host: command.host, instance: command.instance, ...result };
+  if (pendingByInstance.get(command.instance) === command) pendingByInstance.delete(command.instance);
+  command.resolve(command.response);
+}
+
+function expireCommand(command, lang) {
+  const executionStarted = command.status === 'executing';
+  command.status = executionStarted ? 'execution_unknown' : 'expired';
+  command.finishedAt = Date.now();
+  command.response = {
+    ok: false, code: 'timeout', error: msg(lang, 'timeout'), timeout: true,
+    commandId: command.commandId, host: command.host, instance: command.instance,
+    executionStarted, status: command.status,
+  };
+  // 未开始执行的命令可以释放；开始执行后保留占位，迟到结果仍可查询。
+  if (!executionStarted && pendingByInstance.get(command.instance) === command) pendingByInstance.delete(command.instance);
+  command.resolve(command.response);
+}
 
 const OFFLINE_MS = 15000;      // 心跳每 5s 一次，15s 无心跳视为窗格离线
 const INSTANCE_TTL_MS = 60 * 60 * 1000; // 实例记录上限：避免长会话里不断开文档把 instances 撑大
@@ -249,6 +299,7 @@ function ensureSideloaded() {
     console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logManifestWriteFailed', { message: e.message })}`);
     return;
   }
+  if (process.env.OFFICE_SKIP_SIDELOAD === '1') return;
   if (process.platform !== 'win32') {
     console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logNonWindows', { manifest })}`);
     return;
@@ -316,13 +367,20 @@ function readBody(req) {
       }
       if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM 会让 JSON.parse 直接失败
       if (!text) return resolve({});
+      let body;
       try {
-        resolve(JSON.parse(text));
+        body = JSON.parse(text);
       } catch (e) {
         const error = new Error('bad json');
         error.code = 'bad_json';
-        reject(error);
+        return reject(error);
       }
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        const error = new Error('request body must be a JSON object');
+        error.code = 'bad_args';
+        return reject(error);
+      }
+      resolve(body);
     });
     req.on('error', fail);
   });
@@ -335,6 +393,8 @@ function sendBodyError(res, error, lang) {
     sendJson(res, 413, { ok: false, code: 'body_too_large', error: msg(lang, 'bodyTooLarge', { max: MAX_BODY_BYTES }) }, { connection: 'close' });
   } else if (error && error.code === 'bad_encoding') {
     sendJson(res, 400, { ok: false, code: 'bad_encoding', error: msg(lang, 'badEncoding') });
+  } else if (error && error.code === 'bad_args') {
+    sendJson(res, 400, { ok: false, code: 'bad_args', error: msg(lang, 'bodyObjectRequired') });
   } else {
     sendJson(res, 400, { ok: false, code: 'bad_json', error: msg(lang, 'badJson') });
   }
@@ -347,7 +407,7 @@ function pruneInstances(now) {
   }
 }
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
   const p = url.pathname;
   // 本次请求的应答语言（决定所有错误文案与能力表说明用哪种语言）
@@ -417,14 +477,34 @@ const server = http.createServer(async (req, res) => {
     let body;
     try { body = await readBody(req); } catch (e) { sendBodyError(res, e, lang); return; }
     if (!body.action || typeof body.action !== 'string') { sendJson(res, 400, { ok: false, code: 'bad_args', error: msg(lang, 'actionRequired') }); return; }
-    const host = body.host && typeof body.host === 'string' ? body.host : null;
+    if ((body.host !== undefined && (typeof body.host !== 'string' || !VALID_HOSTS.includes(body.host)))
+      || (body.instance !== undefined && (typeof body.instance !== 'string' || body.instance.length > 256))
+      || (body.args !== undefined && (!body.args || typeof body.args !== 'object' || Array.isArray(body.args)))
+      || (body.idempotencyKey !== undefined && (typeof body.idempotencyKey !== 'string' || !body.idempotencyKey.trim() || body.idempotencyKey.length > 128))) {
+      sendJson(res, 400, { ok: false, code: 'bad_args', error: msg(lang, 'commandArgsInvalid') }); return;
+    }
+    const host = body.host || null;
     if (host && !VALID_HOSTS.includes(host)) { sendJson(res, 400, { ok: false, code: 'bad_args', error: msg(lang, 'invalidHost', { host, valid: VALID_HOSTS.join('/') }) }); return; }
     const instance = body.instance && typeof body.instance === 'string' ? body.instance : null; // 必填：指定加载项实例（多文档精确路由，防误执行）
     if (!instance) {
       sendJson(res, 200, { ok: false, code: 'instance_required', error: msg(lang, 'instanceRequired') });
       return;
     }
-    if (pending) { sendJson(res, 409, { ok: false, code: 'busy', error: msg(lang, 'busy') }); return; }
+    const args = { ...(body.args || {}) };
+    delete args.confirm; // 外部参数不能替代窗格内用户批准。
+    const key = body.idempotencyKey ? JSON.stringify([instance, body.idempotencyKey]) : null;
+    const fingerprint = crypto.createHash('sha256').update(JSON.stringify([body.action, host, args])).digest('hex');
+    pruneCommands(Date.now());
+    if (key && idempotency.has(key)) {
+      const previous = commands.get(idempotency.get(key));
+      if (previous.fingerprint !== fingerprint) {
+        sendJson(res, 409, { ok: false, code: 'bad_args', error: msg(lang, 'idempotencyConflict') }); return;
+      }
+      sendJson(res, 200, previous.response || await previous.promise); return;
+    }
+    if (pendingByInstance.has(instance) || pendingByInstance.size >= MAX_ACTIVE_COMMANDS || commands.size >= MAX_COMMANDS) {
+      sendJson(res, 409, { ok: false, code: 'busy', error: msg(lang, 'busy') }); return;
+    }
     // 快速失败：目标 host/instance 窗格不在线时立即返回明确错误（而不是傻等 90s 超时）
     const now = Date.now();
     pruneInstances(now);
@@ -440,22 +520,52 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, { ok: false, code: 'addin_offline', error: msg(lang, 'addinOfflineHost', { host }) });
       return;
     }
+    if (host && instances[instance].host !== host) {
+      sendJson(res, 400, { ok: false, code: 'bad_args', error: msg(lang, 'instanceHostMismatch') }); return;
+    }
     const commandId = crypto.randomUUID();
-    const result = await new Promise((resolve) => {
-      const timer = setTimeout(() => resolve({ ok: false, code: 'timeout', error: msg(lang, 'timeout'), timeout: true }), COMMAND_TIMEOUT_MS);
-      pending = { commandId, action: body.action, args: body.args || {}, host, instance, resolve: (r) => { clearTimeout(timer); resolve(r); } };
-    });
-    if (pending && pending.commandId === commandId) pending = null; // 清理（超时路径）
-    sendJson(res, 200, { ok: result.ok !== false, commandId, host: host || 'any', instance: instance || 'any', ...result });
+    const command = {
+      commandId, action: body.action, args, host: instances[instance].host, instance,
+      status: 'pending', expiresAt: now + COMMAND_TIMEOUT_MS,
+      idempotencyKey: key, fingerprint,
+    };
+    command.promise = new Promise((resolve) => { command.resolve = resolve; });
+    command.timer = setTimeout(() => expireCommand(command, lang), COMMAND_TIMEOUT_MS);
+    pendingByInstance.set(instance, command);
+    commands.set(commandId, command);
+    if (key) idempotency.set(key, commandId);
+    sendJson(res, 200, await command.promise);
     return;
+  }
+
+  const commandRoute = p.match(/^\/office\/commands\/([\w-]+)(\/start)?$/);
+  if (commandRoute && (req.method === 'GET' || req.method === 'POST')) {
+    const command = commands.get(commandRoute[1]);
+    if (!command) { sendJson(res, 404, { ok: false, code: 'not_found', error: msg(lang, 'unknownCommandId') }); return; }
+    if (req.method === 'GET' && !commandRoute[2]) { sendJson(res, 200, { ok: true, ...commandView(command) }); return; }
+    if (req.method === 'POST' && commandRoute[2]) {
+      let body;
+      try { body = await readBody(req); } catch (e) { sendBodyError(res, e, lang); return; }
+      if (body.instance !== command.instance) {
+        sendJson(res, 400, { ok: false, code: 'bad_args', error: msg(lang, 'commandInstanceMismatch') }); return;
+      }
+      if (command.status === 'pending' && Date.now() >= command.expiresAt) expireCommand(command, lang);
+      if (command.status !== 'pending') {
+        sendJson(res, 409, { ok: false, code: command.status === 'expired' ? 'timeout' : 'busy', error: msg(lang, command.status === 'expired' ? 'timeout' : 'busy'), ...commandView(command) }); return;
+      }
+      command.status = 'executing';
+      sendJson(res, 200, { ok: true, ...commandView(command) }); return;
+    }
   }
 
   // GET /office/poll —— 加载项取指令；?host= + ?instance= 精确匹配（多文档时只有目标实例能取走）
   if (req.method === 'GET' && p === '/office/poll') {
     const host = url.searchParams.get('host') || '';
     const instance = url.searchParams.get('instance') || '';
-    if (pending && (!pending.host || pending.host === host) && (!pending.instance || pending.instance === instance)) {
-      sendJson(res, 200, { commandId: pending.commandId, action: pending.action, args: pending.args });
+    const pending = pendingByInstance.get(instance);
+    if (pending && pending.status === 'pending' && Date.now() >= pending.expiresAt) expireCommand(pending, lang);
+    if (pending && pending.status === 'pending' && pending.host === host) {
+      sendJson(res, 200, { commandId: pending.commandId, action: pending.action, args: pending.args, expiresAt: pending.expiresAt });
     } else {
       sendJson(res, 200, { commandId: null });
     }
@@ -466,11 +576,19 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && p === '/office/result') {
     let body;
     try { body = await readBody(req); } catch (e) { sendBodyError(res, e, lang); return; }
-    if (pending && pending.commandId === body.commandId) {
-      const r = pending.resolve;
-      pending = null;
-      // 错误也转发 code/result（如 confirm_required 的 result.preview），否则 AI 拿不到预览
-      r(body.ok === false
+    if (typeof body.commandId !== 'string' || typeof body.instance !== 'string' || typeof body.ok !== 'boolean') {
+      sendJson(res, 400, { ok: false, code: 'bad_args', error: msg(lang, 'resultArgsInvalid') }); return;
+    }
+    const command = commands.get(body.commandId);
+    if (command && command.instance !== body.instance) {
+      sendJson(res, 400, { ok: false, code: 'bad_args', error: msg(lang, 'commandInstanceMismatch') }); return;
+    }
+    if (command && command.status === 'completed') { sendJson(res, 200, { ok: true }); return; }
+    if (command && ['pending', 'executing', 'execution_unknown'].includes(command.status)) {
+      if (command.status === 'pending' && body.ok) {
+        sendJson(res, 409, { ok: false, code: 'busy', error: msg(lang, 'commandNotStarted') }); return;
+      }
+      finishCommand(command, body.ok === false
         ? { ok: false, error: body.error || msg(lang, 'addInError'), code: body.code, result: body.result }
         : { ok: true, result: body.result });
       sendJson(res, 200, { ok: true });
@@ -483,7 +601,7 @@ const server = http.createServer(async (req, res) => {
   // POST /office/heartbeat —— body: { host, instanceId, docUrl, docTitle }；实例注册 + host 摘要；响应带 codeVersion
   if (req.method === 'POST' && p === '/office/heartbeat') {
     let body;
-    try { body = await readBody(req); } catch { body = {}; }
+    try { body = await readBody(req); } catch (e) { sendBodyError(res, e, lang); return; }
     const host = body.host && typeof body.host === 'string' && VALID_HOSTS.includes(body.host) ? body.host : null;
     const now = Date.now();
     if (host) heartbeats[host] = now;
@@ -498,7 +616,7 @@ const server = http.createServer(async (req, res) => {
   // POST /office/hello —— 窗格启动上报（每次 JS 加载执行一次；用于验证自动刷新/reload 是否生效）
   if (req.method === 'POST' && p === '/office/hello') {
     let body;
-    try { body = await readBody(req); } catch { body = {}; }
+    try { body = await readBody(req); } catch (e) { sendBodyError(res, e, lang); return; }
     const host = body.host && typeof body.host === 'string' && VALID_HOSTS.includes(body.host) ? body.host : null;
     if (host) hellos[host] = { ts: Date.now(), version: body.version || '' };
     sendJson(res, 200, { ok: true });
@@ -520,7 +638,10 @@ const server = http.createServer(async (req, res) => {
       lastBeat: v.lastBeat,
     }));
     sendJson(res, 200, {
-      pending: pending ? { commandId: pending.commandId, action: pending.action, host: pending.host || 'any', instance: pending.instance || 'any' } : null,
+      plugin: 'dsh-office-for-mso',
+      pid: process.pid,
+      pending: pendingByInstance.size ? commandView(pendingByInstance.values().next().value) : null,
+      pendingCommands: [...pendingByInstance.values()].map(commandView),
       hosts,
       instances: instanceList,
       hellos,
@@ -543,7 +664,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'POST' && p === '/office/config') {
     let body;
-    try { body = await readBody(req); } catch { body = {}; }
+    try { body = await readBody(req); } catch (e) { sendBodyError(res, e, lang); return; }
     if (body.confirmMode === 'auto' || body.confirmMode === 'ask') {
       CONFIRM_MODE = body.confirmMode;
       sendJson(res, 200, { ok: true, confirmMode: CONFIRM_MODE });
@@ -579,6 +700,14 @@ const server = http.createServer(async (req, res) => {
   }
 
   sendJson(res, 404, { error: msg(lang, 'unknownEndpoint') });
+}
+
+const server = http.createServer((req, res) => {
+  handleRequest(req, res).catch((error) => {
+    console.error('[dsh-office-for-mso] request failed:', error);
+    if (!res.headersSent) sendJson(res, 500, { ok: false, code: 'execution', error: msg(DEFAULT_LANG, 'requestFailed') });
+    else res.destroy();
+  });
 });
 
 server.listen(PORT, '127.0.0.1', () => {

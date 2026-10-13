@@ -262,9 +262,9 @@
     } catch (e) { /* 预选失败不阻塞审批 */ }
   }
 
-  // 插入类（insert_paragraph / append_text）审批定位：选中插入点 = 文末最后一段（afterSelection 保持选区不动）
-  async function selectWordInsertPoint(args) {
-    if (args && args.location === 'afterSelection') return; // 插入点在选区后：保持当前选区，让用户看到自己的上下文
+  // 仅正文边界插入可移动预选。调用者按动作默认值解析语义；选区/搜索目标保持原选区。
+  async function selectWordInsertPoint(location) {
+    if (location !== 'start' && location !== 'end') return;
     try {
       await Word.run(async (ctx) => {
         const paras = ctx.document.body.paragraphs;
@@ -272,7 +272,8 @@
         await ctx.sync();
         const items = paras.items;
         if (items && items.length) {
-          items[items.length - 1].getRange().select();
+          const paragraph = location === 'start' ? items[0] : items[items.length - 1];
+          paragraph.getRange(location === 'start' ? 'Start' : 'End').select();
           await ctx.sync();
         }
       });
@@ -910,13 +911,18 @@
     },
     selectTargets: {
       replace_all: selectReplaceFirst,
-      insert_paragraph: selectWordInsertPoint,
-      insert_table: selectWordInsertPoint,
-      word_insert_equation: selectWordInsertPoint,
-      word_insert_break: selectWordInsertPoint,
-      word_insert_caption: selectWordInsertPoint,
+      insert_paragraph: (a) => selectWordInsertPoint(a.location || 'end'),
+      insert_table: (a) => selectWordInsertPoint(a.location || 'end'),
+      word_insert_equation: (a) => {
+        const kind = a.target ? (a.target.kind || 'selection') : (['start', 'end'].includes(a.location) ? 'body' : 'selection');
+        if (kind !== 'body') return;
+        const mode = a.mode || ({ start: 'prepend', end: 'append' }[a.location] || 'after');
+        return selectWordInsertPoint(mode === 'prepend' ? 'start' : mode === 'append' ? 'end' : null);
+      },
+      word_insert_break: (a) => selectWordInsertPoint(a.location || 'afterSelection'),
+      word_insert_caption: () => undefined, // position 的两个合法值均相对当前选区
     },
-    // 机制级 re-read：覆盖类操作必须先预览当前状态，确认后带 confirm:true 才执行。
+    // 机制级 re-read：覆盖类操作先预览，ask 模式经窗格内部授权入口执行。
     // 每个覆盖类 action 映射到「读当前状态」的函数，预览结果随 confirm_required 返回给 AI。
     previewReaders: {
       write_selection: () => readSelection({}),
