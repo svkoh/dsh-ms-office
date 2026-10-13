@@ -1,13 +1,14 @@
 {
   "name": "dsh-ms-office",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Control the Microsoft Office documents you already have open (Word / Excel / PowerPoint) from a DeepSeek Harness session, through an Office add-in. Ships a local bridge sidecar plus the task pane that executes Office.js.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "cordis.patch.yml",
@@ -44,7 +45,8 @@
     "scripts/create-excel-style-atlas.mjs",
     "scripts/create-ppt-style-atlas.mjs",
     "server/native-word-pages.cjs",
-    "server/native-word-pages.ps1"
+    "server/native-word-pages.ps1",
+    "locale"
   ],
   "dsh": {
     "manifestVersion": 1,
