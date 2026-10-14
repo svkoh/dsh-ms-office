@@ -1,10 +1,10 @@
 ---
-name: office-for-mso
+name: ms-office
 description: 通过本机桥接服务和 Office 加载项，操控用户当前打开的 Microsoft Office 桌面版文档（Word / Excel / PowerPoint）——读取、写入、格式化、结构操作、图表 / 公式 / 批注。用于「读一下 Word 全文」「Excel 生成图表」「把选中的翻译成英文」这类请求。
 whenToUse: 用户要求操作 Word / Excel / PowerPoint 文档（读取、编辑、格式化、分析、生成图表/公式、批注等），且这些文档是用户已经在 Microsoft Office 桌面版里打开的。
 ---
 
-# Office for MSO（DSH ↔ Microsoft Office）
+# MS Office（DSH ↔ Microsoft Office）
 
 ## 适用边界
 
@@ -18,11 +18,11 @@ whenToUse: 用户要求操作 Word / Excel / PowerPoint 文档（读取、编辑
 实际地址写在桥接服务自己维护的公告文件里——**读它，不要猜**：
 
 ```
-$DSH_HOME/dsh-office-for-mso/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
+$DSH_HOME/dsh-ms-office/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
 ```
 
 ```json
-{ "plugin": "dsh-office-for-mso", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234 }
+{ "plugin": "dsh-ms-office", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234 }
 ```
 
 取 `url` 字段拼后面的路径。下面出现的 `/office/...` 都相对这个地址。

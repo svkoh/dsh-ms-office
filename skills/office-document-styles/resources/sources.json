@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "retrievedAt": "2026-10-13",
+  "sources": [
+    {
+      "id": "word-business-report",
+      "hosts": [
+        "Word"
+      ],
+      "url": "https://word.cloud.microsoft/create/en/papers-and-reports/",
+      "title": "Microsoft Word report templates — Business report (graphic design)",
+      "licenseStatus": "reference-only",
+      "evidence": "Official page describes consistent headings, appendix sections and an easy-to-scan layout. Business report (graphic design) has blue/modern/simple catalogue labels. Fonts, colors and headings are customizable. Free/customizable use does not establish plugin redistribution permission; none was verified.",
+      "usedFor": "Original formal work report: substantive summary, evidence, actions, responsibilities and recommendations with semantic headings. Chinese SimSun justified typography is an independent office convention, not copied Microsoft styling. Reference links only; no source template/assets copied. Original recipe and native examples are MIT.",
+      "atlasUse": "Reference for Word element structure or styling; original native atlas only, no third-party template binaries/assets."
+    },
+    {
+      "id": "word-accessible-document",
+      "hosts": [
+        "Word"
+      ],
+      "url": "https://www.gov.uk/guidance/publishing-accessible-documents",
+      "title": "GOV.UK — Publishing accessible documents",
+      "licenseStatus": "ogl-guidance-reference",
+      "evidence": "Footer: All content is available under the Open Government Licence v3.0, except where otherwise stated. Guidance specifies sans serif text of at least 12 points, left alignment, a single continuous column, semantic headings and simple data tables. OGL permits copying, distribution, adaptation and commercial use with attribution and exemptions. License verified at https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/.",
+      "usedFor": "Semantic heading hierarchy, logical structure and no color-only meaning inform the original business approval request. GOV.UK recommends sans-serif/left-aligned text; it does not recommend our Chinese SimSun justified typography, which is independently chosen. No government branding or assets copied. OGL text retains attribution and terms.",
+      "atlasUse": "Reference for Word element structure or styling; original native atlas only, no third-party template binaries/assets."
+    },
+    {
+      "id": "excel-budget",
+      "hosts": [
+        "Excel"
+      ],
+      "url": "https://excel.cloud.microsoft/create/en/budget-templates/",
+      "title": "Microsoft Excel budget templates — Basic personal budget",
+      "licenseStatus": "reference-only",
+      "evidence": "Official page describes tracking expenses, planning monthly spending, replacing cell values/names and customizing colors. Basic personal budget and Basic monthly budget have green/modern/simple catalogue labels. No plugin redistribution permission was verified; free customizable use is not an open redistribution license.",
+      "usedFor": "Original monthly budget execution: budget/actual/difference structure, categorized detail, reproducible KPI formulas and explicit period/currency assumptions. Original three-sheet workbook and native chart; no Microsoft workbook, formulas or assets copied. MIT applies only to original implementation.",
+      "atlasUse": "Reference for Excel element structure or styling; original native atlas only, no third-party template binaries/assets."
+    },
+    {
+      "id": "excel-accessible-reference-table",
+      "hosts": [
+        "Excel"
+      ],
+      "url": "https://analysisfunction.civilservice.gov.uk/policy-store/releasing-statistics-in-spreadsheets/",
+      "title": "Government Analysis Function — Releasing statistics in spreadsheets",
+      "licenseStatus": "ogl-guidance-reference",
+      "evidence": "Guidance recommends named structured tables, one header row, no merged/split/nested cells, visible wrapped text, consistent precision and right-aligned figures. https://analysisfunction.civilservice.gov.uk/terms-of-use/ states most content is Crown copyright under OGL, with AF attribution and titles/credits/URLs retained. Terms expressly restrict site images outside their intended use. Example spreadsheet internals were not inspected.",
+      "usedFor": "Original project execution tracking: descriptive headings, named native Tables, consistent number formats and separate issue/assumption records. Dashboard KPIs and native chart use original formulas and source-worksheet references. No AF images or example workbooks copied. OGL text retains attribution and terms; publication-specific advice is not universal.",
+      "atlasUse": "Reference for Excel element structure or styling; original native atlas only, no third-party template binaries/assets."
+    },
+    {
+      "id": "ppt-scientific-discovery",
+      "hosts": [
+        "PowerPoint"
+      ],
+      "url": "https://powerpoint.cloud.microsoft/create/en/presentation-templates/",
+      "title": "Microsoft PowerPoint presentation templates — Scientific discovery",
+      "licenseStatus": "reference-only",
+      "evidence": "Official page describes highly customizable layouts for work or school and customization of colors, logos and fonts. Scientific discovery has blue/modern/simple catalogue labels. No plugin redistribution permission for the deck, masters or assets was verified.",
+      "usedFor": "General reference for adaptable layout families and consistent hierarchy. The original eight-page operating review uses reconciled business data, editable quantitative geometry/tables and restrained warm ivory/charcoal/copper styling; no source artwork, master or template reproduced. MIT covers original content only.",
+      "atlasUse": "Reference for PowerPoint element structure or styling; original native atlas only, no third-party template binaries/assets."
+    },
+    {
+      "id": "ppt-libreoffice-modern-cc0",
+      "hosts": [
+        "PowerPoint"
+      ],
+      "url": "https://extensions.libreoffice.org/en/extensions/show/5139",
+      "title": "LibreOffice Extensions — Modern template",
+      "licenseStatus": "cc0-candidate",
+      "evidence": "Official extension page describes Impress templates in various color combinations; Green, Orange and Blue release rows each list CC0. https://creativecommons.org/publicdomain/zero/1.0/deed.en permits copying, modification and distribution including commercially, without permission, but does not clear trademarks or third-party rights. Website default CC BY-SA 3.0 for text/images is distinct from release CC0. OTP internals, fonts and PPTX compatibility were not audited.",
+      "usedFor": "Reference for a consistent layout family and geometric structure. The original eight-page project proposal uses editable workflow, ROI scenarios, risk/resource matrices and cool white/ink/mist-blue styling. Link reference only; no OTP, font, screenshot or other source asset bundled. Release CC0 does not relicense website images or remove future internal asset audits.",
+      "atlasUse": "Reference for PowerPoint element structure or styling; original native atlas only, no third-party template binaries/assets."
+    },
+    {
+      "id": "excel-business-budget-vertex42",
+      "hosts": [
+        "Excel"
+      ],
+      "url": "https://www.vertex42.com/ExcelTemplates/business-budget.html",
+      "title": "Vertex42 — Business Budget Template",
+      "licenseStatus": "private-use-reference-only",
+      "evidence": "HTTP 200 retrieved 2026-10-13. Page labels the files Private Use (not for distribution or resale). https://www.vertex42.com/licensing/EULA_privateuse.html allows personal/company use and limited private sharing, forbids public sale/distribution of templates or derived files, and lists limited screenshot exceptions. These are not general plugin redistribution rights.",
+      "usedFor": "Reference for budget versus actual differences, categorized costs and independent total reconciliation. Only page text and publicly displayed examples are reviewed; no Vertex42 workbook, image, formula or derived template is distributed. Our workbook and formulas are original.",
+      "atlasUse": "Reference for Excel element structure or styling; original native atlas only, no third-party template binaries/assets."
+    },
+    {
+      "id": "ppt-microsoft-financial-results",
+      "hosts": [
+        "PowerPoint"
+      ],
+      "url": "https://www.microsoft.com/en-us/Investor/earnings/FY-2025-Q4/press-release-webcast",
+      "title": "Microsoft Investor Relations — FY25 Q4 earnings release",
+      "licenseStatus": "reference-only",
+      "evidence": "Official earnings page retrieved with HTTP 200 on 2026-10-13. Presents headline metrics, segment comparisons, constant-currency explanations and forward-looking risk assumptions. No open license for redistribution of presentation assets was established.",
+      "usedFor": "Original operating review and project proposal: conclusion-first reporting, quantitative reconciliation, segment contribution, disclosed assumptions, risks and decision requests. All example business data is synthetic and visibly DEMO; no Microsoft financial data, logos, imagery or slide assets copied.",
+      "atlasUse": "Reference for PowerPoint element structure or styling; original native atlas only, no third-party template binaries/assets."
+    }
+  ]
+}

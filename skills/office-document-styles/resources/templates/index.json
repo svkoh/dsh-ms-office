@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 3,
+  "dataLabel": "DEMO / 示例数据",
+  "purpose": "One native file per host; reusable elements and layouts.",
+  "templates": [
+    {
+      "presetId": "word-base-styles",
+      "host": "Word",
+      "name": {
+        "zh": "Word 基础样式范本",
+        "en": "Word element style atlas"
+      },
+      "office": "word-base-styles.docx",
+      "pdf": null,
+      "preview": "word-base-styles.png",
+      "pageCount": 5,
+      "previewCount": 5,
+      "coverage": [
+        "cover",
+        "toc",
+        "heading-1-2-3",
+        "paragraph",
+        "native-lists",
+        "alignment",
+        "native-table",
+        "color",
+        "image",
+        "caption",
+        "header",
+        "footer",
+        "PAGE"
+      ],
+      "fontFamilies": {
+        "body": "宋体",
+        "heading1": "黑体",
+        "documentTitle": "黑体",
+        "table": "宋体"
+      },
+      "pluginOnlyWrites": true,
+      "previewScope": "Full native Microsoft Office page or worksheet",
+      "verification": "Actual plugin generation, native package checks and native Office visual review.",
+      "checksums": {
+        "skills/office-document-styles/resources/templates/word-base-styles.docx": "2e9cada57e5ab2950121cab667250603cb14312ebe479aa12b63baa1450009e1",
+        "docs/style-atlas/word-base-styles.docx": "2e9cada57e5ab2950121cab667250603cb14312ebe479aa12b63baa1450009e1",
+        "skills/office-document-styles/resources/previews/word-base-styles/page-01.png": "85a4652c97c49f4fb76597511e5705c3705ce0f160688dcd103c17b5d1cbf3d7",
+        "skills/office-document-styles/resources/previews/word-base-styles/page-02.png": "45f25650ec605c4051e3e0d470e3b6319b9c84fdfc22ccf5f773315635f44e73",
+        "skills/office-document-styles/resources/previews/word-base-styles/page-03.png": "d6c24909c3aff2094b1be35be178cadb0f0f91069d38c6dde15b59ae222203e3",
+        "skills/office-document-styles/resources/previews/word-base-styles/page-04.png": "db9d94f2ed2a1b555b6131097f28a261a36734c0c49cc8f891a8aed460670a12",
+        "skills/office-document-styles/resources/previews/word-base-styles/page-05.png": "dac0fee657bcf72d5f185eafa0f83a096aa5cea367f4fbebafdbcf730b1272ab",
+        "skills/office-document-styles/resources/previews/word-base-styles.png": "85a4652c97c49f4fb76597511e5705c3705ce0f160688dcd103c17b5d1cbf3d7"
+      }
+    },
+    {
+      "presetId": "excel-base-styles",
+      "host": "Excel",
+      "name": {
+        "zh": "Excel 基础样式范本",
+        "en": "Excel element style atlas"
+      },
+      "office": "excel-base-styles.xlsx",
+      "pdf": "excel-base-styles.pdf",
+      "preview": "excel-base-styles.png",
+      "pageCount": 2,
+      "previewCount": 2,
+      "coverage": [
+        "bold-title",
+        "auto-columns",
+        "wrap-text",
+        "auto-rows",
+        "alignment",
+        "number-formats",
+        "borders",
+        "native-table",
+        "filter",
+        "freeze",
+        "conditional-format",
+        "formulas",
+        "native-chart"
+      ],
+      "pluginOnlyWrites": true,
+      "previewScope": "Full native Microsoft Office page or worksheet",
+      "verification": "Actual plugin generation, native package checks and native Office visual review.",
+      "checksums": {
+        "skills/office-document-styles/resources/templates/excel-base-styles.xlsx": "d917e813c6a0665241e86e95d25eb19b37a29887545d31fe333ec0a80c189074",
+        "docs/style-atlas/excel-base-styles.xlsx": "d917e813c6a0665241e86e95d25eb19b37a29887545d31fe333ec0a80c189074",
+        "skills/office-document-styles/resources/templates/excel-base-styles.pdf": "a42a3c36e60079afce4da6fe401f6d3dda601658cf2201bac28d50d001c2a848",
+        "docs/style-atlas/excel-base-styles.pdf": "a42a3c36e60079afce4da6fe401f6d3dda601658cf2201bac28d50d001c2a848",
+        "skills/office-document-styles/resources/previews/excel-base-styles/page-01.png": "102e6b3ca768399ff13fca3f7349689bad39b1cb9115acf8794c6d0c631969f2",
+        "skills/office-document-styles/resources/previews/excel-base-styles/page-02.png": "e9119162bc5d1a4dbbe505773eabcf3562cb5a7cac826aff05256215b67f8744",
+        "skills/office-document-styles/resources/previews/excel-base-styles.png": "102e6b3ca768399ff13fca3f7349689bad39b1cb9115acf8794c6d0c631969f2"
+      }
+    },
+    {
+      "presetId": "ppt-base-styles",
+      "host": "PowerPoint",
+      "name": {
+        "zh": "PowerPoint 基础样式范本",
+        "en": "PowerPoint element style atlas"
+      },
+      "office": "ppt-base-styles.pptx",
+      "pdf": "ppt-base-styles.pdf",
+      "preview": "ppt-base-styles.png",
+      "pageCount": 10,
+      "previewCount": 10,
+      "coverage": [
+        "cover",
+        "type-hierarchy",
+        "shapes",
+        "native-table",
+        "shape-chart",
+        "image",
+        "two-column",
+        "flow",
+        "connectors",
+        "timeline",
+        "three-column",
+        "palette",
+        "grid",
+        "conclusion"
+      ],
+      "fontFamilies": {
+        "title": "黑体",
+        "body": "楷体",
+        "table": "楷体",
+        "chart": "楷体"
+      },
+      "pluginOnlyWrites": true,
+      "previewScope": "Full native Microsoft Office page or worksheet",
+      "verification": "Actual plugin generation, native package checks and native Office visual review.",
+      "checksums": {
+        "skills/office-document-styles/resources/templates/ppt-base-styles.pptx": "43ecc1a48eb8033c979ecb1226f9ea3127bf58ce73443ef923ac55c244c9c724",
+        "docs/style-atlas/ppt-base-styles.pptx": "43ecc1a48eb8033c979ecb1226f9ea3127bf58ce73443ef923ac55c244c9c724",
+        "skills/office-document-styles/resources/templates/ppt-base-styles.pdf": "94834fd5c9994c409da214c5470b3c01620191b689805bee8a4f7fc9943c4c71",
+        "docs/style-atlas/ppt-base-styles.pdf": "94834fd5c9994c409da214c5470b3c01620191b689805bee8a4f7fc9943c4c71",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-01.png": "0d95c146d632ba207ce5f53b9360b5f9ea24ee703c5536250cb56f8f1bded9d2",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-02.png": "3bc8713a448fe9442842f31d18f85072269e99c6dc2099df1e7e348f37ccfdcc",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-03.png": "aba5686b549e11c99a28a9ba04f4ec227088569b52c27301711c2edc4d1a579e",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-04.png": "f6813f854717663e5b7f9973e226f266367fe5800a09abaf4014b90c11c129a0",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-05.png": "ff340a537d31473ddde8edf5ae9eefee5bedb7d7bcc1676b9c7af98511ddf183",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-06.png": "99010c8e3e2bd4156449c734b25155541fd53e923308deaa59b668e841ad8e0c",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-07.png": "f3945c6e9b248a1323004cf47c6abb6a5fc9b7775a11f8ea4e57dad1eae2dd9c",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-08.png": "de45f61db76d4df673abf6de0c72ca05a0cf0462ed9413e6dd0688af50450bad",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-09.png": "38310012c845bdd1649bbb23967c49ffadcf37d49624cf4084f679e826cf6634",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-10.png": "53ca09e757b54317e5375af0d8b5a57602c1fe35a8dffd77147411311c73a6bc",
+        "skills/office-document-styles/resources/previews/ppt-base-styles.png": "0d95c146d632ba207ce5f53b9360b5f9ea24ee703c5536250cb56f8f1bded9d2"
+      }
+    }
+  ]
+}

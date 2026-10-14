@@ -1,0 +1,425 @@
+{
+  "schemaVersion": 1,
+  "source": "Actual Office.js plugin",
+  "passed": true,
+  "host": "Excel",
+  "pluginOnlyWrites": true,
+  "pageCount": 2,
+  "fontsVerified": true,
+  "checksums": {
+    "skills/office-document-styles/resources/templates/excel-base-styles.xlsx": "d917e813c6a0665241e86e95d25eb19b37a29887545d31fe333ec0a80c189074",
+    "docs/style-atlas/excel-base-styles.xlsx": "d917e813c6a0665241e86e95d25eb19b37a29887545d31fe333ec0a80c189074",
+    "skills/office-document-styles/resources/templates/excel-base-styles.pdf": "a42a3c36e60079afce4da6fe401f6d3dda601658cf2201bac28d50d001c2a848",
+    "docs/style-atlas/excel-base-styles.pdf": "a42a3c36e60079afce4da6fe401f6d3dda601658cf2201bac28d50d001c2a848",
+    "skills/office-document-styles/resources/previews/excel-base-styles/page-01.png": "102e6b3ca768399ff13fca3f7349689bad39b1cb9115acf8794c6d0c631969f2",
+    "skills/office-document-styles/resources/previews/excel-base-styles/page-02.png": "e9119162bc5d1a4dbbe505773eabcf3562cb5a7cac826aff05256215b67f8744",
+    "skills/office-document-styles/resources/previews/excel-base-styles.png": "102e6b3ca768399ff13fca3f7349689bad39b1cb9115acf8794c6d0c631969f2"
+  },
+  "native": {
+    "chartFontChecks": [
+      {
+        "part": "xl/charts/chart1.xml",
+        "fonts": [
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体",
+          "宋体"
+        ]
+      }
+    ],
+    "fontChecks": [
+      {
+        "part": "xl/worksheets/sheet1.xml",
+        "cells": [
+          {
+            "cell": "A1",
+            "font": "宋体"
+          },
+          {
+            "cell": "B1",
+            "font": "宋体"
+          },
+          {
+            "cell": "B2",
+            "font": "宋体"
+          },
+          {
+            "cell": "B5",
+            "font": "宋体"
+          },
+          {
+            "cell": "C5",
+            "font": "宋体"
+          },
+          {
+            "cell": "D5",
+            "font": "宋体"
+          },
+          {
+            "cell": "E5",
+            "font": "宋体"
+          },
+          {
+            "cell": "F5",
+            "font": "宋体"
+          },
+          {
+            "cell": "A6",
+            "font": "宋体"
+          },
+          {
+            "cell": "B6",
+            "font": "宋体"
+          },
+          {
+            "cell": "C6",
+            "font": "宋体"
+          },
+          {
+            "cell": "D6",
+            "font": "宋体"
+          },
+          {
+            "cell": "E6",
+            "font": "宋体"
+          },
+          {
+            "cell": "F6",
+            "font": "宋体"
+          },
+          {
+            "cell": "A7",
+            "font": "宋体"
+          },
+          {
+            "cell": "B7",
+            "font": "宋体"
+          },
+          {
+            "cell": "C7",
+            "font": "宋体"
+          },
+          {
+            "cell": "D7",
+            "font": "宋体"
+          },
+          {
+            "cell": "E7",
+            "font": "宋体"
+          },
+          {
+            "cell": "F7",
+            "font": "宋体"
+          },
+          {
+            "cell": "A8",
+            "font": "宋体"
+          },
+          {
+            "cell": "B8",
+            "font": "宋体"
+          },
+          {
+            "cell": "C8",
+            "font": "宋体"
+          },
+          {
+            "cell": "D8",
+            "font": "宋体"
+          },
+          {
+            "cell": "E8",
+            "font": "宋体"
+          },
+          {
+            "cell": "F8",
+            "font": "宋体"
+          },
+          {
+            "cell": "A9",
+            "font": "宋体"
+          },
+          {
+            "cell": "B9",
+            "font": "宋体"
+          },
+          {
+            "cell": "C9",
+            "font": "宋体"
+          },
+          {
+            "cell": "D9",
+            "font": "宋体"
+          },
+          {
+            "cell": "E9",
+            "font": "宋体"
+          },
+          {
+            "cell": "F9",
+            "font": "宋体"
+          },
+          {
+            "cell": "A10",
+            "font": "宋体"
+          },
+          {
+            "cell": "B10",
+            "font": "宋体"
+          },
+          {
+            "cell": "C10",
+            "font": "宋体"
+          },
+          {
+            "cell": "F10",
+            "font": "宋体"
+          },
+          {
+            "cell": "B13",
+            "font": "宋体"
+          }
+        ],
+        "allUsedCellsSong": true,
+        "frozen": true,
+        "conditionalFormatting": true
+      },
+      {
+        "part": "xl/worksheets/sheet2.xml",
+        "cells": [
+          {
+            "cell": "A1",
+            "font": "宋体"
+          },
+          {
+            "cell": "B1",
+            "font": "宋体"
+          },
+          {
+            "cell": "B2",
+            "font": "宋体"
+          },
+          {
+            "cell": "B5",
+            "font": "宋体"
+          },
+          {
+            "cell": "C5",
+            "font": "宋体"
+          },
+          {
+            "cell": "D5",
+            "font": "宋体"
+          },
+          {
+            "cell": "E5",
+            "font": "宋体"
+          },
+          {
+            "cell": "F5",
+            "font": "宋体"
+          },
+          {
+            "cell": "A6",
+            "font": "宋体"
+          },
+          {
+            "cell": "B6",
+            "font": "宋体"
+          },
+          {
+            "cell": "C6",
+            "font": "宋体"
+          },
+          {
+            "cell": "D6",
+            "font": "宋体"
+          },
+          {
+            "cell": "E6",
+            "font": "宋体"
+          },
+          {
+            "cell": "F6",
+            "font": "宋体"
+          },
+          {
+            "cell": "A7",
+            "font": "宋体"
+          },
+          {
+            "cell": "B7",
+            "font": "宋体"
+          },
+          {
+            "cell": "C7",
+            "font": "宋体"
+          },
+          {
+            "cell": "D7",
+            "font": "宋体"
+          },
+          {
+            "cell": "E7",
+            "font": "宋体"
+          },
+          {
+            "cell": "F7",
+            "font": "宋体"
+          },
+          {
+            "cell": "A8",
+            "font": "宋体"
+          },
+          {
+            "cell": "B8",
+            "font": "宋体"
+          },
+          {
+            "cell": "C8",
+            "font": "宋体"
+          },
+          {
+            "cell": "D8",
+            "font": "宋体"
+          },
+          {
+            "cell": "E8",
+            "font": "宋体"
+          },
+          {
+            "cell": "F8",
+            "font": "宋体"
+          },
+          {
+            "cell": "A9",
+            "font": "宋体"
+          },
+          {
+            "cell": "B9",
+            "font": "宋体"
+          },
+          {
+            "cell": "C9",
+            "font": "宋体"
+          },
+          {
+            "cell": "D9",
+            "font": "宋体"
+          },
+          {
+            "cell": "E9",
+            "font": "宋体"
+          },
+          {
+            "cell": "F9",
+            "font": "宋体"
+          },
+          {
+            "cell": "A10",
+            "font": "宋体"
+          },
+          {
+            "cell": "B10",
+            "font": "宋体"
+          },
+          {
+            "cell": "C10",
+            "font": "宋体"
+          },
+          {
+            "cell": "D10",
+            "font": "宋体"
+          },
+          {
+            "cell": "E10",
+            "font": "宋体"
+          }
+        ],
+        "allUsedCellsSong": true,
+        "frozen": true,
+        "conditionalFormatting": true
+      }
+    ],
+    "allUsedCellsSong": true,
+    "source": "Office getFileAsync native unchanged bytes",
+    "sheetCount": 2,
+    "parts": [
+      "[Content_Types].xml",
+      "_rels/.rels",
+      "xl/workbook.xml",
+      "xl/_rels/workbook.xml.rels",
+      "xl/worksheets/sheet1.xml",
+      "xl/worksheets/sheet2.xml",
+      "xl/theme/theme1.xml",
+      "xl/styles.xml",
+      "xl/sharedStrings.xml",
+      "xl/drawings/drawing1.xml",
+      "xl/charts/chart1.xml",
+      "xl/charts/style1.xml",
+      "xl/charts/colors1.xml",
+      "xl/webextensions/taskpanes.xml",
+      "xl/webextensions/webextension1.xml",
+      "xl/worksheets/_rels/sheet1.xml.rels",
+      "xl/worksheets/_rels/sheet2.xml.rels",
+      "xl/drawings/_rels/drawing1.xml.rels",
+      "xl/charts/_rels/chart1.xml.rels",
+      "xl/webextensions/_rels/taskpanes.xml.rels",
+      "xl/printerSettings/printerSettings1.bin",
+      "xl/tables/table1.xml",
+      "xl/printerSettings/printerSettings2.bin",
+      "xl/tables/table2.xml",
+      "xl/calcChain.xml",
+      "docProps/core.xml",
+      "docProps/app.xml"
+    ],
+    "styles": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" mc:Ignorable=\"x14ac x16r2 xr\" xmlns:x14ac=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac\" xmlns:x16r2=\"http://schemas.microsoft.com/office/spreadsheetml/2015/02/main\" xmlns:xr=\"http://schemas.microsoft.com/office/spreadsheetml/2014/revision\"><numFmts count=\"2\"><numFmt numFmtId=\"176\" formatCode=\"0.0%\"/><numFmt numFmtId=\"177\" formatCode=\"0;\\-0\"/></numFmts><fonts count=\"8\" x14ac:knownFonts=\"1\"><font><sz val=\"11\"/><color theme=\"1\"/><name val=\"等线\"/><family val=\"2\"/><charset val=\"134\"/><scheme val=\"minor\"/></font><font><sz val=\"9\"/><name val=\"等线\"/><family val=\"2\"/><charset val=\"134\"/><scheme val=\"minor\"/></font><font><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><family val=\"3\"/><charset val=\"134\"/></font><font><b/><sz val=\"18\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><family val=\"3\"/><charset val=\"134\"/></font><font><sz val=\"10\"/><color rgb=\"FF5E6267\"/><name val=\"宋体\"/><family val=\"3\"/><charset val=\"134\"/></font><font><b/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><family val=\"3\"/><charset val=\"134\"/></font><font><b/><sz val=\"11\"/><color rgb=\"FF836344\"/><name val=\"宋体\"/><family val=\"3\"/><charset val=\"134\"/></font><font><sz val=\"11\"/><color rgb=\"FF5E6267\"/><name val=\"宋体\"/><family val=\"3\"/><charset val=\"134\"/></font></fonts><fills count=\"4\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFFAF9F6\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFEFEEEA\"/><bgColor indexed=\"64\"/></patternFill></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"><alignment vertical=\"center\"/></xf></cellStyleXfs><cellXfs count=\"20\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"2\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"3\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"4\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"6\" fillId=\"3\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"5\" fillId=\"3\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment horizontal=\"right\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"6\" fillId=\"3\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment vertical=\"top\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"2\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment vertical=\"top\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"5\" fillId=\"3\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment vertical=\"top\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"2\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment horizontal=\"left\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"5\" fillId=\"3\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment horizontal=\"left\" vertical=\"center\"/></xf><xf numFmtId=\"1\" fontId=\"2\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment horizontal=\"right\" vertical=\"center\"/></xf><xf numFmtId=\"1\" fontId=\"5\" fillId=\"3\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment horizontal=\"right\" vertical=\"center\"/></xf><xf numFmtId=\"176\" fontId=\"2\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment horizontal=\"right\" vertical=\"center\"/></xf><xf numFmtId=\"31\" fontId=\"2\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment horizontal=\"right\" vertical=\"center\"/></xf><xf numFmtId=\"177\" fontId=\"2\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment horizontal=\"right\" vertical=\"center\"/></xf><xf numFmtId=\"177\" fontId=\"5\" fillId=\"3\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment horizontal=\"right\" vertical=\"center\"/></xf><xf numFmtId=\"176\" fontId=\"5\" fillId=\"3\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment horizontal=\"right\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"7\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment vertical=\"center\" wrapText=\"1\"/></xf></cellXfs><cellStyles count=\"1\"><cellStyle name=\"常规\" xfId=\"0\" builtinId=\"0\"/></cellStyles><dxfs count=\"18\"><dxf><font><b/><i val=\"0\"/><color rgb=\"FF8A4031\"/></font><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFEFEEEA\"/></patternFill></fill></dxf><dxf><font><b/><i val=\"0\"/><color rgb=\"FF8A4031\"/></font><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFEFEEEA\"/></patternFill></fill></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><numFmt numFmtId=\"176\" formatCode=\"0.0%\"/><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"right\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><numFmt numFmtId=\"177\" formatCode=\"0;\\-0\"/><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"right\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><numFmt numFmtId=\"177\" formatCode=\"0;\\-0\"/><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"right\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><numFmt numFmtId=\"177\" formatCode=\"0;\\-0\"/><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"right\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><numFmt numFmtId=\"177\" formatCode=\"0;\\-0\"/><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"right\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><numFmt numFmtId=\"41\" formatCode=\"yyyy&quot;年&quot;m&quot;月&quot;d&quot;日&quot;\"/><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"right\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><numFmt numFmtId=\"176\" formatCode=\"0.0%\"/><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"right\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><numFmt numFmtId=\"1\" formatCode=\"0\"/><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"right\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"left\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"general\" vertical=\"top\" textRotation=\"0\" wrapText=\"1\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF836344\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFEFEEEA\"/></patternFill></fill><alignment horizontal=\"general\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"general\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"left\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"general\" vertical=\"top\" textRotation=\"0\" wrapText=\"1\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF836344\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFEFEEEA\"/></patternFill></fill><alignment horizontal=\"general\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf><dxf><font><b val=\"0\"/><i val=\"0\"/><strike val=\"0\"/><condense val=\"0\"/><extend val=\"0\"/><outline val=\"0\"/><shadow val=\"0\"/><u val=\"none\"/><vertAlign val=\"baseline\"/><sz val=\"11\"/><color rgb=\"FF24282D\"/><name val=\"宋体\"/><charset val=\"134\"/><scheme val=\"none\"/></font><fill><patternFill patternType=\"solid\"><fgColor indexed=\"64\"/><bgColor rgb=\"FFFAF9F6\"/></patternFill></fill><alignment horizontal=\"general\" vertical=\"center\" textRotation=\"0\" wrapText=\"0\" indent=\"0\" justifyLastLine=\"0\" shrinkToFit=\"0\" readingOrder=\"0\"/></dxf></dxfs><tableStyles count=\"0\" defaultTableStyle=\"TableStyleMedium2\" defaultPivotStyle=\"PivotStyleLight16\"/><extLst><ext uri=\"{EB79DEF2-80B8-43e5-95BD-54CBDDF9020C}\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><x14:slicerStyles defaultSlicerStyle=\"SlicerStyleLight1\"/></ext><ext uri=\"{9260A510-F301-46a8-8635-F512D64BE5F5}\" xmlns:x15=\"http://schemas.microsoft.com/office/spreadsheetml/2010/11/main\"><x15:timelineStyles defaultTimelineStyle=\"TimeSlicerStyleLight1\"/></ext></extLst></styleSheet>",
+    "worksheets": [
+      {
+        "part": "xl/worksheets/sheet1.xml",
+        "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" mc:Ignorable=\"x14ac xr xr2 xr3\" xmlns:x14ac=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac\" xmlns:xr=\"http://schemas.microsoft.com/office/spreadsheetml/2014/revision\" xmlns:xr2=\"http://schemas.microsoft.com/office/spreadsheetml/2015/revision2\" xmlns:xr3=\"http://schemas.microsoft.com/office/spreadsheetml/2016/revision3\" xr:uid=\"{37C2D41C-3E9F-4102-ADAA-9A55BFC008FC}\"><sheetPr><pageSetUpPr fitToPage=\"1\"/></sheetPr><dimension ref=\"A1:F26\"/><sheetViews><sheetView tabSelected=\"1\" workbookViewId=\"0\"><pane ySplit=\"5\" topLeftCell=\"A6\" activePane=\"bottomLeft\" state=\"frozen\"/><selection pane=\"bottomLeft\" activeCell=\"F13\" sqref=\"F13\"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight=\"14\" x14ac:dyDescent=\"0.3\"/><cols><col min=\"1\" max=\"1\" width=\"31.83203125\" style=\"1\" bestFit=\"1\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"7.08203125\" style=\"1\" bestFit=\"1\" customWidth=\"1\"/><col min=\"3\" max=\"3\" width=\"9\" style=\"1\" bestFit=\"1\" customWidth=\"1\"/><col min=\"4\" max=\"4\" width=\"14.33203125\" style=\"1\" bestFit=\"1\" customWidth=\"1\"/><col min=\"5\" max=\"5\" width=\"11.9140625\" style=\"1\" bestFit=\"1\" customWidth=\"1\"/><col min=\"6\" max=\"6\" width=\"25\" style=\"1\" customWidth=\"1\"/><col min=\"7\" max=\"16384\" width=\"8.6640625\" style=\"1\"/></cols><sheetData><row r=\"1\" spans=\"1:6\" ht=\"34\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A1\" s=\"3\" t=\"s\"><v>0</v></c><c r=\"B1\" s=\"3\"/><c r=\"C1\" s=\"3\"/><c r=\"D1\" s=\"3\"/><c r=\"E1\" s=\"3\"/><c r=\"F1\" s=\"3\"/></row><row r=\"2\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A2\" s=\"4\" t=\"s\"><v>1</v></c><c r=\"B2\" s=\"4\"/><c r=\"C2\" s=\"4\"/><c r=\"D2\" s=\"4\"/><c r=\"E2\" s=\"4\"/><c r=\"F2\" s=\"4\"/></row><row r=\"3\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A3\" s=\"2\"/><c r=\"B3\" s=\"2\"/><c r=\"C3\" s=\"2\"/><c r=\"D3\" s=\"2\"/><c r=\"E3\" s=\"2\"/><c r=\"F3\" s=\"2\"/></row><row r=\"4\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A4\" s=\"2\"/><c r=\"B4\" s=\"2\"/><c r=\"C4\" s=\"2\"/><c r=\"D4\" s=\"2\"/><c r=\"E4\" s=\"2\"/><c r=\"F4\" s=\"2\"/></row><row r=\"5\" spans=\"1:6\" ht=\"27\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A5\" s=\"5\" t=\"s\"><v>4</v></c><c r=\"B5\" s=\"5\" t=\"s\"><v>5</v></c><c r=\"C5\" s=\"5\" t=\"s\"><v>6</v></c><c r=\"D5\" s=\"5\" t=\"s\"><v>7</v></c><c r=\"E5\" s=\"5\" t=\"s\"><v>8</v></c><c r=\"F5\" s=\"7\" t=\"s\"><v>9</v></c></row><row r=\"6\" spans=\"1:6\" ht=\"28\" x14ac:dyDescent=\"0.3\"><c r=\"A6\" s=\"10\" t=\"s\"><v>10</v></c><c r=\"B6\" s=\"12\"><v>12</v></c><c r=\"C6\" s=\"14\"><v>0.8</v></c><c r=\"D6\" s=\"15\"><v>46309</v></c><c r=\"E6\" s=\"16\"><v>6</v></c><c r=\"F6\" s=\"8\" t=\"s\"><v>11</v></c></row><row r=\"7\" spans=\"1:6\" ht=\"28\" x14ac:dyDescent=\"0.3\"><c r=\"A7\" s=\"10\" t=\"s\"><v>12</v></c><c r=\"B7\" s=\"12\"><v>8</v></c><c r=\"C7\" s=\"14\"><v>0.625</v></c><c r=\"D7\" s=\"15\"><v>46310</v></c><c r=\"E7\" s=\"16\"><v>-4</v></c><c r=\"F7\" s=\"8\" t=\"s\"><v>13</v></c></row><row r=\"8\" spans=\"1:6\" ht=\"28\" x14ac:dyDescent=\"0.3\"><c r=\"A8\" s=\"10\" t=\"s\"><v>14</v></c><c r=\"B8\" s=\"12\"><v>16</v></c><c r=\"C8\" s=\"14\"><v>0.9375</v></c><c r=\"D8\" s=\"15\"><v>46311</v></c><c r=\"E8\" s=\"16\"><v>6</v></c><c r=\"F8\" s=\"8\" t=\"s\"><v>15</v></c></row><row r=\"9\" spans=\"1:6\" ht=\"28\" x14ac:dyDescent=\"0.3\"><c r=\"A9\" s=\"10\" t=\"s\"><v>16</v></c><c r=\"B9\" s=\"12\"><v>4</v></c><c r=\"C9\" s=\"14\"><v>1</v></c><c r=\"D9\" s=\"15\"><v>46312</v></c><c r=\"E9\" s=\"16\"><v>2</v></c><c r=\"F9\" s=\"8\" t=\"s\"><v>17</v></c></row><row r=\"10\" spans=\"1:6\" ht=\"27\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A10\" s=\"11\" t=\"s\"><v>18</v></c><c r=\"B10\" s=\"13\"><f>SUM(B6:B9)</f><v>40</v></c><c r=\"C10\" s=\"6\"/><c r=\"D10\" s=\"6\"/><c r=\"E10\" s=\"17\"><f>SUM(E6:E9)</f><v>10</v></c><c r=\"F10\" s=\"9\"/></row><row r=\"11\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A11\" s=\"2\"/><c r=\"B11\" s=\"2\"/><c r=\"C11\" s=\"2\"/><c r=\"D11\" s=\"2\"/><c r=\"E11\" s=\"2\"/><c r=\"F11\" s=\"2\"/></row><row r=\"12\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A12\" s=\"2\"/><c r=\"B12\" s=\"2\"/><c r=\"C12\" s=\"2\"/><c r=\"D12\" s=\"2\"/><c r=\"E12\" s=\"2\"/><c r=\"F12\" s=\"2\"/></row><row r=\"13\" spans=\"1:6\" ht=\"42\" x14ac:dyDescent=\"0.3\"><c r=\"A13\" s=\"2\" t=\"s\"><v>29</v></c><c r=\"B13\" s=\"2\"/><c r=\"C13\" s=\"2\"/><c r=\"D13\" s=\"2\"/><c r=\"E13\" s=\"2\"/><c r=\"F13\" s=\"19\" t=\"s\"><v>30</v></c></row><row r=\"14\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A14\" s=\"2\"/><c r=\"B14\" s=\"2\"/><c r=\"C14\" s=\"2\"/><c r=\"D14\" s=\"2\"/><c r=\"E14\" s=\"2\"/><c r=\"F14\" s=\"2\"/></row><row r=\"15\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A15\" s=\"2\"/><c r=\"B15\" s=\"2\"/><c r=\"C15\" s=\"2\"/><c r=\"D15\" s=\"2\"/><c r=\"E15\" s=\"2\"/><c r=\"F15\" s=\"2\"/></row><row r=\"16\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A16\" s=\"2\"/><c r=\"B16\" s=\"2\"/><c r=\"C16\" s=\"2\"/><c r=\"D16\" s=\"2\"/><c r=\"E16\" s=\"2\"/><c r=\"F16\" s=\"2\"/></row><row r=\"17\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A17\" s=\"2\"/><c r=\"B17\" s=\"2\"/><c r=\"C17\" s=\"2\"/><c r=\"D17\" s=\"2\"/><c r=\"E17\" s=\"2\"/><c r=\"F17\" s=\"2\"/></row><row r=\"18\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A18\" s=\"2\"/><c r=\"B18\" s=\"2\"/><c r=\"C18\" s=\"2\"/><c r=\"D18\" s=\"2\"/><c r=\"E18\" s=\"2\"/><c r=\"F18\" s=\"2\"/></row><row r=\"19\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A19\" s=\"2\"/><c r=\"B19\" s=\"2\"/><c r=\"C19\" s=\"2\"/><c r=\"D19\" s=\"2\"/><c r=\"E19\" s=\"2\"/><c r=\"F19\" s=\"2\"/></row><row r=\"20\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A20\" s=\"2\"/><c r=\"B20\" s=\"2\"/><c r=\"C20\" s=\"2\"/><c r=\"D20\" s=\"2\"/><c r=\"E20\" s=\"2\"/><c r=\"F20\" s=\"2\"/></row><row r=\"21\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A21\" s=\"2\"/><c r=\"B21\" s=\"2\"/><c r=\"C21\" s=\"2\"/><c r=\"D21\" s=\"2\"/><c r=\"E21\" s=\"2\"/><c r=\"F21\" s=\"2\"/></row><row r=\"22\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A22\" s=\"2\"/><c r=\"B22\" s=\"2\"/><c r=\"C22\" s=\"2\"/><c r=\"D22\" s=\"2\"/><c r=\"E22\" s=\"2\"/><c r=\"F22\" s=\"2\"/></row><row r=\"23\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A23\" s=\"2\"/><c r=\"B23\" s=\"2\"/><c r=\"C23\" s=\"2\"/><c r=\"D23\" s=\"2\"/><c r=\"E23\" s=\"2\"/><c r=\"F23\" s=\"2\"/></row><row r=\"24\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A24\" s=\"2\"/><c r=\"B24\" s=\"2\"/><c r=\"C24\" s=\"2\"/><c r=\"D24\" s=\"2\"/><c r=\"E24\" s=\"2\"/><c r=\"F24\" s=\"2\"/></row><row r=\"25\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A25\" s=\"2\"/><c r=\"B25\" s=\"2\"/><c r=\"C25\" s=\"2\"/><c r=\"D25\" s=\"2\"/><c r=\"E25\" s=\"2\"/><c r=\"F25\" s=\"2\"/></row><row r=\"26\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A26\" s=\"2\"/><c r=\"B26\" s=\"2\"/><c r=\"C26\" s=\"2\"/><c r=\"D26\" s=\"2\"/><c r=\"E26\" s=\"2\"/><c r=\"F26\" s=\"2\"/></row></sheetData><phoneticPr fontId=\"1\" type=\"noConversion\"/><conditionalFormatting sqref=\"E6:E9\"><cfRule type=\"cellIs\" dxfId=\"1\" priority=\"1\" operator=\"lessThan\"><formula>0</formula></cfRule></conditionalFormatting><printOptions horizontalCentered=\"1\"/><pageMargins left=\"0.7\" right=\"0.7\" top=\"0.75\" bottom=\"0.75\" header=\"0.3\" footer=\"0.3\"/><pageSetup paperSize=\"9\" scale=\"85\" orientation=\"landscape\" r:id=\"rId1\"/><tableParts count=\"1\"><tablePart r:id=\"rId2\"/></tableParts></worksheet>"
+      },
+      {
+        "part": "xl/worksheets/sheet2.xml",
+        "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" mc:Ignorable=\"x14ac xr xr2 xr3\" xmlns:x14ac=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac\" xmlns:xr=\"http://schemas.microsoft.com/office/spreadsheetml/2014/revision\" xmlns:xr2=\"http://schemas.microsoft.com/office/spreadsheetml/2015/revision2\" xmlns:xr3=\"http://schemas.microsoft.com/office/spreadsheetml/2016/revision3\" xr:uid=\"{F1D0C916-6379-4E52-8965-0C2FAAFA2DDC}\"><sheetPr><pageSetUpPr fitToPage=\"1\"/></sheetPr><dimension ref=\"A1:F26\"/><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"5\" topLeftCell=\"A6\" activePane=\"bottomLeft\" state=\"frozen\"/><selection pane=\"bottomLeft\" activeCell=\"D6\" sqref=\"D6:D9\"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight=\"14\" x14ac:dyDescent=\"0.3\"/><cols><col min=\"1\" max=\"1\" width=\"43.5\" style=\"1\" bestFit=\"1\" customWidth=\"1\"/><col min=\"2\" max=\"4\" width=\"11.9140625\" style=\"1\" bestFit=\"1\" customWidth=\"1\"/><col min=\"5\" max=\"5\" width=\"12.33203125\" style=\"1\" bestFit=\"1\" customWidth=\"1\"/><col min=\"6\" max=\"6\" width=\"25\" style=\"1\" customWidth=\"1\"/><col min=\"7\" max=\"16384\" width=\"8.6640625\" style=\"1\"/></cols><sheetData><row r=\"1\" spans=\"1:6\" ht=\"34\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A1\" s=\"3\" t=\"s\"><v>2</v></c><c r=\"B1\" s=\"3\"/><c r=\"C1\" s=\"3\"/><c r=\"D1\" s=\"3\"/><c r=\"E1\" s=\"3\"/><c r=\"F1\" s=\"3\"/></row><row r=\"2\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A2\" s=\"4\" t=\"s\"><v>3</v></c><c r=\"B2\" s=\"4\"/><c r=\"C2\" s=\"4\"/><c r=\"D2\" s=\"4\"/><c r=\"E2\" s=\"4\"/><c r=\"F2\" s=\"4\"/></row><row r=\"3\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A3\" s=\"2\"/><c r=\"B3\" s=\"2\"/><c r=\"C3\" s=\"2\"/><c r=\"D3\" s=\"2\"/><c r=\"E3\" s=\"2\"/><c r=\"F3\" s=\"2\"/></row><row r=\"4\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A4\" s=\"2\"/><c r=\"B4\" s=\"2\"/><c r=\"C4\" s=\"2\"/><c r=\"D4\" s=\"2\"/><c r=\"E4\" s=\"2\"/><c r=\"F4\" s=\"2\"/></row><row r=\"5\" spans=\"1:6\" ht=\"27\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A5\" s=\"5\" t=\"s\"><v>19</v></c><c r=\"B5\" s=\"5\" t=\"s\"><v>20</v></c><c r=\"C5\" s=\"5\" t=\"s\"><v>21</v></c><c r=\"D5\" s=\"5\" t=\"s\"><v>8</v></c><c r=\"E5\" s=\"5\" t=\"s\"><v>22</v></c><c r=\"F5\" s=\"7\" t=\"s\"><v>9</v></c></row><row r=\"6\" spans=\"1:6\" x14ac:dyDescent=\"0.3\"><c r=\"A6\" s=\"10\" t=\"s\"><v>23</v></c><c r=\"B6\" s=\"16\"><v>120</v></c><c r=\"C6\" s=\"16\"><v>114</v></c><c r=\"D6\" s=\"16\"><v>6</v></c><c r=\"E6\" s=\"14\"><v>0.95</v></c><c r=\"F6\" s=\"8\" t=\"s\"><v>24</v></c></row><row r=\"7\" spans=\"1:6\" x14ac:dyDescent=\"0.3\"><c r=\"A7\" s=\"10\" t=\"s\"><v>25</v></c><c r=\"B7\" s=\"16\"><v>80</v></c><c r=\"C7\" s=\"16\"><v>84</v></c><c r=\"D7\" s=\"16\"><v>-4</v></c><c r=\"E7\" s=\"14\"><v>1.05</v></c><c r=\"F7\" s=\"8\" t=\"s\"><v>26</v></c></row><row r=\"8\" spans=\"1:6\" x14ac:dyDescent=\"0.3\"><c r=\"A8\" s=\"10\" t=\"s\"><v>27</v></c><c r=\"B8\" s=\"16\"><v>60</v></c><c r=\"C8\" s=\"16\"><v>54</v></c><c r=\"D8\" s=\"16\"><v>6</v></c><c r=\"E8\" s=\"14\"><v>0.9</v></c><c r=\"F8\" s=\"8\" t=\"s\"><v>24</v></c></row><row r=\"9\" spans=\"1:6\" x14ac:dyDescent=\"0.3\"><c r=\"A9\" s=\"10\" t=\"s\"><v>28</v></c><c r=\"B9\" s=\"16\"><v>40</v></c><c r=\"C9\" s=\"16\"><v>38</v></c><c r=\"D9\" s=\"16\"><v>2</v></c><c r=\"E9\" s=\"14\"><v>0.95</v></c><c r=\"F9\" s=\"8\" t=\"s\"><v>24</v></c></row><row r=\"10\" spans=\"1:6\" ht=\"27\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A10\" s=\"11\" t=\"s\"><v>18</v></c><c r=\"B10\" s=\"17\"><f>SUM(B6:B9)</f><v>300</v></c><c r=\"C10\" s=\"17\"><f>SUM(C6:C9)</f><v>290</v></c><c r=\"D10\" s=\"17\"><f>SUM(D6:D9)</f><v>10</v></c><c r=\"E10\" s=\"18\"><f>C10/B10</f><v>0.96666666666666667</v></c><c r=\"F10\" s=\"9\"/></row><row r=\"11\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A11\" s=\"2\"/><c r=\"B11\" s=\"2\"/><c r=\"C11\" s=\"2\"/><c r=\"D11\" s=\"2\"/><c r=\"E11\" s=\"2\"/><c r=\"F11\" s=\"2\"/></row><row r=\"12\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A12\" s=\"2\"/><c r=\"B12\" s=\"2\"/><c r=\"C12\" s=\"2\"/><c r=\"D12\" s=\"2\"/><c r=\"E12\" s=\"2\"/><c r=\"F12\" s=\"2\"/></row><row r=\"13\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A13\" s=\"2\"/><c r=\"B13\" s=\"2\"/><c r=\"C13\" s=\"2\"/><c r=\"D13\" s=\"2\"/><c r=\"E13\" s=\"2\"/><c r=\"F13\" s=\"2\"/></row><row r=\"14\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A14\" s=\"2\"/><c r=\"B14\" s=\"2\"/><c r=\"C14\" s=\"2\"/><c r=\"D14\" s=\"2\"/><c r=\"E14\" s=\"2\"/><c r=\"F14\" s=\"2\"/></row><row r=\"15\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A15\" s=\"2\"/><c r=\"B15\" s=\"2\"/><c r=\"C15\" s=\"2\"/><c r=\"D15\" s=\"2\"/><c r=\"E15\" s=\"2\"/><c r=\"F15\" s=\"2\"/></row><row r=\"16\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A16\" s=\"2\"/><c r=\"B16\" s=\"2\"/><c r=\"C16\" s=\"2\"/><c r=\"D16\" s=\"2\"/><c r=\"E16\" s=\"2\"/><c r=\"F16\" s=\"2\"/></row><row r=\"17\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A17\" s=\"2\"/><c r=\"B17\" s=\"2\"/><c r=\"C17\" s=\"2\"/><c r=\"D17\" s=\"2\"/><c r=\"E17\" s=\"2\"/><c r=\"F17\" s=\"2\"/></row><row r=\"18\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A18\" s=\"2\"/><c r=\"B18\" s=\"2\"/><c r=\"C18\" s=\"2\"/><c r=\"D18\" s=\"2\"/><c r=\"E18\" s=\"2\"/><c r=\"F18\" s=\"2\"/></row><row r=\"19\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A19\" s=\"2\"/><c r=\"B19\" s=\"2\"/><c r=\"C19\" s=\"2\"/><c r=\"D19\" s=\"2\"/><c r=\"E19\" s=\"2\"/><c r=\"F19\" s=\"2\"/></row><row r=\"20\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A20\" s=\"2\"/><c r=\"B20\" s=\"2\"/><c r=\"C20\" s=\"2\"/><c r=\"D20\" s=\"2\"/><c r=\"E20\" s=\"2\"/><c r=\"F20\" s=\"2\"/></row><row r=\"21\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A21\" s=\"2\"/><c r=\"B21\" s=\"2\"/><c r=\"C21\" s=\"2\"/><c r=\"D21\" s=\"2\"/><c r=\"E21\" s=\"2\"/><c r=\"F21\" s=\"2\"/></row><row r=\"22\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A22\" s=\"2\"/><c r=\"B22\" s=\"2\"/><c r=\"C22\" s=\"2\"/><c r=\"D22\" s=\"2\"/><c r=\"E22\" s=\"2\"/><c r=\"F22\" s=\"2\"/></row><row r=\"23\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A23\" s=\"2\"/><c r=\"B23\" s=\"2\"/><c r=\"C23\" s=\"2\"/><c r=\"D23\" s=\"2\"/><c r=\"E23\" s=\"2\"/><c r=\"F23\" s=\"2\"/></row><row r=\"24\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A24\" s=\"2\"/><c r=\"B24\" s=\"2\"/><c r=\"C24\" s=\"2\"/><c r=\"D24\" s=\"2\"/><c r=\"E24\" s=\"2\"/><c r=\"F24\" s=\"2\"/></row><row r=\"25\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A25\" s=\"2\"/><c r=\"B25\" s=\"2\"/><c r=\"C25\" s=\"2\"/><c r=\"D25\" s=\"2\"/><c r=\"E25\" s=\"2\"/><c r=\"F25\" s=\"2\"/></row><row r=\"26\" spans=\"1:6\" ht=\"22\" customHeight=\"1\" x14ac:dyDescent=\"0.3\"><c r=\"A26\" s=\"2\"/><c r=\"B26\" s=\"2\"/><c r=\"C26\" s=\"2\"/><c r=\"D26\" s=\"2\"/><c r=\"E26\" s=\"2\"/><c r=\"F26\" s=\"2\"/></row></sheetData><phoneticPr fontId=\"1\" type=\"noConversion\"/><conditionalFormatting sqref=\"D6:D9\"><cfRule type=\"cellIs\" dxfId=\"0\" priority=\"1\" operator=\"lessThan\"><formula>0</formula></cfRule></conditionalFormatting><printOptions horizontalCentered=\"1\"/><pageMargins left=\"0.7\" right=\"0.7\" top=\"0.75\" bottom=\"0.75\" header=\"0.3\" footer=\"0.3\"/><pageSetup paperSize=\"9\" scale=\"97\" orientation=\"landscape\" r:id=\"rId1\"/><drawing r:id=\"rId2\"/><tableParts count=\"1\"><tablePart r:id=\"rId3\"/></tableParts></worksheet>"
+      }
+    ],
+    "tables": [
+      {
+        "part": "xl/tables/table1.xml",
+        "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" mc:Ignorable=\"xr xr3\" xmlns:xr=\"http://schemas.microsoft.com/office/spreadsheetml/2014/revision\" xmlns:xr3=\"http://schemas.microsoft.com/office/spreadsheetml/2016/revision3\" id=\"1\" xr:uid=\"{C12EE1B8-D3A5-4A1F-BB27-142C203BDE9A}\" name=\"AtlasBasic\" displayName=\"AtlasBasic\" ref=\"A5:F9\" totalsRowShown=\"0\" headerRowDxfId=\"16\" dataDxfId=\"17\"><autoFilter ref=\"A5:F9\" xr:uid=\"{C12EE1B8-D3A5-4A1F-BB27-142C203BDE9A}\"/><tableColumns count=\"6\"><tableColumn id=\"1\" xr3:uid=\"{6E1BF71C-D128-4091-A230-2E51D38ABDA2}\" name=\"项目\" dataDxfId=\"14\"/><tableColumn id=\"2\" xr3:uid=\"{03FAC80A-3F86-4FE7-9A5B-0CB92193A04A}\" name=\"数量\" dataDxfId=\"9\"/><tableColumn id=\"3\" xr3:uid=\"{14AD211A-4171-49C1-B03C-A9C6AF6D7982}\" name=\"完成率\" dataDxfId=\"8\"/><tableColumn id=\"4\" xr3:uid=\"{DC39B2D6-8855-4F7A-9B08-4E45D2C3BC76}\" name=\"日期\" dataDxfId=\"7\"/><tableColumn id=\"5\" xr3:uid=\"{7B2AA800-9FA1-4C5F-AFB9-7926B6FFE0B8}\" name=\"结余/万元\" dataDxfId=\"6\"/><tableColumn id=\"6\" xr3:uid=\"{6754563F-C6F6-489B-BC2D-8645053FDBFB}\" name=\"说明\" dataDxfId=\"15\"/></tableColumns><tableStyleInfo name=\"TableStyleLight1\" showFirstColumn=\"0\" showLastColumn=\"0\" showRowStripes=\"1\" showColumnStripes=\"0\"/></table>"
+      },
+      {
+        "part": "xl/tables/table2.xml",
+        "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" mc:Ignorable=\"xr xr3\" xmlns:xr=\"http://schemas.microsoft.com/office/spreadsheetml/2014/revision\" xmlns:xr3=\"http://schemas.microsoft.com/office/spreadsheetml/2016/revision3\" id=\"2\" xr:uid=\"{043C3CC7-0E22-4705-9C2B-E4B86EB6680A}\" name=\"AtlasBudget\" displayName=\"AtlasBudget\" ref=\"A5:F9\" totalsRowShown=\"0\" headerRowDxfId=\"12\" dataDxfId=\"13\"><autoFilter ref=\"A5:F9\" xr:uid=\"{043C3CC7-0E22-4705-9C2B-E4B86EB6680A}\"/><tableColumns count=\"6\"><tableColumn id=\"1\" xr3:uid=\"{F36E4D6B-9C2F-44DD-85E5-707B484C54D3}\" name=\"类别\" dataDxfId=\"10\"/><tableColumn id=\"2\" xr3:uid=\"{DAB3826B-73EC-481C-AB0A-3EFCF073A0D6}\" name=\"预算/万元\" dataDxfId=\"5\"/><tableColumn id=\"3\" xr3:uid=\"{C7F12D46-EF90-435F-A15C-9FF2988773D0}\" name=\"实际/万元\" dataDxfId=\"4\"/><tableColumn id=\"4\" xr3:uid=\"{61B560A4-FF7B-48E9-8233-F0AA1C52FEDC}\" name=\"结余/万元\" dataDxfId=\"3\"/><tableColumn id=\"5\" xr3:uid=\"{721DF701-66DC-4404-9F47-15907343901D}\" name=\"执行率\" dataDxfId=\"2\"/><tableColumn id=\"6\" xr3:uid=\"{2F17A2B1-3891-4616-9467-94C31FC04C35}\" name=\"说明\" dataDxfId=\"11\"/></tableColumns><tableStyleInfo name=\"TableStyleLight1\" showFirstColumn=\"0\" showLastColumn=\"0\" showRowStripes=\"1\" showColumnStripes=\"0\"/></table>"
+      }
+    ],
+    "charts": [
+      {
+        "part": "xl/charts/chart1.xml",
+        "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:c16r2=\"http://schemas.microsoft.com/office/drawing/2015/06/chart\"><c:date1904 val=\"0\"/><c:lang val=\"zh-CN\"/><c:roundedCorners val=\"0\"/><mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"c14\" xmlns:c14=\"http://schemas.microsoft.com/office/drawing/2007/8/2/chart\"><c14:style val=\"102\"/></mc:Choice><mc:Fallback><c:style val=\"2\"/></mc:Fallback></mc:AlternateContent><c:chart><c:title><c:tx><c:rich><a:bodyPr rot=\"0\" spcFirstLastPara=\"1\" vertOverflow=\"ellipsis\" vert=\"horz\" wrap=\"square\" anchor=\"ctr\" anchorCtr=\"1\"/><a:lstStyle/><a:p><a:pPr><a:defRPr sz=\"1400\" b=\"0\" i=\"0\" u=\"none\" strike=\"noStrike\" kern=\"1200\" spc=\"0\" baseline=\"0\"><a:solidFill><a:srgbClr val=\"24282D\"/></a:solidFill><a:latin typeface=\"宋体\"/><a:ea typeface=\"宋体\"/><a:cs typeface=\"宋体\"/></a:defRPr></a:pPr><a:r><a:rPr lang=\"en-US\"/><a:t>DEMO / </a:t></a:r><a:r><a:rPr lang=\"zh-CN\"/><a:t>预算与实际对比 </a:t></a:r><a:r><a:rPr lang=\"en-US\"/><a:t>/ </a:t></a:r><a:r><a:rPr lang=\"zh-CN\"/><a:t>单位：万元</a:t></a:r></a:p></c:rich></c:tx><c:overlay val=\"0\"/><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln><a:effectLst/></c:spPr><c:txPr><a:bodyPr rot=\"0\" spcFirstLastPara=\"1\" vertOverflow=\"ellipsis\" vert=\"horz\" wrap=\"square\" anchor=\"ctr\" anchorCtr=\"1\"/><a:lstStyle/><a:p><a:pPr><a:defRPr sz=\"1400\" b=\"0\" i=\"0\" u=\"none\" strike=\"noStrike\" kern=\"1200\" spc=\"0\" baseline=\"0\"><a:solidFill><a:srgbClr val=\"24282D\"/></a:solidFill><a:latin typeface=\"宋体\"/><a:ea typeface=\"宋体\"/><a:cs typeface=\"宋体\"/></a:defRPr></a:pPr><a:endParaRPr lang=\"zh-CN\"/></a:p></c:txPr></c:title><c:autoTitleDeleted val=\"0\"/><c:plotArea><c:layout/><c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/><c:varyColors val=\"0\"/><c:ser><c:idx val=\"0\"/><c:order val=\"0\"/><c:tx><c:strRef><c:f>数据与图表!$B$5</c:f><c:strCache><c:ptCount val=\"1\"/><c:pt idx=\"0\"><c:v>预算/万元</c:v></c:pt></c:strCache></c:strRef></c:tx><c:spPr><a:solidFill><a:srgbClr val=\"836344\"/></a:solidFill><a:ln><a:noFill/></a:ln><a:effectLst/></c:spPr><c:invertIfNegative val=\"0\"/><c:cat><c:strRef><c:f>数据与图表!$A$6:$A$9</c:f><c:strCache><c:ptCount val=\"4\"/><c:pt idx=\"0\"><c:v>研发</c:v></c:pt><c:pt idx=\"1\"><c:v>运营</c:v></c:pt><c:pt idx=\"2\"><c:v>营销</c:v></c:pt><c:pt idx=\"3\"><c:v>支持</c:v></c:pt></c:strCache></c:strRef></c:cat><c:val><c:numRef><c:f>数据与图表!$B$6:$B$9</c:f><c:numCache><c:formatCode>0;\\-0</c:formatCode><c:ptCount val=\"4\"/><c:pt idx=\"0\"><c:v>120</c:v></c:pt><c:pt idx=\"1\"><c:v>80</c:v></c:pt><c:pt idx=\"2\"><c:v>60</c:v></c:pt><c:pt idx=\"3\"><c:v>40</c:v></c:pt></c:numCache></c:numRef></c:val><c:extLst><c:ext uri=\"{C3380CC4-5D6E-409C-BE32-E72D297353CC}\" xmlns:c16=\"http://schemas.microsoft.com/office/drawing/2014/chart\"><c16:uniqueId val=\"{00000000-E182-455E-9CCD-43023AF08363}\"/></c:ext></c:extLst></c:ser><c:ser><c:idx val=\"1\"/><c:order val=\"1\"/><c:tx><c:strRef><c:f>数据与图表!$C$5</c:f><c:strCache><c:ptCount val=\"1\"/><c:pt idx=\"0\"><c:v>实际/万元</c:v></c:pt></c:strCache></c:strRef></c:tx><c:spPr><a:solidFill><a:srgbClr val=\"5E6267\"/></a:solidFill><a:ln><a:noFill/></a:ln><a:effectLst/></c:spPr><c:invertIfNegative val=\"0\"/><c:cat><c:strRef><c:f>数据与图表!$A$6:$A$9</c:f><c:strCache><c:ptCount val=\"4\"/><c:pt idx=\"0\"><c:v>研发</c:v></c:pt><c:pt idx=\"1\"><c:v>运营</c:v></c:pt><c:pt idx=\"2\"><c:v>营销</c:v></c:pt><c:pt idx=\"3\"><c:v>支持</c:v></c:pt></c:strCache></c:strRef></c:cat><c:val><c:numRef><c:f>数据与图表!$C$6:$C$9</c:f><c:numCache><c:formatCode>0;\\-0</c:formatCode><c:ptCount val=\"4\"/><c:pt idx=\"0\"><c:v>114</c:v></c:pt><c:pt idx=\"1\"><c:v>84</c:v></c:pt><c:pt idx=\"2\"><c:v>54</c:v></c:pt><c:pt idx=\"3\"><c:v>38</c:v></c:pt></c:numCache></c:numRef></c:val><c:extLst><c:ext uri=\"{C3380CC4-5D6E-409C-BE32-E72D297353CC}\" xmlns:c16=\"http://schemas.microsoft.com/office/drawing/2014/chart\"><c16:uniqueId val=\"{00000001-E182-455E-9CCD-43023AF08363}\"/></c:ext></c:extLst></c:ser><c:dLbls><c:showLegendKey val=\"0\"/><c:showVal val=\"0\"/><c:showCatName val=\"0\"/><c:showSerName val=\"0\"/><c:showPercent val=\"0\"/><c:showBubbleSize val=\"0\"/></c:dLbls><c:gapWidth val=\"219\"/><c:overlap val=\"-27\"/><c:axId val=\"1391456880\"/><c:axId val=\"1257781072\"/></c:barChart><c:catAx><c:axId val=\"1391456880\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"b\"/><c:numFmt formatCode=\"General\" sourceLinked=\"1\"/><c:majorTickMark val=\"none\"/><c:minorTickMark val=\"none\"/><c:tickLblPos val=\"nextTo\"/><c:spPr><a:noFill/><a:ln w=\"9525\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\"><a:solidFill><a:schemeClr val=\"tx1\"><a:lumMod val=\"15000\"/><a:lumOff val=\"85000\"/></a:schemeClr></a:solidFill><a:round/></a:ln><a:effectLst/></c:spPr><c:txPr><a:bodyPr rot=\"-60000000\" spcFirstLastPara=\"1\" vertOverflow=\"ellipsis\" vert=\"horz\" wrap=\"square\" anchor=\"ctr\" anchorCtr=\"1\"/><a:lstStyle/><a:p><a:pPr><a:defRPr sz=\"900\" b=\"0\" i=\"0\" u=\"none\" strike=\"noStrike\" kern=\"1200\" baseline=\"0\"><a:solidFill><a:srgbClr val=\"24282D\"/></a:solidFill><a:latin typeface=\"宋体\"/><a:ea typeface=\"宋体\"/><a:cs typeface=\"宋体\"/></a:defRPr></a:pPr><a:endParaRPr lang=\"zh-CN\"/></a:p></c:txPr><c:crossAx val=\"1257781072\"/><c:crosses val=\"autoZero\"/><c:auto val=\"1\"/><c:lblAlgn val=\"ctr\"/><c:lblOffset val=\"100\"/><c:noMultiLvlLbl val=\"0\"/></c:catAx><c:valAx><c:axId val=\"1257781072\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"l\"/><c:majorGridlines><c:spPr><a:ln w=\"9525\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\"><a:solidFill><a:schemeClr val=\"tx1\"><a:lumMod val=\"15000\"/><a:lumOff val=\"85000\"/></a:schemeClr></a:solidFill><a:round/></a:ln><a:effectLst/></c:spPr></c:majorGridlines><c:numFmt formatCode=\"0;\\-0\" sourceLinked=\"1\"/><c:majorTickMark val=\"none\"/><c:minorTickMark val=\"none\"/><c:tickLblPos val=\"nextTo\"/><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln><a:effectLst/></c:spPr><c:txPr><a:bodyPr rot=\"-60000000\" spcFirstLastPara=\"1\" vertOverflow=\"ellipsis\" vert=\"horz\" wrap=\"square\" anchor=\"ctr\" anchorCtr=\"1\"/><a:lstStyle/><a:p><a:pPr><a:defRPr sz=\"900\" b=\"0\" i=\"0\" u=\"none\" strike=\"noStrike\" kern=\"1200\" baseline=\"0\"><a:solidFill><a:srgbClr val=\"24282D\"/></a:solidFill><a:latin typeface=\"宋体\"/><a:ea typeface=\"宋体\"/><a:cs typeface=\"宋体\"/></a:defRPr></a:pPr><a:endParaRPr lang=\"zh-CN\"/></a:p></c:txPr><c:crossAx val=\"1391456880\"/><c:crosses val=\"autoZero\"/><c:crossBetween val=\"between\"/></c:valAx><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln><a:effectLst/></c:spPr></c:plotArea><c:legend><c:legendPos val=\"b\"/><c:overlay val=\"0\"/><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln><a:effectLst/></c:spPr><c:txPr><a:bodyPr rot=\"0\" spcFirstLastPara=\"1\" vertOverflow=\"ellipsis\" vert=\"horz\" wrap=\"square\" anchor=\"ctr\" anchorCtr=\"1\"/><a:lstStyle/><a:p><a:pPr><a:defRPr sz=\"900\" b=\"0\" i=\"0\" u=\"none\" strike=\"noStrike\" kern=\"1200\" baseline=\"0\"><a:solidFill><a:srgbClr val=\"24282D\"/></a:solidFill><a:latin typeface=\"宋体\"/><a:ea typeface=\"宋体\"/><a:cs typeface=\"宋体\"/></a:defRPr></a:pPr><a:endParaRPr lang=\"zh-CN\"/></a:p></c:txPr></c:legend><c:plotVisOnly val=\"1\"/><c:dispBlanksAs val=\"gap\"/><c:showDLblsOverMax val=\"0\"/><c:extLst><c:ext uri=\"{56B9EC1D-385E-4148-901F-78D8002777C0}\" xmlns:c16r3=\"http://schemas.microsoft.com/office/drawing/2017/03/chart\"><c16r3:dataDisplayOptions16><c16r3:dispNaAsBlank val=\"1\"/></c16r3:dataDisplayOptions16></c:ext></c:extLst></c:chart><c:spPr><a:solidFill><a:srgbClr val=\"FAF9F6\"/></a:solidFill><a:ln w=\"9525\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\"><a:solidFill><a:schemeClr val=\"tx1\"><a:lumMod val=\"15000\"/><a:lumOff val=\"85000\"/></a:schemeClr></a:solidFill><a:round/></a:ln><a:effectLst/></c:spPr><c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr><a:solidFill><a:srgbClr val=\"24282D\"/></a:solidFill><a:latin typeface=\"宋体\"/><a:ea typeface=\"宋体\"/><a:cs typeface=\"宋体\"/></a:defRPr></a:pPr><a:endParaRPr lang=\"zh-CN\"/></a:p></c:txPr><c:printSettings><c:headerFooter/><c:pageMargins b=\"0.75\" l=\"0.7\" r=\"0.7\" t=\"0.75\" header=\"0.3\" footer=\"0.3\"/><c:pageSetup paperSize=\"9\" orientation=\"landscape\"/></c:printSettings></c:chartSpace>"
+      }
+    ]
+  },
+  "contentVerified": true,
+  "nativeVerified": true,
+  "pdfVerified": true,
+  "numberFormatsVerified": true,
+  "wrappedRowsVerified": true,
+  "dateOverflowFixed": true,
+  "allCellsSongVerified": true
+}

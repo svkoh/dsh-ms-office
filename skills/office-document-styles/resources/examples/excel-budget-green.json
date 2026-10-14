@@ -1,0 +1,213 @@
+{
+  "dataLabel": "DEMO / 示例数据",
+  "title": "客服中心月度预算执行分析",
+  "sheetName": "DemoBudget",
+  "existingSheetNames": [],
+  "period": "2026年9月",
+  "unit": "元（含税）",
+  "department": "客户服务中心",
+  "preparedBy": "财务管理组 王珊",
+  "asOf": "2026-09-30",
+  "conclusion": "执行率99.8%；5项超预算，优先处理赔付追偿和晚间排班。",
+  "records": [
+    {
+      "id": "B01",
+      "category": "人员费用",
+      "item": "固定薪酬",
+      "budget": 180000,
+      "actual": 180000,
+      "owner": "赵敏",
+      "reason": "按32人核定编制支付，无人员变动",
+      "action": "核对工资台账与审批记录",
+      "checkpoint": "2026-10-12"
+    },
+    {
+      "id": "B02",
+      "category": "人员费用",
+      "item": "绩效奖金",
+      "budget": 45000,
+      "actual": 48000,
+      "owner": "赵敏",
+      "reason": "月末服务量增长，绩效计提增加3000元",
+      "action": "复核计提依据并纳入四季度滚动预算",
+      "checkpoint": "2026-10-13"
+    },
+    {
+      "id": "B03",
+      "category": "人员费用",
+      "item": "加班费用",
+      "budget": 16000,
+      "actual": 18500,
+      "owner": "王宁",
+      "reason": "晚间咨询高峰导致额外排班",
+      "action": "试行错峰排班，压降重复加班",
+      "checkpoint": "2026-10-14"
+    },
+    {
+      "id": "B04",
+      "category": "人员费用",
+      "item": "外包坐席",
+      "budget": 36000,
+      "actual": 32400,
+      "owner": "周洁",
+      "reason": "内部轮岗覆盖四个临时时段",
+      "action": "保留服务质量抽样，避免节省造成积压",
+      "checkpoint": "2026-10-15"
+    },
+    {
+      "id": "B05",
+      "category": "办公运行",
+      "item": "场地租赁",
+      "budget": 42000,
+      "actual": 42000,
+      "owner": "李航",
+      "reason": "按年度租赁合同固定支付",
+      "action": "核验发票及租赁期限",
+      "checkpoint": "2026-10-16"
+    },
+    {
+      "id": "B06",
+      "category": "办公运行",
+      "item": "水电物业",
+      "budget": 12000,
+      "actual": 11600,
+      "owner": "李航",
+      "reason": "节能措施降低空调运行费用",
+      "action": "保持每日关闭设备检查",
+      "checkpoint": "2026-10-17"
+    },
+    {
+      "id": "B07",
+      "category": "办公运行",
+      "item": "办公耗材",
+      "budget": 8500,
+      "actual": 9800,
+      "owner": "刘悦",
+      "reason": "新产品资料打印超出预计",
+      "action": "改为电子资料并设置领用上限",
+      "checkpoint": "2026-10-18"
+    },
+    {
+      "id": "B08",
+      "category": "办公运行",
+      "item": "设备维护",
+      "budget": 15000,
+      "actual": 13100,
+      "owner": "刘悦",
+      "reason": "两台设备由质保服务承担维修",
+      "action": "登记质保期限并跟踪验收",
+      "checkpoint": "2026-10-19"
+    },
+    {
+      "id": "B09",
+      "category": "服务交付",
+      "item": "通信资源",
+      "budget": 22000,
+      "actual": 23500,
+      "owner": "陈凯",
+      "reason": "热线时长随咨询量增加",
+      "action": "检查套餐与通话路由，提出容量调整",
+      "checkpoint": "2026-10-12"
+    },
+    {
+      "id": "B10",
+      "category": "服务交付",
+      "item": "系统服务",
+      "budget": 30000,
+      "actual": 30000,
+      "owner": "陈凯",
+      "reason": "依合同支付固定服务费",
+      "action": "核验月度可用率及服务报告",
+      "checkpoint": "2026-10-13"
+    },
+    {
+      "id": "B11",
+      "category": "服务交付",
+      "item": "物流赔付",
+      "budget": 18000,
+      "actual": 21700,
+      "owner": "周洁",
+      "reason": "集中发生四起跨区域延误",
+      "action": "与物流商对账追偿，复核责任划分",
+      "checkpoint": "2026-10-14"
+    },
+    {
+      "id": "B12",
+      "category": "服务交付",
+      "item": "客户回访",
+      "budget": 9000,
+      "actual": 7600,
+      "owner": "李敏",
+      "reason": "部分回访与常规质检合并实施",
+      "action": "补充升级投诉样本，防止覆盖不足",
+      "checkpoint": "2026-10-15"
+    },
+    {
+      "id": "B13",
+      "category": "培训质量",
+      "item": "产品培训",
+      "budget": 14000,
+      "actual": 10800,
+      "owner": "陈晨",
+      "reason": "使用内部场地减少租赁费用",
+      "action": "补训四名新员工并归档测评记录",
+      "checkpoint": "2026-10-16"
+    },
+    {
+      "id": "B14",
+      "category": "培训质量",
+      "item": "质量抽检",
+      "budget": 11000,
+      "actual": 11000,
+      "owner": "李敏",
+      "reason": "按计划完成200件抽检样本",
+      "action": "对146件积压工单增加专项复核",
+      "checkpoint": "2026-10-17"
+    },
+    {
+      "id": "B15",
+      "category": "培训质量",
+      "item": "知识库维护",
+      "budget": 16000,
+      "actual": 14600,
+      "owner": "李敏",
+      "reason": "复用现有知识平台降低制作费用",
+      "action": "建立每周更新清单及版本归档",
+      "checkpoint": "2026-10-18"
+    },
+    {
+      "id": "B16",
+      "category": "培训质量",
+      "item": "应急演练",
+      "budget": 7500,
+      "actual": 6200,
+      "owner": "陈晨",
+      "reason": "演练与例行安全培训合并组织",
+      "action": "形成回退流程及签到测评证据",
+      "checkpoint": "2026-10-19"
+    }
+  ],
+  "issues": [
+    {
+      "recordId": "B11",
+      "problem": "赔付超支3700元",
+      "owner": "周洁",
+      "action": "逐单核责并提交追偿单",
+      "due": "2026-10-15"
+    },
+    {
+      "recordId": "B03",
+      "problem": "加班超支2500元",
+      "owner": "王宁",
+      "action": "错峰排班并追踪两周工时",
+      "due": "2026-10-19"
+    },
+    {
+      "recordId": "B07",
+      "problem": "耗材超支1300元",
+      "owner": "刘悦",
+      "action": "启用电子手册及领用限额",
+      "due": "2026-10-16"
+    }
+  ]
+}

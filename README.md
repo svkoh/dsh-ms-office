@@ -1,4 +1,4 @@
-# dsh-office-for-mso
+# dsh-ms-office
 
 > [English](README.en.md) · 中文
 
@@ -15,10 +15,14 @@
 ## 能做什么
 
 - **操作活文档**——不落盘、不加锁，AI 改的就是你眼前那份
-- **78 个 action**，覆盖三个应用：读选区、写内容、格式化、表格 / 图表 / 公式 / 批注、PPT 分组与对齐……
+- **92 个 action**，覆盖三个应用：读选区、写内容、格式化、表格 / 图表 / 公式 / 批注、PPT 分组与对齐……
 - **多文档精确路由**——每份文档一个实例，指令必须指明目标，不会打到错误的文档上
 - **覆盖类操作有护栏**——写之前先读一遍当前状态，默认还要你在窗格里点「更改」才执行（见[安全](#安全)）
 - **中英双语界面**，跟随你的 Office 显示语言
+
+两类技能协同：[ms-office](skills/ms-office/SKILL.md) 负责安全操作；[基础样式技能](skills/office-document-styles/SKILL.md) 提供每种格式一份原创基础样式范本：Word覆盖文档元素，Excel固定两个Sheet，PPT展示图形、表格、空间布局与配色，并附来源记录和分层质量检查。查看[样式预览](docs/style-gallery.html)与[功能路线](docs/FEATURE-ROADMAP.md)。
+
+中文默认字体：Word正文宋体、标题黑体；Excel宋体；PowerPoint标题黑体，正文及表格/图表标签楷体。范本修改通过实际插件执行，导出与截图保留原生Office证据。
 
 完整操作清单见 [docs/CAPABILITIES.md](docs/CAPABILITIES.md)。
 
@@ -37,7 +41,7 @@
 ## 安装
 
 ```bash
-dsh plugin --profile web add dsh-office-for-mso
+dsh plugin --profile web add dsh-ms-office
 ```
 
 **装完就完事了，不需要再做任何事。** 插件会自己完成剩下两件事：

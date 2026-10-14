@@ -203,7 +203,8 @@
         "color": "string 必填：#RRGGBB",
         "tableIndexes": "number[] 可选：从1开始，默认全部",
         "locations": "Top|Bottom|Left|Right|InsideHorizontal|InsideVertical 数组，可选",
-        "enableGrid": "boolean 可选：先应用 TableGrid 以启用完整网格"
+        "enableGrid": "boolean 可选：先应用 TableGrid 以启用完整网格",
+        "width": "可选正数边框宽度(pt)；不传保留现有粗细"
       }
     },
     "set_font": {
@@ -252,7 +253,10 @@
         "leftMargin": "number 可选(points)",
         "rightMargin": "number 可选(points)",
         "headerDistance": "number 可选(points)",
-        "footerDistance": "number 可选(points)"
+        "footerDistance": "number 可选(points)",
+        "pageWidth": "optional positive pt",
+        "pageHeight": "optional positive pt",
+        "differentFirstPageHeaderFooter": "optional boolean"
       }
     },
     "word_insert_equation": {
@@ -306,8 +310,8 @@
       "args": {
         "alignment": "string 可选：left|center|right|justify",
         "indent": "number 可选(cm)",
-        "lineSpacing": "number 可选",
-        "listType": "string 可选：bulleted|numbered|none"
+        "lineSpacing": "可选原生行距数值，Word界面除以12显示(18=>1.5)",
+        "listType": "none|numbered|bulleted；WordApi1.3；已有列表须先显式移除后再转换"
       }
     },
     "search": {
@@ -332,7 +336,8 @@
     "word_read_headers_footers": {
       "args": {
         "section": "number|all",
-        "types": "primary|firstPage|evenPages 数组"
+        "types": "primary|firstPage|evenPages 数组",
+        "includeFields": "optional boolean; WordApi1.5; read actual native field type/code/text"
       }
     },
     "word_set_header_footer": {
@@ -340,14 +345,16 @@
         "kind": "header|footer",
         "section": "number|all",
         "type": "primary|firstPage|evenPages",
-        "text": "string",
-        "mode": "replace|append|prepend"
+        "text": "optional string; required unless field is provided",
+        "mode": "replace|append|prepend",
+        "field": "optional {type:TOC|Page|NumPages,switches?}; mutually exclusive with text; requires WordApi1.5"
       }
     },
     "word_insert_break": {
       "args": {
         "type": "page|line|sectionNext|sectionContinuous|sectionEven|sectionOdd",
-        "location": "start|end|beforeSelection|afterSelection"
+        "location": "start|end|beforeSelection|afterSelection",
+        "paragraph": "可选{index:非负整数,expectedText:字符串}；按原生段落索引及完整文本精确定位"
       }
     },
     "word_insert_caption": {
@@ -365,7 +372,8 @@
     "read_range": {
       "args": {
         "address": "string 必填：Sheet!A1:B10",
-        "limit": "number 可选：正整数，最大读取格数；默认且上限为 5000"
+        "limit": "number 可选：正整数，最大读取格数；默认且上限为 5000",
+        "withLayout": "可选boolean：读回实际换行/对齐及受支持的pt尺寸；混合值保留null"
       }
     },
     "write_range": {
@@ -383,16 +391,29 @@
         "bold": "boolean 可选",
         "fill": "string 可选(#RRGGBB)",
         "numberFormat": "string 可选",
-        "autoFit": "boolean 可选",
+        "autoFit": "可选boolean：autoFitColumns的兼容别名；ExcelApi 1.2+",
         "tableStyle": "string 可选(如 TableStyleMedium2)",
-        "tableName": "设置 tableStyle 时必填"
+        "tableName": "设置 tableStyle 时必填",
+        "columnWidth": "可选正数列宽(pt)，不可与autoFitColumns:true或autoFit:true同用",
+        "rowHeight": "可选正数行高(pt)，不可与autoFitRows:true同用",
+        "wrapText": "可选boolean",
+        "horizontalAlignment": "General|Left|Center|Right|Fill|Justify|CenterAcrossSelection|Distributed",
+        "verticalAlignment": "Top|Center|Bottom|Justify|Distributed",
+        "autoFitRows": "可选boolean：自动行高；ExcelApi1.2",
+        "autoFitColumns": "可选boolean：自动列宽；ExcelApi 1.2+；true不可与columnWidth同用，autoFit为兼容别名。",
+        "color": "可选文字颜色 #RRGGBB"
       }
     },
     "insert_chart": {
       "args": {
         "type": "string 必填：Line|Column|Bar|Pie|Area|Scatter 等",
         "dataRange": "string 必填：Sheet!A1:B10",
-        "title": "string 可选"
+        "title": "string 可选",
+        "position": "可选{startCell,endCell}：图表所在工作表的A1单元格；start左上、end右下；默认在dataRange的工作表创建，不依赖活动工作表",
+        "font": "可选字体名称；中文默认宋体",
+        "seriesColors": "optional #RRGGBB[]",
+        "fill": "optional chart background #RRGGBB",
+        "color": "optional chart text #RRGGBB"
       }
     },
     "add_sheet": {
@@ -535,12 +556,14 @@
     "ppt_render_slides": {
       "args": {
         "width": "number 可选：PNG宽度，默认960",
-        "height": "number 可选：PNG高度，默认540"
+        "height": "number 可选：PNG高度，默认540",
+        "slideIds": "可选非空且不重复的原生页ID数组；不传渲染全稿；输出保留文稿实际页序和原1基页码，先验证全部ID再渲染"
       }
     },
     "ppt_inspect_slides": {
       "args": {
-        "slideIds": "string[] 可选"
+        "slideIds": "string[] 可选",
+        "withStyles": "可选boolean：支持时读取text/font/fill，不支持类型明确stylesRead:false与原因"
       }
     },
     "ppt_list_placeholders": {
@@ -555,7 +578,8 @@
         "left": "number",
         "top": "number",
         "width": "number 可选",
-        "height": "number 可选"
+        "height": "number 可选",
+        "slideId": "optional string: select exact native slide before inserting image"
       }
     },
     "ppt_insert_table": {
@@ -625,6 +649,113 @@
         "sheet": "string 可选(Excel)：指定工作表",
         "blinks": "number 可选：闪烁次数(默认0=只选中保持,1-5才闪)",
         "interval": "number 可选：间隔ms(默认300,100-800)"
+      }
+    },
+    "word_format_paragraphs": {
+      "args": {
+        "targets": "必填1..500个精确目标[{index,expectedText,style?,font?:{name,size,color,bold,italic},alignment?,spaceBefore?,spaceAfter?,lineSpacing?,leftIndent?,rightIndent?,firstLineIndent?}]；0基索引不重复，先验证全部完整文本；style支持内置样式及范本正文；尺寸单位pt，lineSpacing=18不等于原生1.5倍"
+      },
+      "description": "按精确索引及完整文本格式化段落，支持内置样式及范本正文全局样式"
+    },
+    "excel_set_freeze_panes": {
+      "args": {
+        "sheet": "必填工作表名",
+        "mode": "必填rows|columns|range|none",
+        "count": "仅rows/columns：正整数",
+        "range": "仅range：要被冻结的表内A1范围，如A1:B2；不是光标锚点"
+      }
+    },
+    "ppt_update_shapes": {
+      "args": {
+        "slideId": "必填原生幻灯片ID",
+        "updates": "必填1..500个patch：{shapeId,text?,font?:{name,size,color,bold,italic},fill?:{color,transparency},left?,top?,width?,height?}；几何与字号单位pt；仅修改显式字段；text替换整段文本，不支持runs局部编辑；文本/字体/填充限TextBox/GeometricShape。"
+      }
+    },
+    "ppt_read_presentation_info": {
+      "args": {}
+    },
+    "excel_render_range": {
+      "args": {
+        "address": "必填范围地址；将完整区域渲染为PNG用于视觉复核",
+        "maxCells": "可选整数1..10000，默认5000；超限拒绝，不截断"
+      }
+    },
+    "ppt_export_file": {
+      "args": {
+        "type": "pptx|pdf; default pptx; native Office export"
+      }
+    },
+    "list_sheets": {
+      "description": "读取所有工作表名称、顺序和可见性",
+      "args": {}
+    },
+    "excel_export_file": {
+      "description": "通过Office原生文件API导出；支持情况以宿主实际返回为准",
+      "args": {
+        "type": "xlsx|pdf; default xlsx"
+      }
+    },
+    "word_read_styles": {
+      "args": {
+        "names": "string[] optional; exact localized style names; omit to list paragraph styles"
+      },
+      "description": "读取真实全局段落样式及中西文字体属性"
+    },
+    "word_set_styles": {
+      "args": {
+        "styles": "必填样式数组{name,font?,paragraphFormat?}；或单独{name:\"范本正文\",preset:\"body-1.5\"}原生导入全局宋体12pt、首缩24pt、真实1.5倍样式；数值lineSpacing是pt，不能代替倍数预设"
+      },
+      "description": "设置真实全局段落样式；行距数值为pt，不能据此宣称倍数行距"
+    },
+    "word_read_fields": {
+      "args": {
+        "target": "body|selection; default body"
+      },
+      "description": "读取真实Word字段代码及缓存结果"
+    },
+    "word_insert_field": {
+      "args": {
+        "type": "TOC|Page|NumPages",
+        "switches": "optional single-line field switches",
+        "target": "body|selection; default selection",
+        "mode": "replace|prepend|append|before|after; body accepts only replace/prepend/append",
+        "paragraph": "TOC可选{index,expectedText}；正文段落0基索引，完整文本精确匹配；使用可用的Desktop1.4原生目录集合；采用默认1–3级目录，不接受自定义switches；插入后读回真实缓存"
+      },
+      "description": "插入真实TOC或PAGE字段并读回"
+    },
+    "excel_render_chart": {
+      "description": "Office原生Chart.getImage图表截图",
+      "args": {
+        "sheet": "string required",
+        "name": "string required"
+      }
+    },
+    "word_create_document": {
+      "description": "原生新建并打开空白Word文档；不改变原文档，无文件/Base64输入",
+      "args": {}
+    },
+    "excel_set_print_layout": {
+      "description": "设置指定工作表有界打印区域和原生页面布局，并实际读回",
+      "args": {
+        "sheet": "string required",
+        "address": "sheet-local A1 rectangle; at most 10000 cells",
+        "orientation": "Landscape|Portrait; default Landscape",
+        "paperSize": "A4|Letter|A3; default A4",
+        "fitToPagesWide": "integer1..100; default1",
+        "fitToPagesTall": "integer1..100; default1"
+      }
+    },
+    "get_environment": {
+      "description": "读取Office环境、原生API能力及确认模式",
+      "args": {
+        "syncConfig": "可选boolean；将本窗格同步到服务端用户已选择的确认模式，不接受模式值或审批参数",
+        "reloadPane": "可选boolean；仅在公开命令状态明确为空后重新载入本窗格，不改变文档"
+      }
+    },
+    "word_render_pages": {
+      "description": "只读导出Word原生整页PNG，包含页眉页脚；要求Windows桌面Word打印布局",
+      "args": {
+        "expectedPageCount": "必填整数1..10；预期原生页数"
       }
     }
   }

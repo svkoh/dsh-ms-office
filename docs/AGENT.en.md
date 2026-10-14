@@ -2,18 +2,18 @@
 
 > English · [中文](AGENT.md)
 
-The HTTP protocol for callers. For instructions an AI should follow, see the [skill document](../skills/office-for-mso/SKILL.en.md).
+The HTTP protocol for callers. For instructions an AI should follow, see the [skill document](../skills/ms-office/SKILL.en.md).
 
 ## Finding the bridge address
 
 The default is `http://127.0.0.1:3000`, but the port is configurable and the service chooses another when it is occupied. Read the announcement file maintained by the service rather than guessing:
 
 ```text
-$DSH_HOME/dsh-office-for-mso/bridge.json      # ~/.dsh when $DSH_HOME is unset
+$DSH_HOME/dsh-ms-office/bridge.json      # ~/.dsh when $DSH_HOME is unset
 ```
 
 ```json
-{ "plugin": "dsh-office-for-mso", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234, "startedAt": "…" }
+{ "plugin": "dsh-ms-office", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234, "startedAt": "…" }
 ```
 
 Append the paths below to `url`. If the file is missing, check the bridge state in plugin settings; do not retry in a loop. The panel distinguishes `starting`, `healthy`, `unhealthy` and `stopped`; a process being present does not prove the service is healthy. Trust the announcement when the port changes.

@@ -29,9 +29,9 @@
 | `server/capabilities.json` | **能力表的结构真源**：名称 / 平台 / 是否覆盖类 / requirement。人类可读的参数说明**不在这里** |
 | `i18n/zh.json` · `i18n/en.json` | **所有文案的唯一真源**：窗格 UI、服务端消息与错误目录、能力参数说明 |
 | `server/taskpane.html` | 窗格 UI 骨架（Fluent 2 语义色，跟随系统深色模式；可见文案全部由 `/office/i18n` 填入） |
-| `server/manifest.xml` | Office 加载项清单模板（端口 3000；运行期按实际端口改写后写到 `$DSH_HOME/dsh-office-for-mso/manifest.xml`；显示名 / 描述带 `en-US` 覆盖） |
+| `server/manifest.xml` | Office 加载项清单模板（端口 3000；运行期按实际端口改写后写到 `$DSH_HOME/dsh-ms-office/manifest.xml`；显示名 / 描述带 `en-US` 覆盖） |
 | `server/pako.min.js` | 解压 OOXML 用的 zlib 实现（第三方，见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)） |
-| `skills/office-for-mso/SKILL.md` · `SKILL.en.md` | 给 AI 看的技能说明（中文 / 英文两版，发布时二选一，只注册一个技能） |
+| `skills/ms-office/SKILL.md` · `SKILL.en.md` | 给 AI 看的技能说明（中文 / 英文两版，发布时二选一，每个技能只注册一个语言版本） |
 | `docs/` | 文档与两张架构图（SVG 无外部字体依赖，浅色深色主题下都可读） |
 | `test/` | 测试（`npm test`，零测试框架依赖，用 `node --test`） |
 
@@ -55,10 +55,10 @@
 
 默认 `127.0.0.1:3000`，可在插件设置面板里改；端口被占用时插件另选空闲端口，并同步改写加载项清单里的地址。改端口后用户需要关闭并重新打开 Office 文档（加载项地址写在清单里，Office 只在加载文档时读一次）。
 
-服务启动时把当前地址写成 `$DSH_HOME/dsh-office-for-mso/bridge.json`：
+服务启动时把当前地址写成 `$DSH_HOME/dsh-ms-office/bridge.json`：
 
 ```json
-{ "plugin": "dsh-office-for-mso", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234, "startedAt": "…" }
+{ "plugin": "dsh-ms-office", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234, "startedAt": "…" }
 ```
 
 这个文件是给**调用方**（AI / 脚本）看的——它们看不到插件设置面板，端口又是可变的，所以必须有这么一个机器可读的落点。文件不存在就等于桥接服务没在跑。**删掉或改坏它不会有任何危害**，下次启动会重写。
@@ -83,7 +83,7 @@ dsh 加载的是 `dsh.profile.bundles` 这个**有序清单**，只装依赖不�
 {
   "dsh": {
     "profile": {
-      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-office-for-mso"]
+      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-ms-office"]
     }
   }
 }
@@ -93,9 +93,9 @@ dsh 加载的是 `dsh.profile.bundles` 这个**有序清单**，只装依赖不�
 
 ### 技能发布
 
-插件每次启动都把自带的技能发布到 `~/.agents/skills/office-for-mso`，dsh 会话据此知道「有这么个能力、什么时候该用」。**这是无条件调用，代码里没有开关**；发布失败只会在插件日志里留一行 `skill publishing skipped: …`，不影响插件运行。
+插件每次启动都把桥接技能与样式技能分别发布到 `~/.agents/skills/ms-office` 和 `~/.agents/skills/office-document-styles`，dsh 会话据此知道「有这么个能力、什么时候该用」。**这是无条件调用，代码里没有开关**；发布失败只会在插件日志里留一行 `skill publishing skipped: …`，不影响插件运行。
 
-技能名 = **目录名**，所以中英两版放在**同一个目录**里（`SKILL.md` + `SKILL.en.md`），发布时按宿主语言（`LC_ALL` / `LC_MESSAGES` / `LANG` 是否 `en*`）二选一，把选中的那份覆盖成 `SKILL.md`。开两个目录会注册成两个技能，把同一份能力给模型看两遍。
+技能名 = **目录名**，所以中英两版放在**同一个目录**里（`SKILL.md` + `SKILL.en.md`），发布时按宿主语言（`LC_ALL` / `LC_MESSAGES` / `LANG` 是否 `en*`）二选一，把选中的那份覆盖成 `SKILL.md`。桥接与基础样式是两个不同职责的技能；同一技能的中英文不能拆成两个目录。
 
 ### 发布白名单（`package.json#files`）
 
@@ -168,3 +168,9 @@ PORT=3000 node server/server.js
 ## 许可
 
 [MIT](../LICENSE)。第三方组件（pako）的许可与出处见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。
+
+## 基础样式资源
+
+`skills/office-document-styles/SKILL.md` / `SKILL.en.md` 配套 `resources/presets.json`、示例、来源与离线计划/质量脚本；六套原创配方以JSON为真源，预览是浏览器示意而非Office截图。生成和检查方法见该技能，功能边界和后续优先级见 [FEATURE-ROADMAP.md](FEATURE-ROADMAP.md)。
+
+技能发布委托 `lib/skill-publisher.mjs` 比对完整文件树，不因主SKILL文本相同而跳过资源。自有manifest追踪已发布文件，仅清理源已删除的受管文件，保留未知用户文件；拒绝symlink/junction与越界manifest路径，复制成功后才更新manifest。源码、技能或打包文件变更后需安装新包并重启DSH，不能把本工作区变更当成运行环境已更新。

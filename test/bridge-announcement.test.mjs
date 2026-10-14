@@ -33,8 +33,25 @@ describe('端口公告（bridge.json）', () => {
 
   test('公告是可解析 JSON，且带 plugin / pid / startedAt', () => {
     const info = read();
-    assert.equal(info.plugin, 'dsh-office-for-mso');
+    assert.equal(info.plugin, 'dsh-ms-office');
     assert.equal(typeof info.pid, 'number');
     assert.ok(!Number.isNaN(Date.parse(info.startedAt)), `startedAt 不是 ISO 时间：${info.startedAt}`);
   });
+});
+
+test('default state namespace publishes only under the current package name', async () => {
+  const stateHome = fs.mkdtempSync(path.join(path.dirname(srv.stateDir), 'dsh-ms-office-default-test-'));
+  let isolated;
+  try {
+    isolated = await startBridge({ env: { DSH_HOME: stateHome, DSH_OFFICE_STATE_DIR: undefined } });
+    assert.deepEqual(fs.readdirSync(stateHome), ['dsh-ms-office']);
+    const announcement = JSON.parse(fs.readFileSync(path.join(stateHome, 'dsh-ms-office', 'bridge.json'), 'utf8'));
+    assert.equal(announcement.plugin, 'dsh-ms-office');
+    assert.equal(announcement.url, isolated.base);
+    const status = await isolated.req('/office/status');
+    assert.equal(status.body.plugin, 'dsh-ms-office');
+  } finally {
+    if (isolated) { await isolated.stop(); cleanupStateDir(isolated.stateDir); }
+    cleanupStateDir(stateHome);
+  }
 });

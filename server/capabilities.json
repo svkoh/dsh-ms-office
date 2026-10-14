@@ -1,80 +1,720 @@
 [
-  {"name":"read_selection","hosts":["Word","Excel","PowerPoint"],"destructive":false},
-  {"name":"write_selection","hosts":["Word","Excel","PowerPoint"],"destructive":true},
-  {"name":"read_document","hosts":["Word","Excel","PowerPoint"],"destructive":false},
-  {"name":"read_styles","hosts":["Word","Excel"],"destructive":false},
-  {"name":"replace_all","hosts":["Word","Excel"],"destructive":true},
-  {"name":"append_text","hosts":["Word"],"destructive":true},
-  {"name":"read_tables","hosts":["Word"],"destructive":false},
-  {"name":"read_table_borders","hosts":["Word"],"destructive":false,"requirement":"WordApi 1.3+"},
-  {"name":"set_table_borders","hosts":["Word"],"destructive":true,"requirement":"WordApi 1.3+"},
-  {"name":"set_font","hosts":["Word"],"destructive":true},
-  {"name":"word_list_paragraphs","hosts":["Word"],"destructive":false},
-  {"name":"word_delete_paragraphs","hosts":["Word"],"destructive":true},
-  {"name":"insert_paragraph","hosts":["Word"],"destructive":true},
-  {"name":"insert_table","hosts":["Word"],"destructive":true,"requirement":"WordApi 1.3+"},
-  {"name":"word_insert_html","hosts":["Word"],"destructive":true,"requirement":"WordApi 1.1+"},
-  {"name":"word_set_page_setup","hosts":["Word"],"destructive":true,"requirement":"WordApi 1.1+"},
-  {"name":"word_insert_equation","hosts":["Word"],"destructive":true,"requirement":"WordApi 1.1+ Range.insertOoxml"},
-  {"name":"word_read_equations","hosts":["Word"],"destructive":false,"requirement":"WordApi 1.1+ Range.getOoxml"},
-  {"name":"word_read_selection_paragraph","hosts":["Word"],"destructive":false,"requirement":"WordApi 1.1+ Range.getOoxml"},
-  {"name":"word_export_file","hosts":["Word"],"destructive":false},
-  {"name":"word_insert_image","hosts":["Word"],"destructive":true},
-  {"name":"word_transfer_content","hosts":["Word"],"destructive":true,"requirement":"WordApi 1.1+"},
-  {"name":"apply_style","hosts":["Word"],"destructive":true},
-  {"name":"format_selection","hosts":["Word","Excel"],"destructive":true},
-  {"name":"set_paragraph_format","hosts":["Word"],"destructive":true},
-  {"name":"search","hosts":["Word"],"destructive":false},
-  {"name":"add_comment","hosts":["Word","Excel"],"destructive":true},
-  {"name":"read_comments","hosts":["Word","Excel"],"destructive":false},
-  {"name":"read_properties","hosts":["Word","Excel"],"destructive":false},
-  {"name":"word_list_sections","hosts":["Word"],"destructive":false,"requirement":"WordApi 1.1+"},
-  {"name":"word_read_headers_footers","hosts":["Word"],"destructive":false,"requirement":"WordApi 1.1+"},
-  {"name":"word_set_header_footer","hosts":["Word"],"destructive":true,"requirement":"WordApi 1.1+"},
-  {"name":"word_insert_break","hosts":["Word"],"destructive":true,"requirement":"WordApi 1.1+"},
-  {"name":"word_insert_caption","hosts":["Word"],"destructive":true,"requirement":"WordApi 1.1+"},
-  {"name":"list_sheets","hosts":["Excel"],"destructive":false},
-  {"name":"read_range","hosts":["Excel"],"destructive":false},
-  {"name":"write_range","hosts":["Excel"],"destructive":true},
-  {"name":"format_range","hosts":["Excel"],"destructive":true},
-  {"name":"insert_chart","hosts":["Excel"],"destructive":true},
-  {"name":"add_sheet","hosts":["Excel"],"destructive":true},
-  {"name":"rename_sheet","hosts":["Excel"],"destructive":true},
-  {"name":"delete_sheet","hosts":["Excel"],"destructive":true},
-  {"name":"apply_sort","hosts":["Excel"],"destructive":true},
-  {"name":"apply_filter","hosts":["Excel"],"destructive":true},
-  {"name":"evaluate_formula","hosts":["Excel"],"destructive":false},
-  {"name":"list_tables","hosts":["Excel"],"destructive":false,"requirement":"ExcelApi 1.1+"},
-  {"name":"create_table","hosts":["Excel"],"destructive":true,"requirement":"ExcelApi 1.1+"},
-  {"name":"delete_table","hosts":["Excel"],"destructive":true,"requirement":"ExcelApi 1.1+"},
-  {"name":"convert_table_to_range","hosts":["Excel"],"destructive":true,"requirement":"ExcelApi 1.2+"},
-  {"name":"read_conditional_formats","hosts":["Excel"],"destructive":false,"requirement":"ExcelApi 1.6+"},
-  {"name":"add_conditional_format","hosts":["Excel"],"destructive":true,"requirement":"ExcelApi 1.6+"},
-  {"name":"delete_conditional_format","hosts":["Excel"],"destructive":true,"requirement":"ExcelApi 1.6+"},
-  {"name":"clear_conditional_formats","hosts":["Excel"],"destructive":true,"requirement":"ExcelApi 1.6+"},
-  {"name":"read_data_validation","hosts":["Excel"],"destructive":false,"requirement":"ExcelApi 1.8+"},
-  {"name":"set_data_validation","hosts":["Excel"],"destructive":true,"requirement":"ExcelApi 1.8+"},
-  {"name":"clear_data_validation","hosts":["Excel"],"destructive":true,"requirement":"ExcelApi 1.8+"},
-  {"name":"validate_data","hosts":["Excel"],"destructive":false,"requirement":"ExcelApi 1.8+"},
-  {"name":"read_slides","hosts":["PowerPoint"],"destructive":false},
-  {"name":"ppt_read_notes","hosts":["PowerPoint"],"destructive":false},
-  {"name":"ppt_add_slides","hosts":["PowerPoint"],"destructive":true,"requirement":"PowerPointApi 1.4+"},
-  {"name":"ppt_add_elements","hosts":["PowerPoint"],"destructive":true,"requirement":"PowerPointApi 1.4+"},
-  {"name":"ppt_delete_slides","hosts":["PowerPoint"],"destructive":true,"requirement":"PowerPointApi 1.2+"},
-  {"name":"ppt_delete_shapes","hosts":["PowerPoint"],"destructive":true,"requirement":"PowerPointApi 1.4+"},
-  {"name":"ppt_render_slides","hosts":["PowerPoint"],"destructive":false,"requirement":"PowerPointApi 1.8+"},
-  {"name":"ppt_export_file","hosts":["PowerPoint"],"destructive":false},
-  {"name":"ppt_inspect_slides","hosts":["PowerPoint"],"destructive":false,"requirement":"PowerPointApi 1.4+"},
-  {"name":"ppt_list_placeholders","hosts":["PowerPoint"],"destructive":false,"requirement":"PowerPointApi 1.8+"},
-  {"name":"ppt_insert_image","hosts":["PowerPoint"],"destructive":true,"requirement":"ImageCoercion 1.1+"},
-  {"name":"ppt_insert_table","hosts":["PowerPoint"],"destructive":true,"requirement":"PowerPointApi 1.8+"},
-  {"name":"ppt_group_shapes","hosts":["PowerPoint"],"destructive":true,"requirement":"PowerPointApi 1.8+"},
-  {"name":"ppt_ungroup_shape","hosts":["PowerPoint"],"destructive":true,"requirement":"PowerPointApi 1.8+"},
-  {"name":"ppt_set_z_order","hosts":["PowerPoint"],"destructive":true,"requirement":"PowerPointApi 1.8+"},
-  {"name":"ppt_align_shapes","hosts":["PowerPoint"],"destructive":true,"requirement":"PowerPointApi 1.4+"},
-  {"name":"ppt_distribute_shapes","hosts":["PowerPoint"],"destructive":true,"requirement":"PowerPointApi 1.4+"},
-  {"name":"get_environment","hosts":["Word","Excel","PowerPoint"],"destructive":false},
-  {"name":"get_document_info","hosts":["Word","Excel","PowerPoint"],"destructive":false},
-  {"name":"set_setting","hosts":["Word","Excel","PowerPoint"],"destructive":true},
-  {"name":"locate_select","hosts":["Word","Excel"],"destructive":false}
+  {
+    "name": "read_selection",
+    "hosts": [
+      "Word",
+      "Excel",
+      "PowerPoint"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "write_selection",
+    "hosts": [
+      "Word",
+      "Excel",
+      "PowerPoint"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "read_document",
+    "hosts": [
+      "Word",
+      "Excel",
+      "PowerPoint"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "read_styles",
+    "hosts": [
+      "Word",
+      "Excel"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "replace_all",
+    "hosts": [
+      "Word",
+      "Excel"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "append_text",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "read_tables",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "read_table_borders",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": false,
+    "requirement": "WordApi 1.3+"
+  },
+  {
+    "name": "set_table_borders",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApi 1.3+"
+  },
+  {
+    "name": "set_font",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "word_list_paragraphs",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "word_delete_paragraphs",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "insert_paragraph",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "insert_table",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApi 1.3+"
+  },
+  {
+    "name": "word_insert_html",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApi 1.1+"
+  },
+  {
+    "name": "word_set_page_setup",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApiDesktop 1.3+"
+  },
+  {
+    "name": "word_insert_equation",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApi 1.1+ Range.insertOoxml"
+  },
+  {
+    "name": "word_read_equations",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": false,
+    "requirement": "WordApi 1.1+ Range.getOoxml"
+  },
+  {
+    "name": "word_read_selection_paragraph",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": false,
+    "requirement": "WordApi 1.1+ Range.getOoxml"
+  },
+  {
+    "name": "word_export_file",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "word_insert_image",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "word_transfer_content",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApi 1.1+"
+  },
+  {
+    "name": "apply_style",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "format_selection",
+    "hosts": [
+      "Word",
+      "Excel"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "set_paragraph_format",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "search",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "add_comment",
+    "hosts": [
+      "Word",
+      "Excel"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "read_comments",
+    "hosts": [
+      "Word",
+      "Excel"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "read_properties",
+    "hosts": [
+      "Word",
+      "Excel"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "word_list_sections",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": false,
+    "requirement": "WordApi 1.1+"
+  },
+  {
+    "name": "word_read_headers_footers",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": false,
+    "requirement": "WordApi 1.1+"
+  },
+  {
+    "name": "word_set_header_footer",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApi 1.1+"
+  },
+  {
+    "name": "word_insert_break",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApi 1.1+"
+  },
+  {
+    "name": "word_insert_caption",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApi 1.1+"
+  },
+  {
+    "name": "list_sheets",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "read_range",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "write_range",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "format_range",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true,
+    "requirement": "ExcelApi 1.1+; column/row dimensions and autofit require ExcelApi 1.2+"
+  },
+  {
+    "name": "insert_chart",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "add_sheet",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "rename_sheet",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "delete_sheet",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "apply_sort",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "apply_filter",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "evaluate_formula",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "list_tables",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": false,
+    "requirement": "ExcelApi 1.1+"
+  },
+  {
+    "name": "create_table",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true,
+    "requirement": "ExcelApi 1.1+"
+  },
+  {
+    "name": "delete_table",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true,
+    "requirement": "ExcelApi 1.1+"
+  },
+  {
+    "name": "convert_table_to_range",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true,
+    "requirement": "ExcelApi 1.2+"
+  },
+  {
+    "name": "read_conditional_formats",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": false,
+    "requirement": "ExcelApi 1.6+"
+  },
+  {
+    "name": "add_conditional_format",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true,
+    "requirement": "ExcelApi 1.6+"
+  },
+  {
+    "name": "delete_conditional_format",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true,
+    "requirement": "ExcelApi 1.6+"
+  },
+  {
+    "name": "clear_conditional_formats",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true,
+    "requirement": "ExcelApi 1.6+"
+  },
+  {
+    "name": "read_data_validation",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": false,
+    "requirement": "ExcelApi 1.8+"
+  },
+  {
+    "name": "set_data_validation",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true,
+    "requirement": "ExcelApi 1.8+"
+  },
+  {
+    "name": "clear_data_validation",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true,
+    "requirement": "ExcelApi 1.8+"
+  },
+  {
+    "name": "validate_data",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": false,
+    "requirement": "ExcelApi 1.8+"
+  },
+  {
+    "name": "read_slides",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "ppt_read_notes",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "ppt_add_slides",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": true,
+    "requirement": "PowerPointApi 1.4+"
+  },
+  {
+    "name": "ppt_add_elements",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": true,
+    "requirement": "PowerPointApi 1.4+"
+  },
+  {
+    "name": "ppt_delete_slides",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": true,
+    "requirement": "PowerPointApi 1.2+"
+  },
+  {
+    "name": "ppt_delete_shapes",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": true,
+    "requirement": "PowerPointApi 1.4+"
+  },
+  {
+    "name": "ppt_render_slides",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": false,
+    "requirement": "PowerPointApi 1.8+"
+  },
+  {
+    "name": "ppt_export_file",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "ppt_inspect_slides",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": false,
+    "requirement": "PowerPointApi 1.4+"
+  },
+  {
+    "name": "ppt_list_placeholders",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": false,
+    "requirement": "PowerPointApi 1.8+"
+  },
+  {
+    "name": "ppt_insert_image",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": true,
+    "requirement": "ImageCoercion 1.1+"
+  },
+  {
+    "name": "ppt_insert_table",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": true,
+    "requirement": "PowerPointApi 1.8+"
+  },
+  {
+    "name": "ppt_group_shapes",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": true,
+    "requirement": "PowerPointApi 1.8+"
+  },
+  {
+    "name": "ppt_ungroup_shape",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": true,
+    "requirement": "PowerPointApi 1.8+"
+  },
+  {
+    "name": "ppt_set_z_order",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": true,
+    "requirement": "PowerPointApi 1.8+"
+  },
+  {
+    "name": "ppt_align_shapes",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": true,
+    "requirement": "PowerPointApi 1.4+"
+  },
+  {
+    "name": "ppt_distribute_shapes",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": true,
+    "requirement": "PowerPointApi 1.4+"
+  },
+  {
+    "name": "get_environment",
+    "hosts": [
+      "Word",
+      "Excel",
+      "PowerPoint"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "get_document_info",
+    "hosts": [
+      "Word",
+      "Excel",
+      "PowerPoint"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "set_setting",
+    "hosts": [
+      "Word",
+      "Excel",
+      "PowerPoint"
+    ],
+    "destructive": true
+  },
+  {
+    "name": "locate_select",
+    "hosts": [
+      "Word",
+      "Excel"
+    ],
+    "destructive": false
+  },
+  {
+    "name": "word_format_paragraphs",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApi 1.3+"
+  },
+  {
+    "name": "excel_set_freeze_panes",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true,
+    "requirement": "ExcelApi 1.7+"
+  },
+  {
+    "name": "ppt_update_shapes",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": true,
+    "requirement": "PowerPointApi 1.4+"
+  },
+  {
+    "name": "ppt_read_presentation_info",
+    "hosts": [
+      "PowerPoint"
+    ],
+    "destructive": false,
+    "requirement": "Common API getFileAsync (Compressed)"
+  },
+  {
+    "name": "excel_render_range",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": false,
+    "requirement": "ExcelApi 1.7+"
+  },
+  {
+    "name": "excel_export_file",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": false,
+    "requirement": "Common File API; actual host support is checked"
+  },
+  {
+    "name": "word_read_styles",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": false,
+    "requirement": "WordApi 1.5+"
+  },
+  {
+    "name": "word_set_styles",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApi 1.5+"
+  },
+  {
+    "name": "word_read_fields",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": false,
+    "requirement": "WordApi 1.5+"
+  },
+  {
+    "name": "word_insert_field",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApi 1.5+"
+  },
+  {
+    "name": "excel_render_chart",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": false,
+    "requirement": "ExcelApi 1.9+"
+  },
+  {
+    "name": "word_create_document",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": true,
+    "requirement": "WordApi 1.3+"
+  },
+  {
+    "name": "excel_set_print_layout",
+    "hosts": [
+      "Excel"
+    ],
+    "destructive": true,
+    "requirement": "ExcelApi 1.9+"
+  },
+  {
+    "name": "word_render_pages",
+    "hosts": [
+      "Word"
+    ],
+    "destructive": false,
+    "requirement": "WordApi 1.1+; Windows desktop Word native PrintLayout"
+  }
 ]

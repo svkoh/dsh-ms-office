@@ -1,6 +1,6 @@
 {
-  "name": "dsh-office-for-mso",
-  "version": "0.2.3",
+  "name": "dsh-ms-office",
+  "version": "0.3.0",
   "description": "Control the Microsoft Office documents you already have open (Word / Excel / PowerPoint) from a DeepSeek Harness session, through an Office add-in. Ships a local bridge sidecar plus the task pane that executes Office.js.",
   "type": "module",
   "main": "lib/index.js",
@@ -13,7 +13,6 @@
     "cordis.patch.yml",
     "lib",
     "i18n",
-    "docs",
     "server/server.js",
     "server/taskpane.js",
     "server/taskpane.html",
@@ -27,7 +26,25 @@
     "README.md",
     "README.en.md",
     "LICENSE",
-    "THIRD_PARTY_NOTICES.md"
+    "THIRD_PARTY_NOTICES.md",
+    "docs/architecture-modules.svg",
+    "docs/architecture-runtime.svg",
+    "docs/FEATURE-ROADMAP.md",
+    "docs/FEATURE-ROADMAP.en.md",
+    "docs/AGENT.md",
+    "docs/AGENT.en.md",
+    "docs/DEVELOPMENT.md",
+    "docs/DEVELOPMENT.en.md",
+    "docs/CAPABILITIES.md",
+    "docs/CAPABILITIES.en.md",
+    "docs/style-gallery.png",
+    "docs/style-gallery.html",
+    "docs/style-atlas/assets/original-workflow.png",
+    "scripts/create-word-style-atlas.mjs",
+    "scripts/create-excel-style-atlas.mjs",
+    "scripts/create-ppt-style-atlas.mjs",
+    "server/native-word-pages.cjs",
+    "server/native-word-pages.ps1"
   ],
   "dsh": {
     "manifestVersion": 1,
@@ -79,10 +96,10 @@
   "author": "svkoh",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/svkoh/dsh-office-for-mso.git"
+    "url": "git+https://github.com/svkoh/dsh-ms-office.git"
   },
   "bugs": {
-    "url": "https://github.com/svkoh/dsh-office-for-mso/issues"
+    "url": "https://github.com/svkoh/dsh-ms-office/issues"
   },
-  "homepage": "https://github.com/svkoh/dsh-office-for-mso#readme"
+  "homepage": "https://github.com/svkoh/dsh-ms-office#readme"
 }

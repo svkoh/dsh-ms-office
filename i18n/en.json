@@ -203,7 +203,8 @@
         "color": "string, required: #RRGGBB",
         "tableIndexes": "number[], optional: 1-based, defaults to all tables",
         "locations": "array of Top|Bottom|Left|Right|InsideHorizontal|InsideVertical, optional",
-        "enableGrid": "boolean, optional: apply TableGrid first so the full grid exists"
+        "enableGrid": "boolean, optional: apply TableGrid first so the full grid exists",
+        "width": "Optional positive width in pt; omitted preserves existing width"
       }
     },
     "set_font": {
@@ -252,7 +253,10 @@
         "leftMargin": "number, optional (points)",
         "rightMargin": "number, optional (points)",
         "headerDistance": "number, optional (points)",
-        "footerDistance": "number, optional (points)"
+        "footerDistance": "number, optional (points)",
+        "pageWidth": "optional positive pt",
+        "pageHeight": "optional positive pt",
+        "differentFirstPageHeaderFooter": "optional boolean"
       }
     },
     "word_insert_equation": {
@@ -306,8 +310,8 @@
       "args": {
         "alignment": "string, optional: left|center|right|justify",
         "indent": "number, optional (cm)",
-        "lineSpacing": "number, optional",
-        "listType": "string, optional: bulleted|numbered|none"
+        "lineSpacing": "Optional native numeric line spacing; Word UI divides by12 (18 =>1.5)",
+        "listType": "none|numbered|bulleted; WordApi1.3; existing lists must be explicitly removed before conversion"
       }
     },
     "search": {
@@ -332,7 +336,8 @@
     "word_read_headers_footers": {
       "args": {
         "section": "number|all",
-        "types": "array of primary|firstPage|evenPages"
+        "types": "array of primary|firstPage|evenPages",
+        "includeFields": "optional boolean; WordApi1.5; read actual native field type/code/text"
       }
     },
     "word_set_header_footer": {
@@ -340,14 +345,16 @@
         "kind": "header|footer",
         "section": "number|all",
         "type": "primary|firstPage|evenPages",
-        "text": "string",
-        "mode": "replace|append|prepend"
+        "text": "optional string; required unless field is provided",
+        "mode": "replace|append|prepend",
+        "field": "optional {type:TOC|Page|NumPages,switches?}; mutually exclusive with text; requires WordApi1.5"
       }
     },
     "word_insert_break": {
       "args": {
         "type": "page|line|sectionNext|sectionContinuous|sectionEven|sectionOdd",
-        "location": "start|end|beforeSelection|afterSelection"
+        "location": "start|end|beforeSelection|afterSelection",
+        "paragraph": "optional {index:non-negative integer,expectedText:string}; exact native paragraph target"
       }
     },
     "word_insert_caption": {
@@ -365,7 +372,8 @@
     "read_range": {
       "args": {
         "address": "string, required: Sheet!A1:B10",
-        "limit": "number, optional: positive integer maximum cells to load; default and hard cap are 5000"
+        "limit": "number, optional: positive integer maximum cells to load; default and hard cap are 5000",
+        "withLayout": "Optional boolean: read actual wrap/alignment and supported point dimensions (mixed values remain null)"
       }
     },
     "write_range": {
@@ -383,16 +391,29 @@
         "bold": "boolean, optional",
         "fill": "string, optional (#RRGGBB)",
         "numberFormat": "string, optional",
-        "autoFit": "boolean, optional",
+        "autoFit": "Optional boolean: compatible alias for autoFitColumns; ExcelApi 1.2+",
         "tableStyle": "string, optional (e.g. TableStyleMedium2)",
-        "tableName": "required when tableStyle is set"
+        "tableName": "required when tableStyle is set",
+        "columnWidth": "Optional positive width in pt; mutually exclusive with autoFitColumns:true or autoFit:true",
+        "rowHeight": "Optional positive height in pt; mutually exclusive with autoFitRows:true",
+        "wrapText": "Optional boolean",
+        "horizontalAlignment": "General|Left|Center|Right|Fill|Justify|CenterAcrossSelection|Distributed",
+        "verticalAlignment": "Top|Center|Bottom|Justify|Distributed",
+        "autoFitRows": "Optional boolean: autofit row height; ExcelApi1.2",
+        "autoFitColumns": "Optional boolean: autofit columns; ExcelApi 1.2+; cannot combine true with columnWidth. autoFit is a compatible alias.",
+        "color": "optional text color #RRGGBB"
       }
     },
     "insert_chart": {
       "args": {
         "type": "string, required: Line|Column|Bar|Pie|Area|Scatter, …",
         "dataRange": "string, required: Sheet!A1:B10",
-        "title": "string, optional"
+        "title": "string, optional",
+        "position": "Optional {startCell,endCell}: local A1 corners on the dataRange worksheet. Always creates on the source worksheet, never an unrelated active sheet",
+        "font": "optional font family; Chinese default SimSun",
+        "seriesColors": "optional #RRGGBB[]",
+        "fill": "optional chart background #RRGGBB",
+        "color": "optional chart text #RRGGBB"
       }
     },
     "add_sheet": {
@@ -535,12 +556,14 @@
     "ppt_render_slides": {
       "args": {
         "width": "number, optional: PNG width, defaults to 960",
-        "height": "number, optional: PNG height, defaults to 540"
+        "height": "number, optional: PNG height, defaults to 540",
+        "slideIds": "Optional unique nonempty native slide ID array; omitted means all pages. Output preserves document order and original 1-based indexes; all IDs checked before rendering"
       }
     },
     "ppt_inspect_slides": {
       "args": {
-        "slideIds": "string[], optional"
+        "slideIds": "string[], optional",
+        "withStyles": "Optional boolean: read text/font/fill when supported, otherwise report stylesRead:false and reason"
       }
     },
     "ppt_list_placeholders": {
@@ -555,7 +578,8 @@
         "left": "number",
         "top": "number",
         "width": "number, optional",
-        "height": "number, optional"
+        "height": "number, optional",
+        "slideId": "optional string: select exact native slide before inserting image"
       }
     },
     "ppt_insert_table": {
@@ -625,6 +649,113 @@
         "sheet": "string, optional (Excel): the worksheet to use",
         "blinks": "number, optional: number of blinks (0 = select and hold; 1-5 blinks)",
         "interval": "number, optional: blink interval in ms (default 300, 100-800)"
+      }
+    },
+    "word_format_paragraphs": {
+      "args": {
+        "targets": "required1..500 exact targets[{index,expectedText,style?,font?:{name,size,color,bold,italic},alignment?,spaceBefore?,spaceAfter?,lineSpacing?,leftIndent?,rightIndent?,firstLineIndent?}]; unique zero-based indexes and complete-text guards preflight every target. Supports built-in or atlas body styles. Dimensions are points; numeric lineSpacing18 is not true1.5 spacing"
+      },
+      "description": "Format paragraphs by exact index and complete text using built-in or native atlas body styles"
+    },
+    "excel_set_freeze_panes": {
+      "args": {
+        "sheet": "Required worksheet name",
+        "mode": "Required rows|columns|range|none",
+        "count": "Positive integer for rows/columns only",
+        "range": "For range mode only: local A1 range to freeze, e.g. A1:B2; not a cursor anchor"
+      }
+    },
+    "ppt_update_shapes": {
+      "args": {
+        "slideId": "Required native slide ID",
+        "updates": "Required 1..500 patches: {shapeId,text?,font?:{name,size,color,bold,italic},fill?:{color,transparency},left?,top?,width?,height?}; geometry/font size in pt. Only supplied fields change. text replaces the whole text, not runs; font/text/fill limited to TextBox/GeometricShape."
+      }
+    },
+    "ppt_read_presentation_info": {
+      "args": {}
+    },
+    "excel_render_range": {
+      "args": {
+        "address": "Required range address; render the whole range as PNG for visual review",
+        "maxCells": "Optional integer 1..10000, default5000; reject over-budget ranges without truncating"
+      }
+    },
+    "ppt_export_file": {
+      "args": {
+        "type": "pptx|pdf; default pptx; native Office export"
+      }
+    },
+    "list_sheets": {
+      "description": "Read all worksheet names, positions and visibility",
+      "args": {}
+    },
+    "excel_export_file": {
+      "description": "Export using the native Office File API; actual host support is required",
+      "args": {
+        "type": "xlsx|pdf; default xlsx"
+      }
+    },
+    "word_read_styles": {
+      "args": {
+        "names": "string[] optional; exact localized style names; omit to list paragraph styles"
+      },
+      "description": "Read actual global paragraph style definitions and script-specific fonts"
+    },
+    "word_set_styles": {
+      "args": {
+        "styles": "required style array{name,font?,paragraphFormat?}; or the single reserved body-1.5 atlas preset for a global SimSun12pt/24pt-indent/true1.5 style. Its exact localized name is documented in the style skill. Numeric lineSpacing is points, not a multiple"
+      },
+      "description": "Set actual global paragraph style definitions; numeric lineSpacing is points, not a multiple"
+    },
+    "word_read_fields": {
+      "args": {
+        "target": "body|selection; default body"
+      },
+      "description": "Read actual Word field codes and cached results"
+    },
+    "word_insert_field": {
+      "args": {
+        "type": "TOC|Page|NumPages",
+        "switches": "optional single-line field switches",
+        "target": "body|selection; default selection",
+        "mode": "replace|prepend|append|before|after; body accepts only replace/prepend/append",
+        "paragraph": "TOC-only optional{index,expectedText}; zero-based body paragraph with exact complete-text guard. Uses the available native Desktop1.4 contents collection with default heading levels1–3; custom switches are rejected before mutation. Reads back actual generated entries"
+      },
+      "description": "Insert and read back real TOC or PAGE fields"
+    },
+    "excel_render_chart": {
+      "description": "Native Office Chart.getImage chart preview",
+      "args": {
+        "sheet": "string required",
+        "name": "string required"
+      }
+    },
+    "word_create_document": {
+      "description": "Natively create and open a blank Word document; no file/Base64 input; original content preserved",
+      "args": {}
+    },
+    "excel_set_print_layout": {
+      "description": "Set bounded native worksheet print area and page layout with readback",
+      "args": {
+        "sheet": "string required",
+        "address": "sheet-local A1 rectangle; at most 10000 cells",
+        "orientation": "Landscape|Portrait; default Landscape",
+        "paperSize": "A4|Letter|A3; default A4",
+        "fitToPagesWide": "integer1..100; default1",
+        "fitToPagesTall": "integer1..100; default1"
+      }
+    },
+    "get_environment": {
+      "description": "Read Office environment, native API support and confirmation mode",
+      "args": {
+        "syncConfig": "optional boolean; sync pane to existing user-selected server confirmation mode; no mode/approval input",
+        "reloadPane": "optional boolean; reload this pane only after public command status is explicitly empty; leaves the document intact"
+      }
+    },
+    "word_render_pages": {
+      "description": "Read-only native Word full-page PNGs including headers/footers; Windows desktop Word PrintLayout required",
+      "args": {
+        "expectedPageCount": "required integer 1..10; expected native page count"
       }
     }
   }

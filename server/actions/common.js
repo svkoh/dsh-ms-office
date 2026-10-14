@@ -69,8 +69,51 @@
   // ================= 环境诊断 =================
   // 基础部分是宿主无关的（Common API + requirement sets）；
   // 宿主专属的探测（例如 Word 对象模型属性是否存在）由该宿主分片的 environmentProbe 追加。
-  async function getEnvironment() {
+  async function getEnvironment(args = {}) {
+    if (args.syncConfig !== undefined && typeof args.syncConfig !== 'boolean') return errResult('bad_args', 'syncConfig must be boolean');
+    if (args.reloadPane !== undefined && typeof args.reloadPane !== 'boolean') return errResult('bad_args', 'reloadPane must be boolean');
+    let configuration = { cachedConfirmMode: window.__CONFIRM_MODE__ || 'ask', synchronized: false };
+    if (args.syncConfig) {
+      try {
+        const response = await fetch('/office/config');
+        if (!response.ok) throw new Error('Configuration unavailable');
+        const config = await response.json();
+        if (!config || !['ask', 'auto'].includes(config.confirmMode)) throw new Error('Invalid configuration');
+        if (window.__CONFIRM_MODE__ !== config.confirmMode) {
+          const button = document.getElementById('ui-mode-' + config.confirmMode);
+          if (!button || typeof button.click !== 'function') throw new Error('Pane configuration control unavailable');
+          button.click();
+        }
+        configuration = { serverConfirmMode: config.confirmMode, cachedConfirmMode: window.__CONFIRM_MODE__, synchronized: window.__CONFIRM_MODE__ === config.confirmMode };
+      } catch (e) { return errResult('execution', String(e && e.message || e)); }
+    }
+    let paneReload;
+    if (args.reloadPane) {
+      if (!window.__OFFICE_PANE_RELOAD_PENDING__) {
+        window.__OFFICE_PANE_RELOAD_PENDING__ = true;
+        let checks = 0;
+        const reloadWhenIdle = async function () {
+          checks++;
+          try {
+            const response = await fetch('/office/status', { cache: 'no-store' });
+            if (response.ok) {
+              const status = await response.json();
+              if (Array.isArray(status.pendingCommands) && status.pendingCommands.length === 0) {
+                window.location.reload();
+                return;
+              }
+            }
+          } catch (_) { /* Never reload while command state is unknown. */ }
+          if (checks < 30) window.setTimeout(reloadWhenIdle, 1000);
+          else window.__OFFICE_PANE_RELOAD_PENDING__ = false;
+        };
+        window.setTimeout(reloadWhenIdle, 3000);
+      }
+      paneReload = { requested: true, requiresNoPendingCommands: true, maximumStatusChecks: 30 };
+    }
     const base = {
+      paneReload,
+      configuration,
       host: String(Office.context.host || ''),
       platform: String(Office.context.platform || ''),
       officeVersion: String(Office.version || ''),
@@ -106,13 +149,16 @@
         } catch (e) { return { error: String(e && e.message || e) }; }
       })(),
       requirementSets: {
+        WordApiDesktop_1_3: isSetSupported('WordApiDesktop', '1.3'),
         WordApi_1_1: isSetSupported('WordApi', '1.1'),
         WordApi_1_3: isSetSupported('WordApi', '1.3'),
         WordApi_1_4: isSetSupported('WordApi', '1.4'),
         WordApi_1_5: isSetSupported('WordApi', '1.5'),
         WordApi_1_8: isSetSupported('WordApi', '1.8'),
         ExcelApi_1_1: isSetSupported('ExcelApi', '1.1'),
+        ExcelApi_1_2: isSetSupported('ExcelApi', '1.2'),
         ExcelApi_1_6: isSetSupported('ExcelApi', '1.6'),
+        ExcelApi_1_7: isSetSupported('ExcelApi', '1.7'),
         ExcelApi_1_8: isSetSupported('ExcelApi', '1.8'),
         ExcelApi_1_9: isSetSupported('ExcelApi', '1.9'),
         ExcelApi_1_10: isSetSupported('ExcelApi', '1.10'),

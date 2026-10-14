@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { ROOT, readJson, readParts } from './helpers/paths.mjs';
 
 const pkg = readJson(path.join(ROOT, 'package.json'));
-const PLUGIN_ID = 'dsh-office-for-mso';
+const PLUGIN_ID = 'dsh-ms-office';
 
 /** 本机装了 dsh 运行时时，用它自带的 semver 做真检查；没装就跳过（CI 上没有） */
 function loadRuntimeSemver() {
@@ -137,8 +137,7 @@ describe('package.json 清单', () => {
         const rel = m[1].trim();
         if (/^[a-z][a-z0-9+.-]*:/i.test(rel)) continue; // 外链 / data: 跳过
         assert.ok(fs.existsSync(path.join(ROOT, rel)), `${readme} 引用了不存在的 ${rel}`);
-        const top = rel.split('/')[0];
-        assert.ok(pkg.files.includes(top),
+        assert.ok(pkg.files.some(entry => rel === entry || rel.startsWith(entry + '/')),
           `${readme} 引用的 ${rel} 不在 files 里 —— 发布包会缺这个文件`);
       }
     }
@@ -169,20 +168,15 @@ describe('技能包', () => {
   // 约定：技能名 = 插件名去掉 `dsh-` 前缀（`dsh-` 是插件命名空间的事，不该出现在技能名里）
   const SKILL_NAME = PLUGIN_ID.replace(/^dsh-/, '');
 
-  test('只带一个技能，且目录名 / SKILL.md 的 name 都是约定的技能名', () => {
-    const dirs = fs.readdirSync(skillsDir);
-    assert.equal(dirs.length, 1, `skills/ 下应只有一个技能，实际：${dirs.join(', ')}`);
-    const dir = dirs[0];
-    assert.equal(dir, SKILL_NAME, `技能目录名应为 ${SKILL_NAME}`);
-    const md = fs.readFileSync(path.join(skillsDir, dir, 'SKILL.md'), 'utf8');
-    assert.match(md, new RegExp(`^name: ${dir}$`, 'm'),
-      `SKILL.md 的 name 与目录名 ${dir} 不一致（发布后的技能名取目录名）`);
-  });
-
-  test('SKILL.md 有 description 与 whenToUse（AI 靠这两项决定用不用）', () => {
-    const md = fs.readFileSync(path.join(skillsDir, SKILL_NAME, 'SKILL.md'), 'utf8');
-    assert.match(md, /^description: .+/m);
-    assert.match(md, /^whenToUse: .+/m);
+  test('bridge and document-design skills each keep language variants in one directory', () => {
+    const dirs = fs.readdirSync(skillsDir).sort();
+    assert.deepEqual(dirs,[SKILL_NAME,'office-document-styles'].sort());
+    for (const dir of dirs) for (const variant of ['SKILL.md','SKILL.en.md']) {
+      const md = fs.readFileSync(path.join(skillsDir,dir,variant),'utf8');
+      assert.match(md,new RegExp('^name: ' + dir + '$','m'));
+      assert.match(md,/^description: .+/m);
+      assert.match(md,/^whenToUse: .+/m);
+    }
   });
 
   test('开发文档里的技能路径与实际目录一致', () => {
@@ -198,7 +192,7 @@ describe('宿主侧入口', () => {
   test('lib/index.js 用的 pluginName / bridge 与包名一致', () => {
     const src = fs.readFileSync(path.join(ROOT, 'lib/index.js'), 'utf8');
     assert.ok(src.includes(`"${PLUGIN_ID}"`) || src.includes(`'${PLUGIN_ID}'`), 'pluginName 不是包名');
-    assert.ok(src.includes('/api/office-for-mso'), 'bridge 路由不对');
+    assert.ok(src.includes('/api/ms-office'), 'bridge 路由不对');
     assert.ok(src.includes('server/server.js'), '侧车入口不对');
   });
 

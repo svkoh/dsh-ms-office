@@ -336,31 +336,41 @@
   }
 
   async function setTableBorders(args) {
-    const color = String(args.color || '');
-    if (!/^#[0-9a-fA-F]{6}$/.test(color)) return errResult('bad_args', 'color required in #RRGGBB format');
+    const color = args && args.color;
+    if (typeof color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(color)) return errResult('bad_args', 'color required in #RRGGBB format');
+    const allLocations = ['Top', 'Bottom', 'Left', 'Right', 'InsideHorizontal', 'InsideVertical'];
+    const locations = args.locations === undefined ? allLocations : args.locations;
+    if (!Array.isArray(locations) || !locations.length || locations.some((value) => !allLocations.includes(value)) || new Set(locations).size !== locations.length) return errResult('bad_args', 'locations must contain unique valid border locations');
+    if (args.tableIndexes !== undefined && (!Array.isArray(args.tableIndexes) || !args.tableIndexes.length || args.tableIndexes.some((value) => !Number.isInteger(value) || value < 1) || new Set(args.tableIndexes).size !== args.tableIndexes.length)) return errResult('bad_args', 'tableIndexes must contain unique positive one-based integers');
+    if (args.width !== undefined && (typeof args.width !== 'number' || !Number.isFinite(args.width) || args.width <= 0)) return errResult('bad_args', 'width must be a positive finite number in points');
+    if (args.enableGrid !== undefined && typeof args.enableGrid !== 'boolean') return errResult('bad_args', 'enableGrid must be boolean');
+    if (!isSetSupported('WordApi', '1.3')) return errResult('requirement', 'set_table_borders requires WordApi 1.3+');
     try {
       return await Word.run(async (ctx) => {
         const tables = ctx.document.body.tables;
-        tables.load('items');
-        await ctx.sync();
-        const allLocations = ['Top', 'Bottom', 'Left', 'Right', 'InsideHorizontal', 'InsideVertical'];
-        const locations = Array.isArray(args.locations) ? args.locations.filter((v) => allLocations.includes(v)) : allLocations;
-        if (!locations.length) return errResult('bad_args', 'locations contains no valid border location');
-        const requested = Array.isArray(args.tableIndexes) ? args.tableIndexes.map(Number) : tables.items.map((_, i) => i + 1);
-        const indexes = [...new Set(requested)].filter((n) => Number.isInteger(n) && n >= 1 && n <= tables.items.length);
-        if (!indexes.length) return errResult('bad_args', 'tableIndexes contains no valid table index');
-        const width = args.width === undefined ? 0.5 : Number(args.width);
-        if (!Number.isFinite(width) || width <= 0) return errResult('bad_args', 'width must be a positive number');
-        const borders = [];
-        for (const index of indexes) {
-          const table = tables.items[index - 1];
-          if (args.enableGrid === true) table.styleBuiltIn = 'TableGrid';
-          for (const location of locations) borders.push(table.getBorder(location));
+        tables.load('items'); await ctx.sync();
+        const indexes = args.tableIndexes === undefined ? tables.items.map((_, index) => index + 1) : args.tableIndexes;
+        if (!indexes.length) return errResult('not_found', 'document contains no tables');
+        if (indexes.some((index) => index > tables.items.length)) return errResult('not_found', 'table index not found');
+        const refs = [];
+        for (const index of indexes) for (const location of locations) {
+          const border = tables.items[index - 1].getBorder(location);
+          border.load('color,type,width'); refs.push({ table: index, location, border });
         }
-        if (args.enableGrid === true) await ctx.sync();
-        for (const border of borders) border.color = color;
+        // Resolve every border before applying a table style or border setter.
         await ctx.sync();
-        return okResult({ host: 'Word', tableIndexes: indexes, borderCount: indexes.length * locations.length, color: color.toUpperCase(), note: '保留原有边框线型和粗细' });
+        if (args.enableGrid === true) {
+          for (const index of indexes) tables.items[index - 1].styleBuiltIn = 'TableGrid';
+          await ctx.sync();
+        }
+        for (const { border } of refs) {
+          border.color = color;
+          if (args.width !== undefined) border.width = args.width;
+        }
+        await ctx.sync();
+        for (const { border } of refs) border.load('color,type,width');
+        await ctx.sync();
+        return okResult({ host: 'Word', tableIndexes: indexes, borderCount: refs.length, color: color.toUpperCase(), width: args.width === undefined ? null : args.width, borders: refs.map(({ table, location, border }) => ({ table, location, color: border.color, type: border.type, width: border.width })), note: 'width is the requested value; borders contains the actual readback. Line type is preserved unless enableGrid applies TableGrid.', ...(args.width === undefined ? {} : { warning: 'Office.js does not apply width to border types with fixed widths; inspect the actual borders readback.' }) });
       });
     } catch (e) { return errResult('execution', String(e && e.message || e)); }
   }
@@ -509,7 +519,11 @@
     const types = args.types || [args.type || 'primary'];
     if (!Array.isArray(types) || !types.length || types.some((type) => !WORD_HEADER_FOOTER_TYPES[type])) throw new Error('type(s) must be primary, firstPage, or evenPages');
     if (requireWrite && !['header', 'footer'].includes(args.kind)) throw new Error('kind must be header or footer');
-    if (requireWrite && args.text === undefined) throw new Error('text required');
+    if (requireWrite && args.text === undefined && args.field === undefined) throw new Error('text or field required');
+    if (requireWrite && args.field !== undefined) {
+      if (args.text !== undefined) throw new Error('text and field are mutually exclusive');
+      normalizeWordField(args.field);
+    }
     if (requireWrite && !['replace', 'append', 'prepend'].includes(args.mode || 'replace')) throw new Error('mode must be replace, append, or prepend');
     return { section, types: Array.from(new Set(types)) };
   }
@@ -517,6 +531,8 @@
   async function wordReadHeadersFooters(args) {
     if (!isSetSupported('WordApi', '1.1')) return errResult('requirement', 'word_read_headers_footers requires WordApi 1.1+');
     let spec; try { spec = validateHeaderFooterArgs(args || {}, false); } catch (e) { return errResult('bad_args', e.message); }
+    const withFields = args.includeFields === true;
+    if (withFields && !isSetSupported('WordApi','1.5')) return errResult('requirement','Field readback requires WordApi 1.5');
     try {
       return await Word.run(async (ctx) => {
         const sections = ctx.document.sections; sections.load('items'); await ctx.sync();
@@ -527,10 +543,15 @@
           const section = sections.items[index];
           const header = section.getHeader(WORD_HEADER_FOOTER_TYPES[type]);
           const footer = section.getFooter(WORD_HEADER_FOOTER_TYPES[type]);
-          header.load('text'); footer.load('text'); refs.push({ index, type, header, footer });
+          header.load('text'); footer.load('text');
+          const headerFields = withFields ? header.getRange().fields : null, footerFields = withFields ? footer.getRange().fields : null;
+          if (withFields && (!headerFields || !footerFields)) return errResult('requirement','Native header/footer fields unavailable');
+          if (withFields) { headerFields.load('items'); footerFields.load('items'); }
+          refs.push({ index, type, header, footer, headerFields, footerFields });
         }
         await ctx.sync();
-        return okResult({ host: 'Word', sectionCount: sections.items.length, items: refs.map((r) => ({ section: r.index, type: r.type, header: r.header.text || '', footer: r.footer.text || '' })), warning: 'Office.js cannot inspect or disable Link to Previous; first/even body existence does not prove its page-layout switch is enabled.' });
+        if (withFields) { for (const r of refs) for (const f of [...r.headerFields.items,...r.footerFields.items]) loadNativeField(f); await ctx.sync(); }
+        return okResult({ host: 'Word', sectionCount: sections.items.length, items: refs.map((r) => ({ section: r.index, type: r.type, header: r.header.text || '', footer: r.footer.text || '', ...(withFields ? {headerFields:r.headerFields.items.map(nativeFieldSnapshot),footerFields:r.footerFields.items.map(nativeFieldSnapshot)} : {}) })), warning: 'Office.js cannot inspect or disable Link to Previous; first/even body existence does not prove its page-layout switch is enabled.' });
       });
     } catch (e) { return errResult('execution', String(e && e.message || e)); }
   }
@@ -569,9 +590,190 @@
     } catch (e) { return errResult('execution', String(e && e.message || e)); }
   }
 
+  // Create only a blank native document; no binary document upload or arbitrary code.
+  async function wordCreateDocument(args) {
+    if (Object.keys(args || {}).length) return errResult('bad_args','word_create_document accepts no arguments');
+    if (!isSetSupported('WordApi','1.3')) return errResult('requirement','Blank document creation requires WordApi 1.3');
+    try { return await Word.run(async ctx => {
+      if (!ctx.application || typeof ctx.application.createDocument !== 'function') return errResult('requirement','Application.createDocument unavailable');
+      const document = ctx.application.createDocument();
+      document.open(); await ctx.sync();
+      return okResult({host:'Word',created:true,opened:true,blank:true,requiresNewInstance:true});
+    }); } catch (e) { return errResult('execution',String(e.message || e)+(e.debugInfo ? ' [debug] '+JSON.stringify(e.debugInfo) : '')); }
+  }
+
+  function normalizeWordField(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("field must be {type,switches?}");
+    const type = {toc:"TOC",page:"Page",numpages:"NumPages"}[String(raw.type || "").toLowerCase()];
+    if (!type) throw new Error("field.type must be TOC|Page|NumPages");
+    const switches = raw.switches === undefined ? (type === "TOC" ? String.fromCharCode(92)+"o \"1-3\" "+String.fromCharCode(92)+"h" : "") : raw.switches;
+    if (typeof switches !== "string" || switches.length > 1000 || (/[\r\n{}]/.test(switches) || switches.includes(String.fromCharCode(0)))) throw new Error("invalid field switches");
+    return {type,switches};
+  }
+  function nativeFieldRequirement() {
+    if (!isSetSupported("WordApi","1.5")) return errResult("requirement","Native fields require WordApi 1.5");
+    if (typeof Office !== "undefined" && Office.context.platform === "OfficeOnline") return errResult("unsupported","Native fields require Word desktop");
+    return null;
+  }
+  function loadNativeField(f) { f.load("type,code,result/text"); }
+  function nativeFieldSnapshot(f) { return {type:f.type,code:f.code,text:f.result.text || ""}; }
+  async function wordReadFields(args) {
+    if (!isSetSupported("WordApi","1.5")) return errResult("requirement","Fields require WordApi 1.5");
+    const target = args.target || "body";
+    if (!["body","selection"].includes(target)) return errResult("bad_args","invalid target");
+    try { return await Word.run(async ctx => {
+      const range = target === "body" ? ctx.document.body.getRange() : ctx.document.getSelection();
+      if (!range.fields) return errResult("requirement","Range.fields unavailable");
+      range.load("text"); range.fields.load("items"); await ctx.sync();
+      for (const f of range.fields.items) loadNativeField(f); await ctx.sync();
+      return okResult({host:"Word",target,text:range.text || "",fields:range.fields.items.map(nativeFieldSnapshot)});
+    }); } catch (e) { return errResult("execution",String(e.message || e)); }
+  }
+  async function wordInsertField(args,previewOnly = false) {
+    let spec; try { spec = normalizeWordField(args); } catch(e) { return errResult("bad_args",e.message); }
+    const target = args.target || "selection", mode = args.mode || "after";
+    if (!["body","selection"].includes(target) || !["replace","prepend","append","before","after"].includes(mode) || (target === "body" && ["before","after"].includes(mode))) return errResult("bad_args","invalid target or mode");
+    const anchor=args.paragraph;
+    if (anchor !== undefined && (!anchor || !Number.isInteger(anchor.index) || anchor.index < 0 || typeof anchor.expectedText !== "string" || target !== "selection")) return errResult("bad_args","paragraph requires exact zero-based index and expectedText on selection target");
+    const unavailable = nativeFieldRequirement(); if (unavailable) return unavailable;
+    if (previewOnly) return wordReadFields({target});
+    try { return await Word.run(async ctx => {
+      let range, paragraph;
+      if (anchor) {const paragraphs=ctx.document.body.paragraphs;paragraphs.load("items/text");await ctx.sync();paragraph=paragraphs.items[anchor.index];if(!paragraph || paragraph.text!==anchor.expectedText)return errResult("bad_args","Field paragraph anchor changed");if(typeof paragraph.getRange!=="function")return errResult("requirement","Paragraph.getRange unavailable");range=paragraph.getRange("Whole");}
+      else range = target === "body" ? ctx.document.body.getRange() : ctx.document.getSelection();
+      if (typeof range.insertField !== "function") return errResult("requirement","Range.insertField unavailable");
+      range.load("text"); await ctx.sync();
+      if (spec.type === "TOC" && anchor && isSetSupported("WordApiDesktop","1.4") && typeof ctx.document.tablesOfContents?.add === "function") {
+        if (args.switches !== undefined) return errResult("bad_args","Paragraph-anchored native TOC uses built-in heading levels 1-3; omit switches");
+        if (mode === "replace" && anchor.expectedText) {const content=paragraph.getRange("Content");if(typeof content.insertText !== "function")return errResult("requirement","Paragraph content replacement unavailable");content.insertText("","Replace");await ctx.sync();}
+        ctx.document.tablesOfContents.add(paragraph.getRange(["append","after"].includes(mode)?"End":"Start"),{upperHeadingLevel:1,lowerHeadingLevel:3,useBuiltInHeadingStyles:true,includePageNumbers:true,rightAlignPageNumbers:true}); await ctx.sync();
+        const fields=ctx.document.body.getRange().fields;fields.load("items");await ctx.sync();for(const field of fields.items)loadNativeField(field);await ctx.sync();
+        const field=fields.items.find(f=>/^TOC\b/i.test(f.code.trim()));if(!field)return errResult("execution","Native tablesOfContents.add did not expose a TOC field");
+        return okResult({host:"Word",nativeField:true,nativeTocCollection:true,target,mode,field:nativeFieldSnapshot(field)});
+      }
+      const location={replace:"Replace",prepend:"Start",append:"End",before:"Before",after:"After"}[mode];
+      const f=spec.type === "TOC" && anchor ? range.insertField(location,spec.type) : range.insertField(location,spec.type,spec.switches,true);await ctx.sync();
+      if (typeof f.updateResult === "function") { f.updateResult(); await ctx.sync(); }
+      loadNativeField(f); await ctx.sync(); return okResult({host:"Word",nativeField:true,target,mode,field:nativeFieldSnapshot(f)});
+    }); } catch(e) { return errResult("execution",String(e.message || e)+(e.debugInfo ? "; "+JSON.stringify(e.debugInfo) : "")); }
+  }
+
+  // Global definitions; use exact localized names from word_read_styles.
+  function scriptFontFields(font) { return isSetSupported('WordApiDesktop','1.3') ? ['nameAscii','nameFarEast','nameOther','nameBidirectional'].filter(key => key in font) : []; }
+  function scriptFontSnapshot(font) { return Object.fromEntries(scriptFontFields(font).map(key => [key,font[key]])); }
+  function styleSnapshot(style) {
+    return {name:style.nameLocal,type:style.type,builtIn:style.builtIn,font:{name:style.font.name,size:style.font.size,color:style.font.color,bold:style.font.bold,italic:style.font.italic,...scriptFontSnapshot(style.font)},paragraphFormat:Object.fromEntries(paragraphFields.map(k => [k,style.paragraphFormat[k]]))};
+  }
+  function loadStyleSnapshot(style) { style.load("nameLocal,type,builtIn"); style.font.load(['name','size','color','bold','italic',...scriptFontFields(style.font)].join(',')); style.paragraphFormat.load(paragraphFields.join(",")); }
+  async function wordReadStyles(args) {
+    if (!isSetSupported("WordApi","1.5")) return errResult("requirement","Styles require WordApi 1.5");
+    const names = args.names;
+    if (names !== undefined && (!Array.isArray(names) || !names.length || names.some(n => typeof n !== "string" || !n.trim()) || new Set(names).size !== names.length)) return errResult("bad_args","names must be unique nonempty names");
+    try { return await Word.run(async ctx => {
+      if (typeof ctx.document.getStyles !== "function") return errResult("requirement","Document.getStyles unavailable");
+      const styles = ctx.document.getStyles();
+      if (typeof styles.getByNameOrNullObject !== "function") return errResult("requirement","StyleCollection.getByNameOrNullObject unavailable");
+      let refs;
+      if (names) { refs = names.map(n => styles.getByNameOrNullObject(n)); for (const ref of refs) ref.load("isNullObject,type"); await ctx.sync(); if (refs.some(r => r.isNullObject)) return errResult("not_found","style not found; read localized names first"); if (refs.some(r => r.type !== "Paragraph")) return errResult("bad_args","only paragraph styles supported"); }
+      else { styles.load("items/nameLocal,items/type,items/builtIn"); await ctx.sync(); refs = styles.items.filter(s => s.type === "Paragraph"); }
+      if (refs.some(r => !r.font || !r.paragraphFormat)) return errResult("requirement","Style font/paragraphFormat unavailable");
+      for (const ref of refs) loadStyleSnapshot(ref); await ctx.sync();
+      return okResult({host:"Word",styles:refs.map(styleSnapshot)});
+    }); } catch(e) { return errResult("execution",String(e.message || e)); }
+  }
+  async function wordCreateBodyStyle(previewOnly) {
+    if (!isSetSupported("WordApi","1.5")) return errResult("requirement","Global body preset requires WordApi 1.5");
+    try {
+      const before=await Word.run(async ctx=>{
+        if (typeof ctx.document.getStyles !== "function" || typeof ctx.document.body.insertOoxml !== "function" || typeof ctx.document.getSelection().delete !== "function") return {error:errResult("requirement","Native style/insertOoxml/delete unavailable")};
+        const collection=ctx.document.getStyles(); if (typeof collection.getByNameOrNullObject !== "function") return {error:errResult("requirement","Native style lookup unavailable")};
+        const ref=collection.getByNameOrNullObject("范本正文"); ref.load("isNullObject"); await ctx.sync();
+        if (!ref.isNullObject) {loadStyleSnapshot(ref); await ctx.sync(); return {existing:styleSnapshot(ref)};}
+        const paragraphs=ctx.document.body.paragraphs; paragraphs.load("items/text,items/styleBuiltIn"); await ctx.sync();
+        const paragraph=paragraphs.items.find(p=>p.styleBuiltIn === "Normal" && p.text.trim());
+        return {target:paragraph?.text};
+      });
+      if (before.error) return before.error;
+      if (before.existing) return okResult({host:"Word",global:true,preset:"body-1.5",created:false,styles:[before.existing],requiresNativeExportVerification:true});
+      if (previewOnly) return okResult({host:"Word",global:true,preset:"body-1.5",name:"范本正文",exists:false,bodyAnchor:before.target});
+      if (!before.target) return errResult("bad_args","Add a body paragraph before creating the reusable body preset");
+      const created=await Word.run(async ctx=>{
+        const ooxml="<pkg:package xmlns:pkg=\"http://schemas.microsoft.com/office/2006/xmlPackage\"><pkg:part pkg:name=\"/_rels/.rels\" pkg:contentType=\"application/vnd.openxmlformats-package.relationships+xml\"><pkg:xmlData><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/></Relationships></pkg:xmlData></pkg:part><pkg:part pkg:name=\"/word/document.xml\" pkg:contentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"><pkg:xmlData><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p/><w:p><w:pPr><w:pStyle w:val=\"DSHAtlasBody\"/></w:pPr><w:r><w:t>DSH_NATIVE_BODY_STYLE_ANCHOR</w:t></w:r></w:p><w:p/></w:body></w:document></pkg:xmlData></pkg:part><pkg:part pkg:name=\"/word/_rels/document.xml.rels\" pkg:contentType=\"application/vnd.openxmlformats-package.relationships+xml\"><pkg:xmlData><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rIdStyles\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/></Relationships></pkg:xmlData></pkg:part><pkg:part pkg:name=\"/word/styles.xml\" pkg:contentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml\"><pkg:xmlData><w:styles xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:style w:type=\"paragraph\" w:customStyle=\"1\" w:styleId=\"DSHAtlasBody\"><w:name w:val=\"范本正文\"/><w:next w:val=\"DSHAtlasBody\"/><w:qFormat/><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"360\" w:lineRule=\"auto\"/><w:ind w:firstLine=\"480\"/><w:jc w:val=\"both\"/></w:pPr><w:rPr><w:rFonts w:ascii=\"宋体\" w:hAnsi=\"宋体\" w:eastAsia=\"宋体\" w:cs=\"宋体\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"24\"/><w:color w:val=\"000000\"/></w:rPr></w:style></w:styles></pkg:xmlData></pkg:part></pkg:package>";
+        const inserted=ctx.document.body.insertOoxml(ooxml,"End"); await ctx.sync();
+        const ref=ctx.document.getStyles().getByNameOrNullObject("范本正文"); ref.load("isNullObject"); await ctx.sync();
+        if (ref.isNullObject) { inserted.delete(); await ctx.sync(); return errResult("execution","Native style import did not register the style before anchor cleanup"); }
+        const paragraphs=ctx.document.body.paragraphs; paragraphs.load("items/text"); await ctx.sync();
+        const target=paragraphs.items.find(p=>p.text===before.target);
+        if (!target) {inserted.delete(); await ctx.sync(); return errResult("execution","Body anchor changed during style import");}
+        target.style="范本正文"; await ctx.sync();
+        inserted.delete(); await ctx.sync();
+        target.styleBuiltIn="Normal"; await ctx.sync();
+        loadStyleSnapshot(ref); await ctx.sync();
+        return okResult({host:"Word",global:true,preset:"body-1.5",created:true,styles:[styleSnapshot(ref)],temporaryBodyAnchorRestored:true,requiresNativeExportVerification:true});
+      });
+      if (!created.ok) return created;
+      const actual=await wordReadStyles({names:["范本正文"]});
+      return actual.ok ? okResult({...created.result,styles:actual.result.styles}) : actual;
+    } catch(e) { return errResult("execution",String(e.message || e)); }
+  }
+  async function wordRenderPages(args) {
+    if (!Number.isInteger(args.expectedPageCount) || args.expectedPageCount < 1 || args.expectedPageCount > 10) return errResult("bad_args","expectedPageCount must be an integer 1..10");
+    if (!isSetSupported("WordApi","1.1")) return errResult("requirement","Word body text requires WordApi 1.1");
+    try {
+      const bodyText = await Word.run(async ctx => { const body=ctx.document.body; body.load("text"); await ctx.sync(); return body.text; });
+      const response = await fetch("/office/native-word-pages",{method:"POST",headers:{"Content-Type":"application/json; charset=utf-8"},body:JSON.stringify({bodyText,expectedPageCount:args.expectedPageCount})});
+      const out = await response.json();
+      if (!response.ok || out.ok === false) return errResult(out.code || "execution",out.error || "Native Word page rendering failed");
+      return out.ok === true ? out : okResult(out);
+    } catch(e) { return errResult("execution",String(e.message || e)); }
+  }
+  async function wordSetStyles(args,previewOnly = false) {
+    if (Array.isArray(args.styles) && args.styles.some(raw => raw && raw.preset !== undefined)) {
+      if (args.styles.length !== 1 || args.styles[0].name !== "范本正文" || args.styles[0].preset !== "body-1.5" || Object.keys(args.styles[0]).some(key => !["name","preset"].includes(key))) return errResult("bad_args","Only the bounded 范本正文/body-1.5 preset is supported");
+      return wordCreateBodyStyle(previewOnly);
+    }
+    let targets;
+    try {
+      if (!Array.isArray(args.styles) || !args.styles.length || args.styles.length > 100) throw new Error("styles must contain 1..100 patches");
+      const seen = new Set();
+      targets = args.styles.map(raw => {
+        if (!raw || typeof raw.name !== "string" || !raw.name.trim() || seen.has(raw.name) || Object.keys(raw).some(k => !["name","font","paragraphFormat"].includes(k))) throw new Error("each style requires a unique exact localized name and font/paragraphFormat patch");
+        seen.add(raw.name);
+        if (raw.paragraphFormat !== undefined && (!raw.paragraphFormat || typeof raw.paragraphFormat !== "object" || Array.isArray(raw.paragraphFormat) || Object.keys(raw.paragraphFormat).some(k => !paragraphFields.includes(k)))) throw new Error("unsupported paragraphFormat field; lineSpacing is points");
+        return {name:raw.name,patch:normalizeParagraphPatch({...raw.paragraphFormat,...(raw.font === undefined ? {} : {font:raw.font})})};
+      });
+    } catch(e) { return errResult("bad_args",e.message); }
+    if (!isSetSupported("WordApi","1.5")) return errResult("requirement","Styles require WordApi 1.5");
+    try { return await Word.run(async ctx => {
+      if (typeof ctx.document.getStyles !== "function") return errResult("requirement","Document.getStyles unavailable");
+      const styles = ctx.document.getStyles();
+      if (typeof styles.getByNameOrNullObject !== "function") return errResult("requirement","StyleCollection.getByNameOrNullObject unavailable");
+      const refs = targets.map(t => styles.getByNameOrNullObject(t.name));
+      for (const ref of refs) ref.load("isNullObject,type"); await ctx.sync();
+      for (const ref of refs) {
+        if (ref.isNullObject) return errResult("not_found","style not found; read localized names first");
+        if (ref.type !== "Paragraph") return errResult("bad_args","only paragraph style definitions supported");
+        if (!ref.font || !ref.paragraphFormat) return errResult("requirement","Style font/paragraphFormat unavailable");
+        if (targets[refs.indexOf(ref)].patch.font?.name !== undefined && isSetSupported('WordApiDesktop','1.3') && !('nameFarEast' in ref.font)) return errResult('requirement','Native Far East style font API unavailable');
+        loadStyleSnapshot(ref);
+      }
+      await ctx.sync();
+      if (previewOnly) return okResult({host:"Word",styles:refs.map(styleSnapshot)});
+      refs.forEach((ref,i) => {
+        for (const [key,value] of Object.entries(targets[i].patch.font || {})) ref.font[key] = value;
+        if (targets[i].patch.font?.name !== undefined) for (const key of scriptFontFields(ref.font)) ref.font[key] = targets[i].patch.font.name;
+        for (const key of paragraphFields) if (targets[i].patch[key] !== undefined) ref.paragraphFormat[key] = targets[i].patch[key];
+      });
+      await ctx.sync(); for (const ref of refs) loadStyleSnapshot(ref); await ctx.sync();
+      return okResult({host:"Word",global:true,updated:refs.length,styles:refs.map(styleSnapshot)});
+    }); } catch(e) { return errResult("execution",String(e.message || e)); }
+  }
+
   async function wordSetHeaderFooter(args) {
     if (!isSetSupported('WordApi', '1.1')) return errResult('requirement', 'word_set_header_footer requires WordApi 1.1+');
     let spec; try { spec = validateHeaderFooterArgs(args || {}, true); } catch (e) { return errResult('bad_args', e.message); }
+    const fieldSpec = args.field === undefined ? null : normalizeWordField(args.field);
+    if (fieldSpec) { const unavailable = nativeFieldRequirement(); if (unavailable) return unavailable; }
     try {
       return await Word.run(async (ctx) => {
         const sections = ctx.document.sections; sections.load('items'); await ctx.sync();
@@ -581,12 +783,35 @@
         for (const index of indexes) {
           const body = args.kind === 'header' ? sections.items[index].getHeader(WORD_HEADER_FOOTER_TYPES[type]) : sections.items[index].getFooter(WORD_HEADER_FOOTER_TYPES[type]);
           const location = (args.mode || 'replace') === 'prepend' ? 'Start' : (args.mode || 'replace') === 'append' ? 'End' : 'Replace';
-          body.insertText(String(args.text), location); body.load('text'); refs.push({ index, body });
+          const range = fieldSpec ? body.getRange() : null;
+          if (fieldSpec && typeof range.insertField !== 'function') return errResult('requirement','Range.insertField unavailable');
+          if (fieldSpec && (!range.fields || typeof range.fields.load !== 'function' || typeof body.insertText !== 'function')) return errResult('requirement','Native footer field/text APIs unavailable');
+          refs.push({ index, body, range, location });
+        }
+        // Read every existing field before deciding which native targets need replacement.
+        if (fieldSpec) {
+          for (const ref of refs) {ref.body.load("text");ref.range.fields.load("items");} await ctx.sync();
+          for (const ref of refs) for (const field of ref.range.fields.items) loadNativeField(field); await ctx.sync();
+          const desired=(fieldSpec.type.toUpperCase()+" "+fieldSpec.switches).replace(/\s+/g," ").trim();
+          for (const ref of refs) {
+            const current=ref.range.fields.items;
+            if (ref.location === "Replace" && current.length === 1 && current[0].type === fieldSpec.type && current[0].code.replace(/\s+/g," ").trim() === desired && ref.body.text.trim() === current[0].result.text.trim()) ref.field=current[0];
+          }
+        }
+        for (const ref of refs) {
+          if (fieldSpec && !ref.field) {
+            if (ref.location === "Replace") {ref.body.insertText("","Replace");await ctx.sync();}
+            ref.field=ref.body.getRange().insertField(ref.location === "Replace" ? "Start" : ref.location,fieldSpec.type,fieldSpec.switches,true);await ctx.sync();
+            if (!["Page","NumPages"].includes(fieldSpec.type) && typeof ref.field.updateResult === "function") {ref.field.updateResult();await ctx.sync();}
+          } else if (!fieldSpec) ref.body.insertText(String(args.text),ref.location);
         }
         await ctx.sync();
-        return okResult({ host: 'Word', kind: args.kind, type, sections: refs.map((r) => ({ index: r.index, text: r.body.text || '' })), warning: 'Header/footer may be linked to a previous section; the portable Office.js API cannot unlink it.' });
+        for (const ref of refs) {ref.body.load("text");if(fieldSpec){ref.actualFields=ref.body.getRange().fields;ref.actualFields.load("items");}} await ctx.sync();
+        for (const ref of refs) if (fieldSpec) {ref.field=ref.actualFields.items[0];if(ref.field)loadNativeField(ref.field);} await ctx.sync();
+
+        return okResult({ host: 'Word', kind: args.kind, type, sections: refs.map((r) => ({ index: r.index, text: r.body.text || '', ...(r.field ? {field:nativeFieldSnapshot(r.field)} : {}) })), warning: 'Header/footer may be linked to a previous section; the portable Office.js API cannot unlink it.' });
       });
-    } catch (e) { return errResult('execution', String(e && e.message || e)); }
+    } catch (e) { return errResult('execution', String(e && e.message || e)+(e.debugInfo ? '; '+JSON.stringify(e.debugInfo) : '')); }
   }
 
   async function wordInsertBreak(args) {
@@ -594,13 +819,25 @@
     const type = String(args.type || ''); const location = String(args.location || 'afterSelection');
     if (!WORD_BREAK_TYPES[type]) return errResult('bad_args', `type must be ${Object.keys(WORD_BREAK_TYPES).join('|')}`);
     if (!['start', 'end', 'beforeSelection', 'afterSelection'].includes(location)) return errResult('bad_args', 'invalid location');
+    const anchor = args.paragraph;
+    if (anchor !== undefined && (!anchor || !Number.isInteger(anchor.index) || anchor.index < 0 || typeof anchor.expectedText !== 'string' || !['beforeSelection','afterSelection'].includes(location))) return errResult('bad_args','paragraph anchor requires nonnegative index and exact expectedText with beforeSelection|afterSelection');
+    if (anchor && !isSetSupported('WordApi','1.3')) return errResult('requirement','Exact paragraph break anchor requires WordApi 1.3');
     try {
       return await Word.run(async (ctx) => {
         const sections = ctx.document.sections; sections.load('items'); await ctx.sync(); const before = sections.items.length;
+        let destination;
+        if (anchor) {
+          const paragraphs = ctx.document.body.paragraphs; paragraphs.load('items/text'); await ctx.sync();
+          const paragraph = paragraphs.items[anchor.index];
+          if (!paragraph || paragraph.text !== anchor.expectedText) return errResult('bad_args','Paragraph break anchor changed; reread paragraphs');
+          if (typeof paragraph.getRange !== 'function') return errResult('requirement','Paragraph.getRange unavailable');
+          destination = paragraph.getRange();
+          if (typeof destination.insertBreak !== 'function') return errResult('requirement','Range.insertBreak unavailable');
+        }
         if (location === 'start' || location === 'end') ctx.document.body.insertBreak(WORD_BREAK_TYPES[type], location === 'start' ? 'Start' : 'End');
-        else ctx.document.getSelection().insertBreak(WORD_BREAK_TYPES[type], location === 'beforeSelection' ? 'Before' : 'After');
+        else (destination || ctx.document.getSelection()).insertBreak(WORD_BREAK_TYPES[type], location === 'beforeSelection' ? 'Before' : 'After');
         await ctx.sync(); sections.load('items'); await ctx.sync();
-        return okResult({ host: 'Word', type, location, sectionCountBefore: before, sectionCountAfter: sections.items.length });
+        return okResult({ host: 'Word', type, location, ...(anchor ? {paragraph:anchor} : {}), sectionCountBefore: before, sectionCountAfter: sections.items.length });
       });
     } catch (e) { return errResult('execution', String(e && e.message || e)); }
   }
@@ -753,23 +990,50 @@
     try { return await Word.run(async (ctx) => {
       const range = target === 'body' ? ctx.document.body : ctx.document.getSelection(); range.load('text'); await ctx.sync(); const previousText = range.text || '';
       const locations = { replace: Word.InsertLocation.replace, append: Word.InsertLocation.end, prepend: Word.InsertLocation.start, before: Word.InsertLocation.before, after: Word.InsertLocation.after };
-      range.insertHtml(html, locations[mode]); await ctx.sync();
+      if (typeof range.insertHtml !== 'function' || (target === 'body' && mode === 'replace' && typeof range.clear !== 'function')) return errResult('requirement','Native HTML insertion/clear API unavailable');
+      // Word's documented setup clears complex content before inserting a fragment.
+      // Body.insertHtml(Replace) can throw GeneralException on existing TOC/table bodies.
+      if (target === 'body' && mode === 'replace') { range.clear(); range.insertHtml(html, Word.InsertLocation.end); }
+      else range.insertHtml(html, locations[mode]);
+      await ctx.sync();
       return okResult({ host: 'Word', target, mode, previousText, htmlCharacters: html.length });
-    }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
+    }); } catch (e) { return errResult('execution', String(e && e.message || e) + (e && e.code ? ' [code] '+e.code : '') + (e && e.debugInfo ? ' [debug] '+JSON.stringify(e.debugInfo) : '')); }
   }
 
-  async function wordSetPageSetup(args) {
-    const fields = ['topMargin', 'bottomMargin', 'leftMargin', 'rightMargin', 'headerDistance', 'footerDistance'];
-    const values = {}; try { for (const key of fields) if (args[key] !== undefined) { const value = Number(args[key]); if (!Number.isFinite(value) || value < 0) throw new Error(`${key} must be a non-negative point value`); values[key] = value; } } catch (e) { return errResult('bad_args', e.message); }
-    if (!Object.keys(values).length) return errResult('bad_args', `at least one of ${fields.join(', ')} is required`);
+  async function wordSetPageSetup(args, previewOnly = false) {
+    if (!isSetSupported('WordApiDesktop','1.3')) return errResult('requirement','Word page setup requires WordApiDesktop 1.3');
+    const pointFields = ['topMargin','bottomMargin','leftMargin','rightMargin','headerDistance','footerDistance','pageWidth','pageHeight'];
+    const fields = [...pointFields,'differentFirstPageHeaderFooter'];
+    const values = {};
+    try {
+      for (const key of pointFields) if (args[key] !== undefined) {
+        const value = args[key];
+        if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1584 || ((key === 'pageWidth' || key === 'pageHeight') && value === 0)) throw new Error(key + ' must be a finite nonnegative point value <=1584');
+        values[key] = value;
+      }
+      if (args.differentFirstPageHeaderFooter !== undefined) {
+        if (typeof args.differentFirstPageHeaderFooter !== 'boolean') throw new Error('differentFirstPageHeaderFooter must be boolean');
+        values.differentFirstPageHeaderFooter = args.differentFirstPageHeaderFooter;
+      }
+    } catch (e) { return errResult('bad_args',e.message); }
+    if (!Object.keys(values).length) return errResult('bad_args','at least one page setup field is required');
     const requested = args.sections === undefined || args.sections === 'all' ? 'all' : args.sections;
-    if (requested !== 'all' && (!Array.isArray(requested) || requested.some((i) => !Number.isInteger(Number(i)) || Number(i) < 0))) return errResult('bad_args', 'sections must be all or an array of zero-based indexes');
-    try { return await Word.run(async (ctx) => {
-      const sections = ctx.document.sections; sections.load('items'); await ctx.sync(); const indexes = requested === 'all' ? sections.items.map((_, i) => i) : Array.from(new Set(requested.map(Number)));
-      if (indexes.some((i) => i >= sections.items.length)) return errResult('not_found', 'section index not found');
-      for (const index of indexes) Object.assign(sections.items[index].pageSetup, values); await ctx.sync();
-      return okResult({ host: 'Word', sections: indexes, values });
-    }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
+    if (requested !== 'all' && (!Array.isArray(requested) || !requested.length || requested.some(i => !Number.isInteger(i) || i < 0))) return errResult('bad_args','sections must be all or a nonempty array of zero-based indexes');
+    try { return await Word.run(async ctx => {
+      const sections = ctx.document.sections; sections.load('items'); await ctx.sync();
+      const indexes = requested === 'all' ? sections.items.map((_,i) => i) : [...new Set(requested)];
+      if (indexes.some(i => i >= sections.items.length)) return errResult('not_found','section index not found');
+      if (indexes.some(i => !sections.items[i].pageSetup)) return errResult('requirement','Section.pageSetup unavailable');
+      for (const index of indexes) sections.items[index].pageSetup.load(fields.join(','));
+      await ctx.sync();
+      const snapshot = () => indexes.map(index => ({index,values:Object.fromEntries(fields.map(k => [k,sections.items[index].pageSetup[k]]))}));
+      if (previewOnly) return okResult({host:'Word',sections:snapshot()});
+      for (const index of indexes) Object.assign(sections.items[index].pageSetup,values);
+      await ctx.sync();
+      for (const index of indexes) sections.items[index].pageSetup.load(fields.join(','));
+      await ctx.sync();
+      return okResult({host:'Word',sections:indexes,values,pageSetup:snapshot()});
+    }); } catch (e) { return errResult('execution',String(e && e.message || e)); }
   }
 
   // getSliceAsync 的第一个参数是「零基分片序号」，不是字节偏移量（早期版本传累计字节数，
@@ -832,28 +1096,147 @@
     } catch (e) { return errResult('execution', String(e && e.message || e)); }
   }
 
-  async function setParagraphFormat(args) {
+  const paragraphFields = ['alignment', 'spaceBefore', 'spaceAfter', 'lineSpacing', 'leftIndent', 'rightIndent', 'firstLineIndent'];
+  const paragraphLoad = 'text,style,styleBuiltIn,alignment,spaceBefore,spaceAfter,lineSpacing,leftIndent,rightIndent,firstLineIndent';
+
+  function normalizeParagraphPatch(raw) {
+    const patch = {};
+    if (raw.style !== undefined) {
+      if (raw.style === "范本正文") patch.styleName = "范本正文";
+      else { const style = mapBuiltInStyle(raw.style); if (!style || !Word.BuiltInStyleName[style]) throw new Error("Unknown built-in paragraph style"); patch.styleBuiltIn = Word.BuiltInStyleName[style]; }
+    }
+    if (raw.alignment !== undefined) {
+      const align = mapAlignment(raw.alignment);
+      if (!align) throw new Error('alignment must be left|center|right|justify');
+      patch.alignment = align;
+    }
+    for (const key of paragraphFields.slice(1)) {
+      if (raw[key] === undefined) continue;
+      const value = raw[key];
+      const minimum = ['leftIndent', 'rightIndent', 'firstLineIndent'].includes(key) ? -1584 : 0;
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < minimum || value > 1584 || (key === 'lineSpacing' && value === 0)) throw new Error(key + ' must be a finite point value in range');
+      patch[key] = value;
+    }
+    if (raw.font !== undefined) {
+      if (!raw.font || typeof raw.font !== 'object' || Array.isArray(raw.font)) throw new Error('font must be an object');
+      patch.font = {};
+      for (const [key,value] of Object.entries(raw.font)) {
+        if (!['name','size','color','bold','italic'].includes(key)) throw new Error('unsupported font field: ' + key);
+        if (key === 'name' && (typeof value !== 'string' || !value.trim() || value.length > 128)) throw new Error('font.name must be a nonempty name');
+        if (key === 'size' && (typeof value !== 'number' || !Number.isFinite(value) || value < 1 || value > 1638)) throw new Error('font.size must be 1..1638 points');
+        if (key === 'color' && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value))) throw new Error('font.color must be #RRGGBB');
+        if (['bold','italic'].includes(key) && typeof value !== 'boolean') throw new Error('font.' + key + ' must be boolean');
+        patch.font[key] = value;
+      }
+      if (!Object.keys(patch.font).length) throw new Error('font cannot be empty');
+    }
+    if (!Object.keys(patch).length) throw new Error('at least one paragraph format field is required');
+    return patch;
+  }
+
+  function paragraphSnapshot(p, index, withStyle = true) {
+    return {index,text:p.text,...(p.style === undefined ? {} : {styleName:p.style}),...(withStyle ? {styleBuiltIn:p.styleBuiltIn} : {styleRead:false}), ...Object.fromEntries(paragraphFields.map(key => [key,p[key]])),
+      font:{name:p.font.name,size:p.font.size,color:p.font.color,bold:p.font.bold,italic:p.font.italic}};
+  }
+
+  function loadParagraphSnapshot(p, withStyle = true) {
+    p.load(withStyle ? paragraphLoad : paragraphLoad.replace('styleBuiltIn,',''));
+    p.font.load('name,size,color,bold,italic');
+  }
+
+  function writeParagraphPatch(p, patch) {
+    // Apply semantic style first, then explicit overrides; absent fields stay untouched.
+    if (patch.styleName !== undefined) p.style = patch.styleName;
+    if (patch.styleBuiltIn !== undefined) p.styleBuiltIn = patch.styleBuiltIn;
+    for (const key of paragraphFields) if (patch[key] !== undefined) p[key] = patch[key];
+    for (const [key,value] of Object.entries(patch.font || {})) p.font[key] = value;
+  }
+
+  async function validateNamedBodyStyle(ctx) {
+    if (!isSetSupported("WordApi","1.5") || typeof ctx.document.getStyles !== "function") return errResult("requirement","Named global body styles require WordApi 1.5");
+    const styles=ctx.document.getStyles();
+    if (typeof styles.getByNameOrNullObject !== "function") return errResult("requirement","Global style lookup unavailable");
+    const style=styles.getByNameOrNullObject("范本正文"); style.load("isNullObject,type"); await ctx.sync();
+    return style.isNullObject || style.type !== "Paragraph" ? errResult("not_found","Create the 范本正文 global body preset before applying it") : null;
+  }
+  async function wordFormatParagraphs(args, previewOnly = false) {
+    let targets;
     try {
-      return await Word.run(async (ctx) => {
-        const sel = ctx.document.getSelection();
-        const pf = sel.paragraphFormat;
-        if (!pf) return errResult('requirement', 'Word paragraphFormat API not available in this environment');
-        if (args.alignment) {
-          const al = mapAlignment(args.alignment);
-          if (al) pf.alignment = al;
-        }
-        if (args.indent !== undefined) pf.leftIndent = Number(args.indent) * 28.35;
-        if (args.lineSpacing !== undefined) pf.lineSpacing = Number(args.lineSpacing);
-        if (args.listType && args.listType !== 'none') {
-          const paras = sel.paragraphs;
-          paras.load('items');
-          await ctx.sync();
-          ctx.document.body.lists.create(paras.items, args.listType === 'numbered' ? Word.ListType.numbered : Word.ListType.bulleted);
+      if (!Array.isArray(args.targets) || !args.targets.length || args.targets.length > 500) throw new Error('targets must contain 1..500 explicit paragraphs');
+      const seen = new Set();
+      targets = args.targets.map(t => {
+        if (!t || typeof t !== 'object' || !Number.isInteger(t.index) || t.index < 0 || typeof t.expectedText !== 'string' || seen.has(t.index)) throw new Error('each target needs a unique zero-based index and exact expectedText');
+        if (Object.keys(t).some(k => !['index','expectedText','style','font',...paragraphFields].includes(k))) throw new Error('unsupported paragraph target field');
+        seen.add(t.index);
+        return {index:t.index,expectedText:t.expectedText,patch:normalizeParagraphPatch(t)};
+      });
+    } catch (e) { return errResult('bad_args', e.message); }
+    if (!isSetSupported('WordApi','1.3')) return errResult('requirement','word_format_paragraphs requires WordApi 1.3');
+    try {
+      return await Word.run(async ctx => {
+        if (targets.some(t => t.patch.styleName)) { const unavailable=await validateNamedBodyStyle(ctx); if (unavailable) return unavailable; }
+        const paragraphs = ctx.document.body.paragraphs;
+        paragraphs.load('items/text');
+        await ctx.sync();
+        // Validate the whole target set before queuing any writes.
+        for (const t of targets) {
+          const p = paragraphs.items[t.index];
+          if (!p || p.text !== t.expectedText) return errResult('bad_args', 'paragraph changed or missing at index ' + t.index + '; reread paragraphs before editing');
+          loadParagraphSnapshot(p);
         }
         await ctx.sync();
-        return okResult({ host: 'Word', formatted: true, listType: args.listType || null });
+        const previous = targets.map(t => paragraphSnapshot(paragraphs.items[t.index],t.index));
+        if (previewOnly) return okResult({host:'Word',paragraphs:previous});
+        for (const t of targets) writeParagraphPatch(paragraphs.items[t.index], t.patch);
+        await ctx.sync();
+        for (const t of targets) loadParagraphSnapshot(paragraphs.items[t.index]);
+        await ctx.sync();
+        return okResult({host:'Word',formatted:targets.length,paragraphs:targets.map(t => paragraphSnapshot(paragraphs.items[t.index],t.index))});
       });
     } catch (e) { return errResult('execution', String(e && e.message || e)); }
+  }
+
+  async function setParagraphFormat(args) {
+    let patch;
+    const listType = args.listType || null;
+    try {
+      if (listType && !['none','numbered','bulleted'].includes(listType)) throw new Error('listType must be none|numbered|bulleted');
+      const raw = {...args};
+      if (args.indent !== undefined) {
+        if (typeof args.indent !== 'number' || !Number.isFinite(args.indent)) throw new Error('indent must be a finite number in cm');
+        raw.leftIndent = args.indent * 72 / 2.54;
+      }
+      patch = Object.keys(raw).some(k => ['style','font',...paragraphFields].includes(k)) ? normalizeParagraphPatch(raw) : {};
+      if (!Object.keys(patch).length && !listType) throw new Error('at least one paragraph setting is required');
+    } catch (e) { return errResult('bad_args', e.message); }
+    if (patch.styleBuiltIn !== undefined && !isSetSupported('WordApi','1.3')) return errResult('requirement','WordApi 1.3 is required for built-in paragraph styles');
+    if (listType && !isSetSupported('WordApi','1.3')) return errResult('requirement','WordApi 1.3 is required for list formatting');
+    try {
+      return await Word.run(async ctx => {
+        if (patch.styleName) { const unavailable=await validateNamedBodyStyle(ctx); if (unavailable) return unavailable; }
+        const paras = ctx.document.getSelection().paragraphs;
+        paras.load(listType ? 'items/isListItem' : 'items');
+        await ctx.sync();
+        if (listType && paras.items.some(p => typeof p.detachFromList !== 'function' || typeof p.startNewList !== 'function' || typeof p.attachToList !== 'function')) return errResult('requirement','Word paragraph list API unavailable');
+        if (listType && listType !== 'none' && paras.items.some(p => p.isListItem)) return errResult('bad_args','Selection already contains list items; explicitly remove existing list formatting first');
+        for (const p of paras.items) writeParagraphPatch(p,patch);
+        if (listType === 'none') {
+          for (const p of paras.items) if (p.isListItem) p.detachFromList();
+        } else if (listType && paras.items.length) {
+          const list = paras.items[0].startNewList();
+          if (listType === 'numbered') list.setLevelNumbering(0,Word.ListNumbering.arabic);
+          else list.setLevelBullet(0,Word.ListBullet.solid);
+          list.load('id');
+          await ctx.sync();
+          for (const p of paras.items.slice(1)) p.attachToList(list.id,0);
+        }
+        await ctx.sync();
+        const withStyle = isSetSupported('WordApi','1.3');
+        for (const p of paras.items) loadParagraphSnapshot(p,withStyle);
+        await ctx.sync();
+        return okResult({host:'Word',formatted:paras.items.length,listType,paragraphs:paras.items.map((p,i) => paragraphSnapshot(p,i,withStyle))});
+      });
+    } catch (e) { return errResult('execution',String(e && e.message || e)); }
   }
 
   async function search(args) {
@@ -890,6 +1273,13 @@
       set_font: setFont,
       word_list_paragraphs: wordListParagraphs,
       word_delete_paragraphs: wordDeleteParagraphs,
+      word_format_paragraphs: wordFormatParagraphs,
+      word_render_pages: wordRenderPages,
+      word_create_document: wordCreateDocument,
+      word_set_styles: wordSetStyles,
+      word_read_styles: wordReadStyles,
+      word_insert_field: wordInsertField,
+      word_read_fields: wordReadFields,
       insert_paragraph: insertParagraph,
       insert_table: insertTable,
       word_insert_html: wordInsertHtml,
@@ -911,6 +1301,7 @@
     },
     selectTargets: {
       replace_all: selectReplaceFirst,
+      word_insert_field: (a) => a.target === 'body' ? selectWordInsertPoint(a.mode === 'prepend' ? 'start' : a.mode === 'append' ? 'end' : null) : undefined,
       insert_paragraph: (a) => selectWordInsertPoint(a.location || 'end'),
       insert_table: (a) => selectWordInsertPoint(a.location || 'end'),
       word_insert_equation: (a) => {
@@ -931,17 +1322,21 @@
       set_table_borders: (a) => readTableBorders(a),
       set_font: (a) => okResult({ host: 'Word', wouldSetFont: a.font, note: '影响全文所有段落（含表格内文字），属覆盖类操作' }),
       word_delete_paragraphs: () => wordListParagraphs({ filter: 'all' }),
+      word_format_paragraphs: (a) => wordFormatParagraphs(a,true),
+      word_create_document: () => readDocument({}),
+      word_set_styles: (a) => wordSetStyles(a,true),
+      word_insert_field: (a) => wordInsertField(a,true),
       insert_paragraph: () => readSelection({}),
       insert_table: () => readSelection({}),
       word_insert_html: (a) => (a.target === 'selection' ? readSelection({}) : readDocument({})),
-      word_set_page_setup: () => wordListSections({}),
+      word_set_page_setup: (a) => wordSetPageSetup(a,true),
       word_insert_equation: (a) => (a.target && a.target.kind === 'search' ? search({ query: a.target.query, matchCase: a.target.matchCase }) : readSelection({ withStyles: true })),
       word_insert_image: () => readSelection({ withStyles: true }),
       apply_style: () => readSelection({}),
       format_selection: () => readSelection({ withStyles: true }),
       set_paragraph_format: () => readSelection({ withStyles: true }),
       add_comment: () => readSelection({}),
-      word_set_header_footer: (a) => wordReadHeadersFooters({ section: a.section, types: [a.type || 'primary'] }),
+      word_set_header_footer: (a) => wordReadHeadersFooters({ section: a.section, types: [a.type || 'primary'], includeFields: a.field !== undefined }),
       word_insert_break: () => wordListSections({}),
       word_insert_caption: () => readSelection({}),
       word_transfer_content: (a) => Promise.all([
@@ -960,18 +1355,46 @@
       word_transfer_content: (a) => `${a.operation || 'copy'}：${JSON.stringify(a.source || {})} → ${JSON.stringify(a.destination || {})}`,
       set_font: (a) => `全文设为字体：${a.font}`,
       apply_style: (a) => `应用样式：${a.style}（${a.scope || 'selection'}）`,
+      word_format_paragraphs: (a) => JSON.stringify(a.targets || []),
+      word_create_document: () => 'Create a new blank Word document and open it',
+      word_set_styles: (a) => JSON.stringify(a.styles || []),
+      word_insert_field: (a) => `Native ${a.type} field (${a.target || 'selection'} / ${a.mode || 'after'})`,
+      word_set_header_footer: (a) => a.field ? `Native ${a.field.type} field (${a.kind})` : String(a.text || ''),
     },
     // get_environment 的 Word 专属探测：对象模型属性是否真实存在（区分「API 不存在」与「存在但调用失败」）
     environmentProbe: async () => {
       return await Word.run(async (ctx) => {
         const body = ctx.document.body;
         const sel = ctx.document.getSelection();
+        const diagnostics = {};
+        if (isSetSupported('WordApiDesktop','1.4') && 'isReadOnly' in ctx.document) {
+          try { ctx.document.load('isReadOnly,isFinal,protectionType,isWriteReserved'); await ctx.sync(); diagnostics.document = {isReadOnly:ctx.document.isReadOnly,isFinal:ctx.document.isFinal,protectionType:ctx.document.protectionType,isWriteReserved:ctx.document.isWriteReserved}; }
+          catch (e) { diagnostics.documentError = String(e.message || e); }
+        }
+        if (body.contentControls) {
+          try { body.contentControls.load('items/id,items/title,items/tag,items/cannotDelete,items/cannotEdit'); await ctx.sync(); diagnostics.contentControls = body.contentControls.items.map(c => ({id:c.id,title:c.title,tag:c.tag,cannotDelete:c.cannotDelete,cannotEdit:c.cannotEdit})); }
+          catch (e) { diagnostics.contentControlsError = String(e.message || e); }
+        }
+        if (isSetSupported('WordApiDesktop','1.2') && typeof body.getRange === 'function') {
+          try { const pages = body.getRange().pages; if (pages) { pages.load('items/index,items/width,items/height'); await ctx.sync(); diagnostics.pagination = {count:pages.items.length,pages:pages.items.map(p => ({index:p.index,width:p.width,height:p.height}))}; } }
+          catch (e) { diagnostics.paginationError = String(e.message || e); }
+        }
         return {
+          nativeDiagnostics: diagnostics,
           bodyHasComments: !!body.comments,
           selHasParagraphFormat: !!sel.paragraphFormat,
           bodyInsertTableType: typeof body.insertTable,
+          atlasBodyPresetSupported: true,
+          atlasBodyPresetVersion: 3,
+          footerFieldReuseSupported: true,
+          nativeFieldParagraphAnchorSupported: true,
+          nativeTocCollectionAddType: isSetSupported("WordApiDesktop","1.4") ? typeof ctx.document.tablesOfContents?.add : "undefined",
           bodyInsertOoxmlType: typeof body.insertOoxml,
           selHasFont: !!sel.font,
+          documentGetStylesType: typeof ctx.document.getStyles,
+          selectionInsertFieldType: typeof sel.insertField,
+          selectionHasFields: !!sel.fields,
+          supportedDesktopSets: ['1.1','1.2','1.3','1.4'].filter(version => isSetSupported('WordApiDesktop',version)),
         };
       });
     },

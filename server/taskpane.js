@@ -163,11 +163,14 @@ function mapBuiltInStyle(name) {
     '标题3': 'heading3', heading3: 'heading3', '正文': 'normal', normal: 'normal',
     '引用': 'quote', quote: 'quote', '强调': 'strong', strong: 'strong',
   };
+  const heading = /^(?:标题|heading)([1-9])$/.exec(n);
+  if (heading) return 'heading' + heading[1];
+  if (n === 'caption' || n === '题注') return 'caption';
   return map[n] || null;
 }
 
 function mapAlignment(a) {
-  const m = { left: Word.Alignment.left, center: Word.Alignment.center, right: Word.Alignment.right, justify: Word.Alignment.justified };
+  const m = { left: Word.Alignment.left, center: Word.Alignment.centered, right: Word.Alignment.right, justify: Word.Alignment.justified };
   return m[String(a || '').toLowerCase()] || null;
 }
 
@@ -311,6 +314,8 @@ function execute(action, args) {
 let confirmMode = 'ask';
 window.__CONFIRM_MODE__ = 'ask';
 let approvalActive = false;
+let modeUpdatePending = false;
+let pendingConfirmMode = null;
 let approvalPending = null; // 当前审批对象，独立持有 timer / resolve
 let createApprovedExecution = null;
 window.__REGISTER_APPROVAL_EXECUTOR__ = (factory) => { createApprovedExecution = factory; };
@@ -350,19 +355,44 @@ function syncModeUI() {
   if (!modeSeg) return;
   for (const b of modeSeg.querySelectorAll('button')) {
     b.setAttribute('aria-checked', String(b.dataset.mode === confirmMode));
+    b.disabled = busy || approvalActive || modeUpdatePending || reloadingForCodeVersion;
   }
 }
 
-function setConfirmMode(mode) {
+function applyConfirmMode(mode) {
+  if ((mode !== 'ask' && mode !== 'auto') || modeUpdatePending) return false;
+  if (busy || approvalActive) { pendingConfirmMode = mode; return false; }
+  pendingConfirmMode = null;
   confirmMode = mode;
   window.__CONFIRM_MODE__ = mode;
   syncModeUI();
-  api('/office/config', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ confirmMode: mode }),
-  }).catch(() => { /* 忽略 */ });
-  log(t('logMode', { mode: mode === 'auto' ? t('modeAuto') : t('modeAsk') }));
+  return true;
+}
+
+async function setConfirmMode(mode) {
+  if ((mode !== 'ask' && mode !== 'auto') || busy || approvalActive || modeUpdatePending || reloadingForCodeVersion) return false;
+  pendingConfirmMode = null;
+  modeUpdatePending = true;
+  syncModeUI();
+  try {
+    const saved = await api('/office/config', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmMode: mode }),
+    });
+    if (!saved || saved.ok !== true || (saved.confirmMode !== 'ask' && saved.confirmMode !== 'auto')) throw new Error('Invalid confirmation mode response');
+    modeUpdatePending = false;
+    if (!applyConfirmMode(saved.confirmMode)) return false;
+    log(t('logMode', { mode: saved.confirmMode === 'auto' ? t('modeAuto') : t('modeAsk') }));
+    return true;
+  } catch (e) {
+    // A failed save leaves the current command policy and UI selection unchanged.
+    log(t('logFailed', { action: t('modeLabel'), error: String(e && e.message || e) }));
+    return false;
+  } finally {
+    modeUpdatePending = false;
+    syncModeUI();
+    flushIdleState();
+  }
 }
 
 // 按 action 提取"修改后内容"（审批面板展示用）由 actions 分片提供，暴露为 window.__AFTER_CONTENT__：
@@ -489,8 +519,9 @@ function setConnected() {
 
 let busy = false;
 async function poll() {
-  if (busy || approvalActive) return; // 审批中暂停轮询，避免重复取同一指令
+  if (busy || approvalActive || modeUpdatePending || reloadingForCodeVersion) return; // 审批中暂停轮询，避免重复取同一指令
   busy = true;
+  syncModeUI();
   try {
     await ensureActions();
     const host = hostName();
@@ -515,6 +546,8 @@ async function poll() {
     if (e.status !== 404 && e.status !== 409) setStatusKey('err', 'disconnected');
   } finally {
     busy = false;
+    syncModeUI();
+    flushIdleState();
   }
 }
 
@@ -522,22 +555,34 @@ async function poll() {
 // 并在每次心跳响应里回传当前值。两者不一致 = 磁盘上的窗格已改、本页跑的是旧代码 → 自动 reload。
 // 这样改窗格（taskpane.js）或改文案（i18n/*.json）后重启桥接服务即可生效，不必手动关掉再打开窗格。
 let reloadingForCodeVersion = false;
+let pendingCodeVersion = null;
+
+function flushIdleState() {
+  if (busy || approvalActive || modeUpdatePending) return;
+  if (pendingConfirmMode !== null) applyConfirmMode(pendingConfirmMode);
+  if (!pendingCodeVersion || !window.__CODE_VERSION__ || pendingCodeVersion === window.__CODE_VERSION__ || reloadingForCodeVersion) return;
+  reloadingForCodeVersion = true;
+  syncModeUI();
+  log(t('logReloading'));
+  setTimeout(() => {
+    if (busy || approvalActive || modeUpdatePending) { reloadingForCodeVersion = false; syncModeUI(); return; }
+    try { location.reload(); } catch (e) { reloadingForCodeVersion = false; syncModeUI(); }
+  }, 300);
+}
+
 function heartbeat() {
-  api('/office/heartbeat', {
+  return api('/office/heartbeat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ host: hostName(), instanceId: INSTANCE_ID, docUrl: docUrlNow(), docTitle: docTitleNow() }),
   }).then((r) => {
     setConnected();
     syncDoc();
+    applyConfirmMode(r && r.confirmMode);
     // 重载前必须避开「审批面板正挂着」和「指令正在执行」：否则会丢掉用户的审批选择或正在跑的结果。
-    // 错过这一拍不要紧，下一次心跳（5s 后）会再判一次。
-    if (!r || !r.codeVersion || reloadingForCodeVersion) return;
-    if (!window.__CODE_VERSION__ || r.codeVersion === window.__CODE_VERSION__) return;
-    if (approvalActive || busy) return;
-    reloadingForCodeVersion = true;
-    log(t('logReloading'));
-    setTimeout(() => { try { location.reload(); } catch (e) { reloadingForCodeVersion = false; } }, 300);
+    // 忙碌时保留版本与模式，poll finally 在结果回传后处理，避免固定周期同相造成永久饥饿。
+    if (r && typeof r.codeVersion === 'string' && r.codeVersion) pendingCodeVersion = r.codeVersion;
+    flushIdleState();
   }).catch(() => { /* 忽略，下次再试 */ });
 }
 
@@ -575,11 +620,7 @@ Office.onReady((info) => {
     });
   }
   api('/office/config').then((c) => {
-    if (c && (c.confirmMode === 'auto' || c.confirmMode === 'ask')) {
-      confirmMode = c.confirmMode;
-      window.__CONFIRM_MODE__ = c.confirmMode;
-      syncModeUI();
-    }
+    applyConfirmMode(c && c.confirmMode);
   }).catch(() => {});
   syncModeUI();
 

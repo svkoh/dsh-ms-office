@@ -27,6 +27,8 @@ const SKIP_DIRS = new Set(['.git', 'node_modules', '.tmp', 'dist']);
 // 本文件按设计包含这些关键词
 const SKIP_FILES = new Set([path.basename(fileURLToPath(import.meta.url))]);
 
+function containsPattern(text,needle){return /^\d+$/.test(needle)?new RegExp('(^|[^0-9])'+needle+'([^0-9]|$)').test(text):text.includes(needle);}
+
 function walk(dir, acc = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     if (e.isDirectory()) {
@@ -52,8 +54,8 @@ describe('不泄露父项目信息', () => {
       for (const f of files) {
         let text;
         try { text = fs.readFileSync(f, 'utf8'); } catch { continue; } // 二进制跳过
-        if (!text.includes(needle)) continue;
-        const line = text.split('\n').findIndex((l) => l.includes(needle)) + 1;
+        if (!containsPattern(text, needle)) continue;
+        const line = text.split('\n').findIndex((l) => containsPattern(l, needle)) + 1;
         hits.push(`${path.relative(ROOT, f)}:${line}`);
       }
       assert.deepEqual(hits, [], `以下位置出现「${needle}」：\n${hits.join('\n')}`);
@@ -66,3 +68,6 @@ describe('不泄露父项目信息', () => {
     assert.ok(gi.includes('node_modules'));
   });
 });
+
+function numericPortRegression(){const port=PATTERNS.find(([n])=>/^\d+$/.test(n))[0];assert.equal(containsPattern('12.3750'+port+'646973',port),false);for(const text of [':'+port,'port='+port,JSON.stringify({port:Number(port)})])assert.equal(containsPattern(text,port),true);}
+test("numeric port scan accepts native Office decimals and still rejects endpoint references", numericPortRegression);

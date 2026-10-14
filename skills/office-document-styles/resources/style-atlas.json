@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 1,
+  "purpose": "One native file per host; reusable elements and layouts.",
+  "dataLabel": "DEMO / 示例数据",
+  "sharedData": {
+    "unit": "万元",
+    "categories": [
+      "研发",
+      "运营",
+      "营销",
+      "支持"
+    ],
+    "budget": [
+      120,
+      80,
+      60,
+      40
+    ],
+    "actual": [
+      114,
+      84,
+      54,
+      38
+    ],
+    "budgetTotal": 300,
+    "actualTotal": 290,
+    "balance": 10
+  },
+  "profiles": [
+    {
+      "id": "word-base-styles",
+      "host": "Word",
+      "name": {
+        "zh": "Word 基础样式范本",
+        "en": "Word element style atlas"
+      },
+      "file": "word-base-styles.docx",
+      "coverage": [
+        "cover",
+        "toc",
+        "heading-1-2-3",
+        "paragraph",
+        "native-lists",
+        "alignment",
+        "native-table",
+        "color",
+        "image",
+        "caption",
+        "header",
+        "footer",
+        "PAGE"
+      ],
+      "fonts": {
+        "body": 12,
+        "heading1": 14,
+        "documentTitle": 18,
+        "cover": 28,
+        "caption": 10.5,
+        "footer": 10.5
+      },
+      "layout": {
+        "paper": "A4",
+        "marginMm": 25,
+        "firstLineIndentPt": 24,
+        "lineSpacingMultiple": 1.5
+      },
+      "actions": [
+        "word_list_paragraphs",
+        "apply_style",
+        "word_format_paragraphs",
+        "insert_table",
+        "word_insert_image",
+        "word_insert_caption",
+        "word_set_header_footer",
+        "word_read_styles",
+        "word_set_styles",
+        "word_insert_field",
+        "word_read_fields",
+        "word_set_page_setup",
+        "word_render_pages"
+      ],
+      "manualBoundaries": [
+        "Query the live WordApi1.5 and Desktop1.3 requirements before global styles, real TOC/PAGE fields or page setup.",
+        "lineSpacing is points; true1.5 requires native360/auto readback. Chinese font names must be verified from native East Asian script properties.",
+        "Generation and modification use actual plugin Office.js commands. PDF and image preview availability must be recorded from real Office exports."
+      ],
+      "locale": "zh-CN",
+      "fontFamilies": {
+        "body": "宋体",
+        "heading1": "黑体",
+        "documentTitle": "黑体",
+        "table": "宋体"
+      },
+      "globalBodyStyle": "范本正文"
+    },
+    {
+      "id": "excel-base-styles",
+      "host": "Excel",
+      "name": {
+        "zh": "Excel 基础样式范本",
+        "en": "Excel element style atlas"
+      },
+      "file": "excel-base-styles.xlsx",
+      "coverage": [
+        "bold-title",
+        "auto-columns",
+        "wrap-text",
+        "auto-rows",
+        "alignment",
+        "number-formats",
+        "borders",
+        "native-table",
+        "filter",
+        "freeze",
+        "conditional-format",
+        "formulas",
+        "native-chart"
+      ],
+      "fonts": {
+        "body": 11,
+        "title": 18,
+        "chart": 10
+      },
+      "sheets": [
+        "基础样式",
+        "数据与图表"
+      ],
+      "actions": [
+        "format_range",
+        "write_range",
+        "create_table",
+        "apply_filter",
+        "excel_set_freeze_panes",
+        "add_conditional_format",
+        "insert_chart",
+        "excel_set_print_layout",
+        "excel_export_file",
+        "excel_render_range",
+        "excel_render_chart"
+      ],
+      "layoutSequence": [
+        "numberFormat",
+        "autoFitColumns on data only",
+        "bounded note-column width",
+        "wrapText",
+        "autoFitRows"
+      ],
+      "manualBoundaries": [
+        "Print layout is configured through excel_set_print_layout; inspect actual native PDF pages before accepting paper size and scaling.",
+        "format_range dimensions are points; number formats must precede final column autofit."
+      ],
+      "locale": "zh-CN",
+      "fontFamily": "宋体"
+    },
+    {
+      "id": "ppt-base-styles",
+      "host": "PowerPoint",
+      "name": {
+        "zh": "PowerPoint 基础样式范本",
+        "en": "PowerPoint element style atlas"
+      },
+      "file": "ppt-base-styles.pptx",
+      "coverage": [
+        "cover",
+        "type-hierarchy",
+        "shapes",
+        "native-table",
+        "shape-chart",
+        "image",
+        "two-column",
+        "flow",
+        "connectors",
+        "timeline",
+        "three-column",
+        "palette",
+        "grid",
+        "conclusion"
+      ],
+      "fonts": {
+        "title": 30,
+        "body": 18,
+        "label": 16,
+        "table": 14,
+        "chart": 14,
+        "footer": 12
+      },
+      "layout": {
+        "width": 960,
+        "height": 540,
+        "safeMargin": 48,
+        "autoFit": false
+      },
+      "palette": {
+        "background": "#FFFFFF",
+        "text": "#243746",
+        "accent": "#008C95",
+        "muted": "#607486",
+        "surface": "#EDF3F8",
+        "grid": "#D6E0E9",
+        "secondary": "#2E75B6",
+        "navy": "#17365D",
+        "warning": "#D49A27",
+        "risk": "#B64646"
+      },
+      "actions": [
+        "ppt_add_slides",
+        "ppt_add_elements",
+        "ppt_insert_table",
+        "ppt_insert_image",
+        "ppt_align_shapes",
+        "ppt_distribute_shapes",
+        "ppt_update_shapes",
+        "ppt_export_file",
+        "ppt_render_slides",
+        "ppt_inspect_slides",
+        "ppt_read_presentation_info"
+      ],
+      "manualBoundaries": [
+        "The table is a real editable Table. The data chart is editable geometry, not a native Chart.",
+        "Native sample verification does not prove installed PowerPointApi or bridge support."
+      ],
+      "locale": "zh-CN",
+      "fontFamilies": {
+        "title": "黑体",
+        "body": "楷体",
+        "table": "楷体",
+        "chart": "楷体"
+      }
+    }
+  ]
+}

@@ -2,18 +2,18 @@
 
 > [English](AGENT.en.md) · 中文
 
-给调用方看的 HTTP 协议。AI 的操作约定见[技能文档](../skills/office-for-mso/SKILL.md)。
+给调用方看的 HTTP 协议。AI 的操作约定见[技能文档](../skills/ms-office/SKILL.md)。
 
 ## 先拿到桥接地址
 
 默认 `http://127.0.0.1:3000`，但端口可配置，被占用时服务会另选端口。读取服务维护的公告文件，不要猜地址：
 
 ```text
-$DSH_HOME/dsh-office-for-mso/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
+$DSH_HOME/dsh-ms-office/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
 ```
 
 ```json
-{ "plugin": "dsh-office-for-mso", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234, "startedAt": "…" }
+{ "plugin": "dsh-ms-office", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234, "startedAt": "…" }
 ```
 
 取 `url` 字段拼下文路径。文件不存在时，确认插件设置中的桥接服务状态；不要反复重试。设置面板区分 `starting`、`healthy`、`unhealthy`、`stopped`，进程存在不等于服务健康。端口变化时以公告文件为准。

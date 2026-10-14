@@ -5,3 +5,15 @@ node_modules/
 
 # 本机定制的 action（窗格会加载它来覆盖/新增内置 action）——属于本机配置，不入库
 user-actions.js
+
+# Local Office execution journals and historical QA output
+__pycache__/
+*.py[cod]
+~$*
+docs/style-atlas/plugin-*/
+docs/examples/*
+!docs/examples/README.md
+docs/style-atlas/*.evidence.json
+docs/style-atlas/pdf-render-evidence.json
+docs/style-atlas/*-base-styles/
+docs/style-atlas/*-slide-*.png

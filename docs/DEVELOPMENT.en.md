@@ -29,9 +29,9 @@ For people changing this plugin. Usage lives in the [README](../README.en.md); t
 | `server/capabilities.json`                       | **Structure-only source of truth** for the capability table: name / hosts / destructive / requirement. Human-readable arg text is **not** here                                        |
 | `i18n/zh.json` · `i18n/en.json`                  | **Single source of truth for all text**: pane UI, server messages and error catalog, capability arg descriptions                                                                      |
 | `server/taskpane.html`                           | Pane UI skeleton (Fluent 2 semantic roles, follows the system dark mode; every visible string is filled in from `/office/i18n`)                                                       |
-| `server/manifest.xml`                            | Office add-in manifest template (port 3000; rewritten for the live port into `$DSH_HOME/dsh-office-for-mso/manifest.xml`; display name / description carry `en-US` overrides)         |
+| `server/manifest.xml`                            | Office add-in manifest template (port 3000; rewritten for the live port into `$DSH_HOME/dsh-ms-office/manifest.xml`; display name / description carry `en-US` overrides)         |
 | `server/pako.min.js`                             | zlib implementation used to unpack OOXML (third-party — see [THIRD\_PARTY\_NOTICES.md](../THIRD_PARTY_NOTICES.md))                                                                    |
-| `skills/office-for-mso/SKILL.md` · `SKILL.en.md` | The skill text the AI reads (Chinese / English variants — exactly one is published, so only one skill is registered)                                                                  |
+| `skills/ms-office/SKILL.md` · `SKILL.en.md` | The skill text the AI reads (Chinese / English variants — exactly one is published, so only one skill is registered)                                                                  |
 | `docs/`                                          | Documentation and the two diagrams (the SVGs have no external font dependency and read on light and dark themes)                                                                      |
 | `test/`                                          | Tests (`npm test`, no test framework dependency — plain `node --test`)                                                                                                               |
 
@@ -55,10 +55,10 @@ So **restarting the bridge** is all it takes after a code change. Note that `cod
 
 `127.0.0.1:3000` by default; change it in the plugin settings panel. If the port is taken the plugin picks a free one and rewrites the add-in manifest accordingly. After a port change the user must close and reopen their Office documents (the add-in URL lives in the manifest and Office reads it once, when the document loads).
 
-On startup the service writes its current address to `$DSH_HOME/dsh-office-for-mso/bridge.json`:
+On startup the service writes its current address to `$DSH_HOME/dsh-ms-office/bridge.json`:
 
 ```json
-{ "plugin": "dsh-office-for-mso", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234, "startedAt": "…" }
+{ "plugin": "dsh-ms-office", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234, "startedAt": "…" }
 ```
 
 That file is for **callers** (AI / scripts): they cannot see the plugin settings panel and the port is variable, so there has to be a machine-readable landing point. A missing file means the bridge is not running. **Deleting or corrupting it is harmless** — the next startup rewrites it.
@@ -83,7 +83,7 @@ dsh loads the ordered `dsh.profile.bundles` list; a bare dependency is not loade
 {
   "dsh": {
     "profile": {
-      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-office-for-mso"]
+      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-ms-office"]
     }
   }
 }
@@ -93,9 +93,9 @@ dsh loads the ordered `dsh.profile.bundles` list; a bare dependency is not loade
 
 ### Skill publishing
 
-On every startup the plugin publishes its bundled skill to `~/.agents/skills/office-for-mso`, which is how a dsh session learns that this capability exists and when to reach for it. **This call is unconditional — there is no switch in the code.** A failure only leaves a `skill publishing skipped: …` line in the plugin log and does not affect the plugin.
+On every startup the plugin publishes the bridge and style skills to `~/.agents/skills/ms-office` and `~/.agents/skills/office-document-styles`, which is how a dsh session learns that this capability exists and when to reach for it. **This call is unconditional — there is no switch in the code.** A failure only leaves a `skill publishing skipped: …` line in the plugin log and does not affect the plugin.
 
-The skill name is its **directory name**, so both language variants live in the **same directory** (`SKILL.md` + `SKILL.en.md`); at publish time the host language (`LC_ALL` / `LC_MESSAGES` / `LANG` starting with `en`) selects one and it is copied over `SKILL.md`. Two directories would register two skills and show the model the same capability twice.
+The skill name is its **directory name**, so both language variants live in the **same directory** (`SKILL.md` + `SKILL.en.md`); at publish time the host language (`LC_ALL` / `LC_MESSAGES` / `LANG` starting with `en`) selects one and it is copied over `SKILL.md`. The bridge and design skill have distinct roles; language variants of the same skill must share one directory.
 
 ### Publish allow-list (`package.json#files`)
 
@@ -168,3 +168,9 @@ PORT=3000 node server/server.js
 ## License
 
 [MIT](../LICENSE). The license and provenance of the one third-party component (pako) are in [THIRD\_PARTY\_NOTICES.md](../THIRD_PARTY_NOTICES.md).
+
+## Document style resources
+
+`skills/office-document-styles/SKILL.md` and `SKILL.en.md` ship presets, examples, provenance and offline planning/quality scripts. The six original recipes use `resources/presets.json` as their source of truth; browser previews are not Office screenshots. See [FEATURE-ROADMAP.en.md](FEATURE-ROADMAP.en.md) for remaining boundaries.
+
+`lib/skill-publisher.mjs` compares the entire published tree, including resources when the main skill text is unchanged. An ownership manifest limits stale-file cleanup to previously published files, preserving unknown user files. Symlink/junction and traversal paths are rejected; the manifest updates after successful copying. Source and resource changes require installation and a DSH restart; editing this checkout does not update an already installed runtime.

@@ -123,8 +123,10 @@
           out.italic = element.italic === undefined ? false : !!element.italic;
           out.color = pptOptionalColor(element.color === undefined ? '#000000' : element.color, `${path}.color`);
           out.fill = pptOptionalColor(element.fill, `${path}.fill`);
+          out.fillTransparencyProvided = element.fillTransparency !== undefined;
           out.fillTransparency = pptFiniteNumber(element.fillTransparency === undefined ? 0 : element.fillTransparency, `${path}.fillTransparency`, 0, 1);
           out.lineColor = pptOptionalColor(element.lineColor, `${path}.lineColor`);
+          out.lineWidthProvided = element.lineWidth !== undefined;
           out.lineWidth = pptFiniteNumber(element.lineWidth === undefined ? 1 : element.lineWidth, `${path}.lineWidth`, 0, 50);
           out.align = pptEnum(element.align, `${path}.align`, PPT_ALIGNMENTS, 'Left');
           out.valign = pptEnum(element.valign, `${path}.valign`, PPT_VERTICAL_ALIGNMENTS, 'Top');
@@ -172,6 +174,14 @@
     return { left: element.x * sx, top: element.y * sy, width: element.w * sx, height: element.h * sy };
   }
 
+  // ShapeFont.name is script-sensitive. Native export verifies the mapping.
+  function applyPptScriptFont(range, text, name) {
+    range.font.name = name;
+    for (const match of String(text || '').matchAll(/[\u2E80-\u9FFF\uF900-\uFAFF\u3000-\u303F\uFF00-\uFFEF]+|[^\u2E80-\u9FFF\uF900-\uFAFF\u3000-\u303F\uFF00-\uFFEF]+/g)) {
+      range.getSubstring(match.index, match[0].length).font.name = name;
+    }
+  }
+
   function applyPptTextFormat(shape, element) {
     const frame = shape.textFrame;
     frame.leftMargin = element.margins.left;
@@ -182,7 +192,7 @@
     frame.verticalAlignment = element.valign;
     frame.autoSizeSetting = element.autoFit ? 'AutoSizeTextToFitShape' : 'AutoSizeNone';
     const range = frame.textRange;
-    if (element.font) range.font.name = element.font;
+    if (element.font) applyPptScriptFont(range, element.text, element.font);
     range.font.size = element.size;
     range.font.bold = element.bold;
     range.font.italic = element.italic;
@@ -190,11 +200,28 @@
     range.paragraphFormat.horizontalAlignment = element.align;
     for (const run of element.runs || []) {
       const runRange = range.getSubstring(run.start, run.length);
-      if (run.font) runRange.font.name = run.font;
+      if (run.font) applyPptScriptFont(runRange, element.text.slice(run.start, run.start + run.length), run.font);
       if (run.size !== null) runRange.font.size = run.size;
       if (run.bold !== null) runRange.font.bold = run.bold;
       if (run.italic !== null) runRange.font.italic = run.italic;
       if (run.color) runRange.font.color = run.color;
+    }
+  }
+
+  function applyPptTextBoxShapeFormat(shape, element) {
+    if (element.fill) {
+      shape.fill.setSolidColor(element.fill);
+      shape.fill.transparency = element.fillTransparency;
+    } else if (element.fillTransparencyProvided) {
+      shape.fill.transparency = element.fillTransparency;
+    }
+    if (element.lineColor) {
+      shape.lineFormat.visible = element.lineWidth > 0;
+      shape.lineFormat.color = element.lineColor;
+      if (element.lineWidth > 0) shape.lineFormat.weight = element.lineWidth;
+    } else if (element.lineWidthProvided) {
+      if (element.lineWidth === 0) shape.lineFormat.visible = false;
+      else shape.lineFormat.weight = element.lineWidth;
     }
   }
 
@@ -233,7 +260,7 @@
     try { return await PowerPoint.run(async (ctx) => {
       const slide = ctx.presentation.slides.getItem(slideId), sx = targetWidth / spec.designWidth, sy = targetHeight / spec.designHeight, counts = { text: 0, shape: 0, line: 0 }, created = [];
       for (let index = 0; index < spec.slides[0].elements.length; index++) { const element = spec.slides[0].elements[index]; let shape;
-        try { if (element.type === 'text') { shape = slide.shapes.addTextBox(element.text, pptShapeOptions(element, sx, sy)); applyPptTextFormat(shape, element); } else if (element.type === 'shape') { shape = slide.shapes.addGeometricShape(element.shapeType, pptShapeOptions(element, sx, sy)); applyPptShapeFormat(shape, element); shape.textFrame.textRange.text = element.text; applyPptTextFormat(shape, element); } else { shape = slide.shapes.addLine(element.connectorType, pptShapeOptions(element, sx, sy)); shape.lineFormat.visible = true; shape.lineFormat.color = element.color; shape.lineFormat.weight = element.lineWidth; shape.lineFormat.dashStyle = element.dashStyle; shape.lineFormat.transparency = element.transparency; } if (element.rotation !== null) shape.rotation = element.rotation; shape.load('id'); created.push(shape); counts[element.type]++; } catch (e) { throw new Error(`elements[${index}]: ${e && e.message || e}`); }
+        try { if (element.type === 'text') { shape = slide.shapes.addTextBox(element.text, pptShapeOptions(element, sx, sy)); applyPptTextBoxShapeFormat(shape, element); applyPptTextFormat(shape, element); } else if (element.type === 'shape') { shape = slide.shapes.addGeometricShape(element.shapeType, pptShapeOptions(element, sx, sy)); applyPptShapeFormat(shape, element); shape.textFrame.textRange.text = element.text; applyPptTextFormat(shape, element); } else { shape = slide.shapes.addLine(element.connectorType, pptShapeOptions(element, sx, sy)); shape.width = element.w * sx; shape.height = element.h * sy; shape.lineFormat.visible = true; shape.lineFormat.color = element.color; shape.lineFormat.weight = element.lineWidth; shape.lineFormat.dashStyle = element.dashStyle; shape.lineFormat.transparency = element.transparency; } if (element.rotation !== null) shape.rotation = element.rotation; shape.load('id'); created.push(shape); counts[element.type]++; } catch (e) { throw new Error(`elements[${index}]: ${e && e.message || e}`); }
       }
       await ctx.sync(); return okResult({ host: 'PowerPoint', slideId, elements: created.map((shape) => ({ id: shape.id })), counts, coordinateSpace: { width: spec.designWidth, height: spec.designHeight }, targetSize: { width: targetWidth, height: targetHeight } });
     }); } catch (e) { return errResult('execution', String(e && e.message || e) + shapeTypeHint(spec)); }
@@ -284,8 +311,34 @@
     try { return await PowerPoint.run(async (ctx) => { const slides = ctx.presentation.slides; slides.load('items/id'); await ctx.sync(); const existing = new Set(slides.items.map((slide) => String(slide.id))); const matched = slideIds.filter((id) => existing.has(id)); const missing = slideIds.filter((id) => !existing.has(id)); return okResult({ host: 'PowerPoint', currentCount: slides.items.length, matchedSlideIds: matched, missingSlideIds: missing, remainingCount: slides.items.length - matched.length }); }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
   }
 
+  const PPT_EDITABLE_STYLE_TYPES = ['TextBox', 'GeometricShape'];
+  const PPT_GEOMETRY_FIELDS = ['left', 'top', 'width', 'height'];
+
+  function pptShapeGeometry(shape, hasZOrder) {
+    return { id: shape.id, name: shape.name, type: shape.type, left: shape.left, top: shape.top, width: shape.width, height: shape.height, ...(hasZOrder ? { zOrderPosition: shape.zOrderPosition } : {}) };
+  }
+
+  async function pptReadShapeStyles(ctx, shapes) {
+    // Unsupported shape types must remain readable geometrically. Do not ask
+    // their textFrame to load: Office throws InvalidArgument for those types.
+    const readable = shapes.filter((shape) => PPT_EDITABLE_STYLE_TYPES.includes(shape.type));
+    for (const shape of readable) {
+      shape.textFrame.textRange.load('text,font/name,font/size,font/color,font/bold,font/italic');
+      shape.fill.load('type,transparency');
+    }
+    if (readable.length) await ctx.sync();
+    for (const shape of readable) if (shape.fill.type === 'Solid') shape.fill.load('foregroundColor');
+    if (readable.some((shape) => shape.fill.type === 'Solid')) await ctx.sync();
+    return new Map(shapes.map((shape) => {
+      if (!PPT_EDITABLE_STYLE_TYPES.includes(shape.type)) return [shape, { stylesRead: false, stylesReadReason: `Style reading is not supported for shape type ${shape.type}` }];
+      const range = shape.textFrame.textRange, font = range.font, fill = shape.fill;
+      return [shape, { stylesRead: true, text: range.text, font: { name: font.name, size: font.size, color: font.color, bold: font.bold, italic: font.italic }, fill: { type: fill.type, transparency: fill.transparency, ...(fill.type === 'Solid' ? { color: fill.foregroundColor } : {}) } }];
+    }));
+  }
+
   async function pptInspectSlides(args) {
     if (!isSetSupported('PowerPointApi', '1.4')) return errResult('requirement', 'ppt_inspect_slides requires PowerPointApi 1.4+');
+    if (args.withStyles !== undefined && typeof args.withStyles !== 'boolean') return errResult('bad_args', 'withStyles must be boolean');
     try { return await PowerPoint.run(async (ctx) => {
       const slides = ctx.presentation.slides; slides.load('items/id'); await ctx.sync();
       const wanted = Array.isArray(args.slideIds) && args.slideIds.length ? new Set(args.slideIds.map(String)) : null;
@@ -293,11 +346,89 @@
       const hasZOrder = isSetSupported('PowerPointApi', '1.8');
       for (const slide of refs) slide.shapes.load(hasZOrder ? 'items/id,items/name,items/type,items/left,items/top,items/width,items/height,items/zOrderPosition' : 'items/id,items/name,items/type,items/left,items/top,items/width,items/height');
       await ctx.sync();
-      return okResult({ host: 'PowerPoint', slides: refs.map((slide) => ({ id: slide.id, shapes: slide.shapes.items.map((shape) => ({ id: shape.id, name: shape.name, type: shape.type, left: shape.left, top: shape.top, width: shape.width, height: shape.height, ...(hasZOrder ? { zOrderPosition: shape.zOrderPosition } : {}) })) })) });
+      const styles = args.withStyles ? await pptReadShapeStyles(ctx, refs.flatMap((slide) => slide.shapes.items)) : null;
+      return okResult({ host: 'PowerPoint', slides: refs.map((slide) => ({ id: slide.id, shapes: slide.shapes.items.map((shape) => ({ ...pptShapeGeometry(shape, hasZOrder), ...(styles ? styles.get(shape) : {}) })) })) });
     }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
   }
 
-  function pptInsertImage(args) {
+  function validatePptUpdates(args) {
+    if (!args || typeof args.slideId !== 'string' || !args.slideId.trim()) throw new Error('slideId required');
+    if (!Array.isArray(args.updates) || !args.updates.length || args.updates.length > PPT_MAX_ELEMENTS) throw new Error(`updates must contain 1-${PPT_MAX_ELEMENTS} items`);
+    const seen = new Set();
+    const finite = (value, key, min, max) => {
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) throw new Error(`${key} must be a finite number from ${min} to ${max}`);
+      return value;
+    };
+    const object = (value) => value && typeof value === 'object' && !Array.isArray(value);
+    return args.updates.map((update, index) => {
+      const path = `updates[${index}]`;
+      if (!object(update) || typeof update.shapeId !== 'string' || !update.shapeId.trim()) throw new Error(`${path}.shapeId required`);
+      if (seen.has(update.shapeId)) throw new Error('shapeId values must be unique');
+      seen.add(update.shapeId);
+      const allowed = ['shapeId', 'text', 'font', 'fill', ...PPT_GEOMETRY_FIELDS];
+      if (Object.keys(update).some((key) => !allowed.includes(key))) throw new Error(`${path} contains an unsupported property; runs patching is not supported`);
+      const out = { shapeId: update.shapeId };
+      if (update.text !== undefined) {
+        if (typeof update.text !== 'string' || update.text.length > 100000) throw new Error(`${path}.text must be a string of at most 100000 characters`);
+        out.text = update.text;
+      }
+      for (const key of PPT_GEOMETRY_FIELDS) if (update[key] !== undefined) out[key] = finite(update[key], `${path}.${key}`, key === 'width' || key === 'height' ? 0 : -10000, 10000);
+      if (update.font !== undefined) {
+        if (!object(update.font) || !Object.keys(update.font).length || Object.keys(update.font).some((key) => !['name', 'size', 'color', 'bold', 'italic'].includes(key))) throw new Error(`${path}.font must contain supported font properties`);
+        out.font = {};
+        if (update.font.name !== undefined) { if (typeof update.font.name !== 'string' || !update.font.name.trim()) throw new Error(`${path}.font.name must be a non-empty string`); out.font.name = update.font.name; }
+        if (update.font.size !== undefined) out.font.size = finite(update.font.size, `${path}.font.size`, 1, 400);
+        if (update.font.color !== undefined) { if (typeof update.font.color !== 'string' || !PPT_COLOR_RE.test(update.font.color)) throw new Error(`${path}.font.color must be #RRGGBB`); out.font.color = update.font.color.toUpperCase(); }
+        for (const key of ['bold', 'italic']) if (update.font[key] !== undefined) { if (typeof update.font[key] !== 'boolean') throw new Error(`${path}.font.${key} must be boolean`); out.font[key] = update.font[key]; }
+        if (!Object.keys(out.font).length) throw new Error(`${path}.font must contain a defined property`);
+      }
+      if (update.fill !== undefined) {
+        if (!object(update.fill) || Object.keys(update.fill).some((key) => !['color', 'transparency'].includes(key)) || typeof update.fill.color !== 'string' || !PPT_COLOR_RE.test(update.fill.color)) throw new Error(`${path}.fill requires color in #RRGGBB format`);
+        out.fill = { color: update.fill.color.toUpperCase() };
+        if (update.fill.transparency !== undefined) out.fill.transparency = finite(update.fill.transparency, `${path}.fill.transparency`, 0, 1);
+      }
+      if (Object.keys(out).length === 1) throw new Error(`${path} must contain a property to update`);
+      return out;
+    });
+  }
+
+  async function pptUpdateShapes(args, preview) {
+    let updates; try { updates = validatePptUpdates(args); } catch (e) { return errResult('bad_args', e.message); }
+    if (!isSetSupported('PowerPointApi', '1.4')) return errResult('requirement', 'ppt_update_shapes requires PowerPointApi 1.4+');
+    try { return await PowerPoint.run(async (ctx) => {
+      const slides = ctx.presentation.slides; slides.load('items/id'); await ctx.sync();
+      const slide = slides.items.find((item) => String(item.id) === args.slideId);
+      if (!slide) return errResult('not_found', `slide ID not found: ${args.slideId}`);
+      slide.shapes.load('items/id,items/name,items/type,items/left,items/top,items/width,items/height'); await ctx.sync();
+      const byId = new Map(slide.shapes.items.map((shape) => [String(shape.id), shape]));
+      const missing = updates.filter((update) => !byId.has(update.shapeId)).map((update) => update.shapeId);
+      if (missing.length) return errResult('not_found', `shape IDs not found: ${missing.join(', ')}`);
+      for (const update of updates) if ((update.text !== undefined || update.font || update.fill) && !PPT_EDITABLE_STYLE_TYPES.includes(byId.get(update.shapeId).type)) return errResult('unsupported', `text/font/fill editing is not supported for shape type ${byId.get(update.shapeId).type} (${update.shapeId})`);
+      for (const update of updates) if (byId.get(update.shapeId).type !== 'Line' && (update.width === 0 || update.height === 0)) return errResult('bad_args', 'Only native Line shapes may have zero width or height');
+      const selected = updates.map((update) => byId.get(update.shapeId));
+      // Resolve all requested objects/properties before queuing any setter.
+      const before = await pptReadShapeStyles(ctx, selected);
+      if (preview) return okResult({ host: 'PowerPoint', slideId: args.slideId, previewOnly: true, shapes: selected.map((shape) => ({ ...pptShapeGeometry(shape, false), ...before.get(shape) })) });
+      for (const update of updates) {
+        const shape = byId.get(update.shapeId);
+        for (const key of PPT_GEOMETRY_FIELDS) if (update[key] !== undefined) shape[key] = update[key];
+        if (update.text !== undefined) shape.textFrame.textRange.text = update.text;
+        if (update.font) for (const [key, value] of Object.entries(update.font)) shape.textFrame.textRange.font[key] = value;
+        if (update.fill) {
+          shape.fill.setSolidColor(update.fill.color);
+          const transparency = update.fill.transparency === undefined ? before.get(shape).fill.transparency : update.fill.transparency;
+          if (typeof transparency === 'number') shape.fill.transparency = transparency;
+        }
+      }
+      await ctx.sync();
+      for (const shape of selected) shape.load('id,name,type,left,top,width,height');
+      await ctx.sync();
+      const after = await pptReadShapeStyles(ctx, selected);
+      return okResult({ host: 'PowerPoint', slideId: args.slideId, updated: updates.length, shapes: selected.map((shape) => ({ ...pptShapeGeometry(shape, false), ...after.get(shape) })), requirementSet: 'PowerPointApi 1.4' });
+    }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
+  }
+
+  async function pptInsertImage(args) {
     if (!isSetSupported('ImageCoercion', '1.1')) return Promise.resolve(errResult('requirement', 'ppt_insert_image requires ImageCoercion 1.1+'));
     const base64 = String(args.base64 || '').replace(/^data:image\/\w+;base64,/, ''); if (!base64) return Promise.resolve(errResult('bad_args', 'base64 required'));
     const mode = String(args.mode || 'positioned'); if (!['positioned','selectionOrPlaceholder'].includes(mode)) return Promise.resolve(errResult('bad_args', 'mode must be positioned or selectionOrPlaceholder'));
@@ -310,6 +441,15 @@
       if (args.width !== undefined) options.imageWidth = pptFiniteNumber(args.width, 'width', 1, 10000);
       if (args.height !== undefined) options.imageHeight = pptFiniteNumber(args.height, 'height', 1, 10000);
     } catch (e) { return Promise.resolve(errResult('bad_args', e.message)); }
+    if (args.slideId !== undefined) {
+      if (typeof args.slideId !== 'string' || !args.slideId.trim()) return errResult('bad_args', 'slideId must be a non-empty string');
+      if (!isSetSupported('PowerPointApi', '1.2')) return errResult('requirement', 'targeted ppt_insert_image requires PowerPointApi 1.2+');
+      try { await PowerPoint.run(async (ctx) => {
+        const slides = ctx.presentation.slides; slides.load('items/id'); await ctx.sync();
+        if (!slides.items.some((slide) => String(slide.id) === args.slideId)) throw new Error('Target slide not found: ' + args.slideId);
+        ctx.presentation.setSelectedSlides([args.slideId]); await ctx.sync();
+      }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
+    }
     return new Promise((resolve) => Office.context.document.setSelectedDataAsync(base64, options, (r) => resolve(r.status === Office.AsyncResultStatus.Succeeded ? okResult({ host: 'PowerPoint', inserted: true, mode, geometry: { left: options.imageLeft, top: options.imageTop, width: options.imageWidth, height: options.imageHeight }, cropSupported: false }) : errResult('execution', r.error && r.error.message))));
   }
 
@@ -389,20 +529,31 @@
   }
 
   async function pptRenderSlides(args) {
+    args = args || {};
     if (!isSetSupported('PowerPointApi', '1.8')) return errResult('requirement', 'ppt_render_slides requires PowerPointApi 1.8+');
-    let width, height;
+    let width, height, wanted;
     try {
-      width = pptFiniteNumber(args && args.width === undefined ? 960 : args.width, 'width', 64, 4096);
-      height = pptFiniteNumber(args && args.height === undefined ? 540 : args.height, 'height', 64, 4096);
+      width = pptFiniteNumber(args.width === undefined ? 960 : args.width, 'width', 64, 4096);
+      height = pptFiniteNumber(args.height === undefined ? 540 : args.height, 'height', 64, 4096);
+      if (args.slideIds !== undefined) {
+        if (!Array.isArray(args.slideIds) || !args.slideIds.length || args.slideIds.some((id) => typeof id !== 'string' || !id.trim())) throw new Error('slideIds must be a non-empty array of slide ID strings');
+        wanted = new Set(args.slideIds);
+        if (wanted.size !== args.slideIds.length) throw new Error('slideIds must be unique');
+      }
     } catch (e) { return errResult('bad_args', String(e && e.message || e)); }
     try {
       return await PowerPoint.run(async (ctx) => {
         const slides = ctx.presentation.slides;
         slides.load('items/id');
         await ctx.sync();
-        const rendered = slides.items.map((slide) => ({ id: slide.id, image: slide.getImageAsBase64({ width, height }) }));
+        if (wanted) {
+          const existing = new Set(slides.items.map((slide) => String(slide.id)));
+          const missing = [...wanted].filter((id) => !existing.has(id));
+          if (missing.length) return errResult('not_found', `slide IDs not found: ${missing.join(', ')}`);
+        }
+        const rendered = slides.items.map((slide, index) => ({ slide, index: index + 1 })).filter(({ slide }) => !wanted || wanted.has(String(slide.id))).map(({ slide, index }) => ({ index, id: slide.id, image: slide.getImageAsBase64({ width, height }) }));
         await ctx.sync();
-        return okResult({ host: 'PowerPoint', width, height, slides: rendered.map((item, index) => ({ index: index + 1, id: item.id, base64: item.image.value })) });
+        return okResult({ host: 'PowerPoint', width, height, slides: rendered.map((item) => ({ index: item.index, id: item.id, base64: item.image.value })) });
       });
     } catch (e) { return errResult('execution', String(e && e.message || e)); }
   }
@@ -418,11 +569,32 @@
     });
   }
 
-  function pptExportFile() {
-    return readPptFile(async (chunks) => {
+  function pptExportFile(args) {
+    const type = String(args && args.type || 'pptx').toLowerCase();
+    if (!['pptx', 'pdf'].includes(type)) return Promise.resolve(errResult('bad_args', 'type must be pptx or pdf'));
+    if (type === 'pptx') return readPptFile(async (chunks) => {
       const size = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-      const base64 = await chunksToBase64(chunks);
-      return okResult({ host: 'PowerPoint', fileType: 'pptx', size, base64 });
+      return okResult({ host: 'PowerPoint', fileType: type, size, base64: await chunksToBase64(chunks) });
+    });
+    // PDF bytes come directly from the open Office document.
+    return new Promise((resolve) => {
+      try { Office.context.document.getFileAsync(Office.FileType.Pdf, { sliceSize: 4194304 }, (result) => {
+        if (result.status !== Office.AsyncResultStatus.Succeeded) return resolve(errResult('execution', result.error && result.error.message));
+        const file = result.value, chunks = []; let index = 0, closed = false;
+        const done = (out) => { if (closed) return; closed = true; try { file.closeAsync(() => resolve(out)); } catch (e) { resolve(out); } };
+        const onSlice = (slice) => {
+          try {
+            if (slice.status !== Office.AsyncResultStatus.Succeeded) return done(errResult('execution', slice.error && slice.error.message));
+            chunks.push(new Uint8Array(slice.value.data)); index++;
+            if (index < file.sliceCount) { file.getSliceAsync(index, onSlice); return; }
+            const reader = new FileReader();
+            reader.onerror = () => done(errResult('execution', String(reader.error || 'FileReader failed')));
+            reader.onload = () => done(okResult({ host: 'PowerPoint', fileType: 'pdf', size: chunks.reduce((n, c) => n + c.length, 0), base64: String(reader.result || '').replace(/^data:.*?;base64,/, '') }));
+            reader.readAsDataURL(new Blob(chunks, { type: 'application/pdf' }));
+          } catch (e) { done(errResult('execution', String(e && e.message || e))); }
+        };
+        try { if (!file.sliceCount) return done(errResult('execution', 'Native PDF contains no slices')); file.getSliceAsync(0, onSlice); } catch (e) { done(errResult('execution', String(e && e.message || e))); }
+      }); } catch (e) { resolve(errResult('execution', String(e && e.message || e))); }
     });
   }
 
@@ -476,6 +648,17 @@
     return Array.from(text, (t) => t.textContent).join('').trim();
   }
 
+  function pptReadPresentationInfo() {
+    return readPptFile((chunks) => {
+      const entries = concatChunksToZip(chunks);
+      const doc = pptXml(entries, 'ppt/presentation.xml');
+      const size = doc.getElementsByTagNameNS(PPT_NS, 'sldSz')[0];
+      const cx = size && Number(size.getAttribute('cx')), cy = size && Number(size.getAttribute('cy'));
+      if (!Number.isSafeInteger(cx) || !Number.isSafeInteger(cy) || cx <= 0 || cy <= 0) return errResult('execution', 'Missing or invalid presentation slide size');
+      return okResult({ host: 'PowerPoint', slideSize: { width: cx / 12700, height: cy / 12700, unit: 'pt' }, aspectRatio: cx / cy, slideIds: orderedPptSlides(entries).map((slide) => slide.id) });
+    });
+  }
+
   function extractPptText(chunks) {
     const entries = concatChunksToZip(chunks);
     const slides = orderedPptSlides(entries);
@@ -521,6 +704,8 @@
       ppt_delete_shapes: pptDeleteShapes,
       ppt_render_slides: pptRenderSlides,
       ppt_export_file: pptExportFile,
+      ppt_read_presentation_info: pptReadPresentationInfo,
+      ppt_update_shapes: (a) => pptUpdateShapes(a, false),
       ppt_inspect_slides: pptInspectSlides,
       ppt_list_placeholders: pptListPlaceholders,
       ppt_insert_image: pptInsertImage,
@@ -535,10 +720,11 @@
     previewReaders: {
       write_selection: () => readSelection({}),
       ppt_add_slides: () => pptInspectSlides({}),
+      ppt_update_shapes: (a) => pptUpdateShapes(a, true),
       ppt_add_elements: (a) => pptInspectSlides({ slideIds: [a.slideId] }),
       ppt_delete_slides: (a) => pptDeleteSlidesPreview(a),
       ppt_delete_shapes: (a) => pptDeleteShapesPreview(a),
-      ppt_insert_image: () => readSlides({}),
+      ppt_insert_image: (a) => a.slideId ? pptInspectSlides({ slideIds: [a.slideId] }) : readSlides({}),
       ppt_insert_table: (a) => pptInspectSlides({ slideIds: [a.slideId] }),
       ppt_group_shapes: (a) => pptInspectSlides({ slideIds: [a.slideId] }),
       ppt_ungroup_shape: (a) => pptInspectSlides({ slideIds: [a.slideId] }),
@@ -547,6 +733,7 @@
       ppt_distribute_shapes: (a) => pptInspectSlides({ slideIds: [a.slideId] }),
     },
     afterContent: {
+      ppt_update_shapes: (a) => JSON.stringify({ slideId: a.slideId, updates: a.updates }),
       ppt_add_slides: (a) => `新增 ${a.count || 1} 张幻灯片${a.clearPlaceholders ? '（清除占位符）' : ''}`,
       ppt_add_elements: (a) => `向 slideId=${a.slideId || '(未提供)'} 添加 ${(a.elements || []).length} 个元素；坐标 ${JSON.stringify(a.coordinateSpace || {})} → 目标 ${JSON.stringify(a.targetSize || {})} pt`,
     },

@@ -11,7 +11,7 @@ function excelHarness(rows = 10000, cols = 20) {
     const object = { rowCount: r, columnCount: c, address: 'Sheet1!A1',
       load: (props) => events.push({ label, props, phase, cells: r * c }),
       getCell: () => ({ getResizedRange: (dr, dc) => range(dr + 1, dc + 1, 'bounded') }),
-      format: { fill: { color: '#fff' }, font: { name: 'Arial', size: 12, bold: false } },
+      format: { load: (props) => events.push({ label: 'format', props, phase, cells: r * c }), fill: { color: '#fff' }, font: { name: 'Arial', size: 12, bold: false } },
     };
     for (const key of ['values', 'text', 'formulas', 'numberFormat']) {
       let assigned;

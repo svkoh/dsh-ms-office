@@ -292,10 +292,38 @@
         const total = (range.rowCount || 0) * (range.columnCount || 0);
         const bounded = boundedReadRange(range, limit);
         bounded.load('values, formulas, numberFormat');
+        const dimensions = isSetSupported('ExcelApi', '1.2');
+        if (args.withLayout) range.format.load(`wrapText,horizontalAlignment,verticalAlignment${dimensions ? ',columnWidth,rowHeight' : ''}`);
         await ctx.sync();
-        return okResult({ host: 'Excel', address: range.address || address, rows: range.rowCount, cols: range.columnCount, truncated: total > limit, values: bounded.values || [], formulas: bounded.formulas || [], numberFormat: bounded.numberFormat || [] });
+        return okResult({ host: 'Excel', address: range.address || address, rows: range.rowCount, cols: range.columnCount, truncated: total > limit, values: bounded.values || [], formulas: bounded.formulas || [], numberFormat: bounded.numberFormat || [], ...(args.withLayout ? { layout: excelLayoutSnapshot(range.format, dimensions) } : {}) });
       });
     } catch (e) { return errResult('execution', String(e && e.message || e)); }
+  }
+
+  async function excelRenderRange(args) {
+    if (!args || typeof args.address !== 'string' || !args.address.trim()) return errResult('bad_args', 'address required');
+    const maxCells = args.maxCells === undefined ? 5000 : args.maxCells;
+    if (!Number.isInteger(maxCells) || maxCells < 1 || maxCells > 10000) return errResult('bad_args', 'maxCells must be an integer from 1 to 10000');
+    if (!isSetSupported('ExcelApi', '1.7')) return errResult('requirement', 'excel_render_range requires ExcelApi 1.7+');
+    try { return await Excel.run(async (ctx) => {
+      const range = excelRange(ctx, args.address);
+      range.load('rowCount,columnCount,address'); await ctx.sync();
+      const rows = range.rowCount, cols = range.columnCount;
+      if (!Number.isInteger(rows) || !Number.isInteger(cols) || rows < 1 || cols < 1) return errResult('execution', 'Range dimensions are unavailable or invalid');
+      if (rows * cols > maxCells) return errResult('bad_args', `Range contains ${rows * cols} cells, exceeding maxCells ${maxCells}; request a smaller range (no image was rendered)`);
+      const image = range.getImage(); await ctx.sync();
+      return okResult({ host: 'Excel', address: range.address, rows, cols, mimeType: 'image/png', base64: image.value });
+    }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
+  }
+
+  async function excelRenderChart(args) {
+    if (!args || typeof args.sheet !== 'string' || !args.sheet.trim() || typeof args.name !== 'string' || !args.name.trim()) return errResult('bad_args', 'sheet and name required');
+    if (!isSetSupported('ExcelApi', '1.9')) return errResult('requirement', 'excel_render_chart requires ExcelApi 1.9+');
+    try { return await Excel.run(async (ctx) => {
+      const chart = ctx.workbook.worksheets.getItem(args.sheet).charts.getItem(args.name);
+      chart.load('name,width,height'); const image = chart.getImage(); await ctx.sync();
+      return okResult({ host: 'Excel', sheet: args.sheet, name: chart.name, width: chart.width, height: chart.height, mimeType: 'image/png', base64: image.value });
+    }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
   }
 
   async function writeRange(args) {
@@ -343,28 +371,135 @@
     } catch (e) { return errResult('execution', String(e && e.message || e)); }
   }
 
-  async function formatRange(args) {
+  const EXCEL_HORIZONTAL_ALIGNMENTS = ['General', 'Left', 'Center', 'Right', 'Fill', 'Justify', 'CenterAcrossSelection', 'Distributed'];
+  const EXCEL_VERTICAL_ALIGNMENTS = ['Top', 'Center', 'Bottom', 'Justify', 'Distributed'];
+
+  function excelLayoutSnapshot(fmt, dimensions) {
+    return { wrapText: fmt.wrapText, horizontalAlignment: fmt.horizontalAlignment, verticalAlignment: fmt.verticalAlignment, ...(dimensions ? { columnWidth: fmt.columnWidth, rowHeight: fmt.rowHeight } : {}) };
+  }
+
+  function validateRangeLayout(args) {
+    const layout = {};
+    for (const key of ['columnWidth', 'rowHeight']) if (args[key] !== undefined) {
+      if (typeof args[key] !== 'number' || !Number.isFinite(args[key]) || args[key] <= 0) throw new Error(`${key} must be a positive finite number in points`);
+      layout[key] = args[key];
+    }
+    for (const key of ['autoFit', 'autoFitColumns', 'autoFitRows', 'wrapText', 'bold']) if (args[key] !== undefined && typeof args[key] !== 'boolean') throw new Error(`${key} must be boolean`);
+    if (args.wrapText !== undefined) layout.wrapText = args.wrapText;
+    for (const [key, allowed] of [['horizontalAlignment', EXCEL_HORIZONTAL_ALIGNMENTS], ['verticalAlignment', EXCEL_VERTICAL_ALIGNMENTS]]) if (args[key] !== undefined) {
+      const value = typeof args[key] === 'string' && allowed.find((item) => item.toLowerCase() === args[key].toLowerCase());
+      if (!value) throw new Error(`${key} must be ${allowed.join('|')}`);
+      layout[key] = value;
+    }
+    if ((args.autoFit === true || args.autoFitColumns === true) && args.columnWidth !== undefined) throw new Error('autoFit/autoFitColumns and columnWidth are mutually exclusive');
+    if (args.autoFitRows === true && args.rowHeight !== undefined) throw new Error('autoFitRows and rowHeight are mutually exclusive');
+    if (args.size !== undefined && (typeof args.size !== 'number' || !Number.isFinite(args.size) || args.size <= 0)) throw new Error('size must be a positive finite number');
+    if (args.tableStyle && !args.tableName) throw new Error('tableName required when tableStyle is provided');
+    return layout;
+  }
+
+  async function formatRange(args, previewOnly = false) {
     const address = String(args.address || '');
     if (!address) return errResult('bad_args', 'address required');
+    let layout; try { layout = validateRangeLayout(args); } catch (e) { return errResult('bad_args', e.message); }
+    const dimensions = isSetSupported('ExcelApi', '1.2');
+    if (!dimensions && (args.columnWidth !== undefined || args.rowHeight !== undefined || (args.autoFit === true || args.autoFitColumns === true) || args.autoFitRows === true)) return errResult('requirement', 'range dimensions and autofit require ExcelApi 1.2+');
+    if (previewOnly) {
+      const before = await readRange({ address, withLayout: true });
+      return before.ok ? okResult({ ...before.result, previewOnly: true, requested: { ...args } }) : before;
+    }
     try {
       return await Excel.run(async (ctx) => {
         const range = excelRange(ctx, address);
         const fmt = range.format;
-        if (args.font) fmt.font.name = String(args.font);
-        if (args.size) fmt.font.size = Number(args.size);
-        if (args.bold !== undefined) fmt.font.bold = !!args.bold;
-        if (args.fill) fmt.fill.color = String(args.fill);
-        if (args.numberFormat) range.numberFormat = [[String(args.numberFormat)]];
-        if (args.autoFit) fmt.autoFitColumns();
-        if (args.tableStyle) {
-          if (!args.tableName) return errResult('bad_args', 'tableName required when tableStyle is provided');
-          ctx.workbook.tables.getItem(String(args.tableName)).style = String(args.tableStyle);
-        }
+        // Resolve both targets before queuing any writes (including a table style).
+        range.load('address,rowCount,columnCount');
+        const table = args.tableStyle ? ctx.workbook.tables.getItem(String(args.tableName)) : null;
+        if (table) table.load('name');
         await ctx.sync();
-        range.load('address,numberFormat,format/fill/color,format/font/name,format/font/size,format/font/bold'); await ctx.sync();
-        return okResult({ host: 'Excel', formatted: true, address: range.address || address, verification: { numberFormat: range.numberFormat, fill: fmt.fill.color, font: { name: fmt.font.name, size: fmt.font.size, bold: fmt.font.bold }, tableName: args.tableName || null, tableStyle: args.tableStyle || null } });
+        if (args.font) fmt.font.name = String(args.font);
+        if (args.size !== undefined) fmt.font.size = args.size;
+        if (args.bold !== undefined) fmt.font.bold = args.bold;
+        if (args.fill) fmt.fill.color = String(args.fill);
+        if (args.color) fmt.font.color = String(args.color);
+        if (args.numberFormat) range.numberFormat = [[String(args.numberFormat)]];
+        Object.assign(fmt, layout);
+        if ((args.autoFit === true || args.autoFitColumns === true)) fmt.autofitColumns();
+        if (args.autoFitRows === true) fmt.autofitRows();
+        if (table) table.style = String(args.tableStyle);
+        await ctx.sync();
+        const sample = boundedReadRange(range, 5000);
+        sample.load('numberFormat');
+        range.load('address,format/fill/color,format/font/name,format/font/size,format/font/bold,format/font/color');
+        fmt.load(`wrapText,horizontalAlignment,verticalAlignment${dimensions ? ',columnWidth,rowHeight' : ''}`);
+        await ctx.sync();
+        return okResult({ host: 'Excel', formatted: true, address: range.address || address, verification: { numberFormat: sample.numberFormat, numberFormatTruncated: range.rowCount * range.columnCount > 5000, fill: fmt.fill.color, font: { name: fmt.font.name, size: fmt.font.size, bold: fmt.font.bold, color: fmt.font.color }, layout: excelLayoutSnapshot(fmt, dimensions), tableName: args.tableName || null, tableStyle: args.tableStyle || null } });
       });
     } catch (e) { return errResult('execution', String(e && e.message || e)); }
+  }
+
+  function validateFreezePanes(args) {
+    if (!args || typeof args.sheet !== 'string' || !args.sheet.trim()) throw new Error('sheet required');
+    if (!['rows', 'columns', 'range', 'none'].includes(args.mode)) throw new Error('mode must be rows|columns|range|none');
+    if (args.mode === 'rows' || args.mode === 'columns') {
+      const max = args.mode === 'rows' ? 1048576 : 16384;
+      if (!Number.isInteger(args.count) || args.count < 1 || args.count > max) throw new Error(`count must be a positive integer <= ${max}`);
+      if (args.range !== undefined) throw new Error('range is only valid in range mode');
+    } else if (args.count !== undefined) throw new Error('count is only valid in rows/columns mode');
+    if (args.mode === 'range') {
+      if (typeof args.range !== 'string' || !/^\$?[A-Za-z]{1,3}\$?[1-9]\d{0,6}(?::\$?[A-Za-z]{1,3}\$?[1-9]\d{0,6})?$/.test(args.range)) throw new Error('range must be a sheet-local A1 cell or rectangular cell range');
+      for (const cell of args.range.split(':')) {
+        const parts = cell.replace(/\$/g, '').match(/^([A-Za-z]+)(\d+)$/);
+        const col = parts[1].toUpperCase().split('').reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
+        if (col > 16384 || Number(parts[2]) > 1048576) throw new Error('range exceeds worksheet bounds');
+      }
+    } else if (args.range !== undefined) throw new Error('range is only valid in range mode');
+    return args;
+  }
+
+  async function excelFreezePanes(args, preview) {
+    let spec; try { spec = validateFreezePanes(args); } catch (e) { return errResult('bad_args', e.message); }
+    if (!isSetSupported('ExcelApi', '1.7')) return errResult('requirement', 'excel_set_freeze_panes requires ExcelApi 1.7+');
+    try { return await Excel.run(async (ctx) => {
+      const sheet = ctx.workbook.worksheets.getItem(spec.sheet);
+      sheet.load('name');
+      const range = spec.mode === 'range' ? sheet.getRange(spec.range) : null;
+      if (range) range.load('address');
+      await ctx.sync();
+      const panes = sheet.freezePanes;
+      if (!preview) {
+        if (spec.mode === 'rows') panes.freezeRows(spec.count);
+        else if (spec.mode === 'columns') panes.freezeColumns(spec.count);
+        else if (spec.mode === 'range') panes.freezeAt(range);
+        else panes.unfreeze();
+        await ctx.sync();
+      }
+      const frozen = panes.getLocationOrNullObject(); frozen.load('isNullObject,address'); await ctx.sync();
+      return okResult({ host: 'Excel', sheet: sheet.name, ...(preview ? { previewOnly: true } : { mode: spec.mode }), frozenRange: frozen.isNullObject ? null : frozen.address, requirementSet: 'ExcelApi 1.7' });
+    }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
+  }
+
+  async function excelPrintLayout(args, preview = false) {
+    if (!args || typeof args.sheet !== 'string' || !args.sheet.trim() || typeof args.address !== 'string') return errResult('bad_args','sheet and sheet-local address required');
+    try { validateFreezePanes({sheet:args.sheet,mode:'range',range:args.address}); } catch (e) { return errResult('bad_args',e.message); }
+    const spec = {address:args.address,orientation:args.orientation || 'Landscape',paperSize:args.paperSize || 'A4',fitToPagesWide:args.fitToPagesWide === undefined ? 1 : args.fitToPagesWide,fitToPagesTall:args.fitToPagesTall === undefined ? 1 : args.fitToPagesTall};
+    if (!['Landscape','Portrait'].includes(spec.orientation) || !['A4','Letter','A3'].includes(spec.paperSize)) return errResult('bad_args','orientation must be Landscape|Portrait; paperSize must be A4|Letter|A3');
+    for (const key of ['fitToPagesWide','fitToPagesTall']) if (!Number.isInteger(spec[key]) || spec[key] < 1 || spec[key] > 100) return errResult('bad_args',key+' must be integer 1-100');
+    if (!isSetSupported('ExcelApi','1.9')) return errResult('requirement','excel_set_print_layout requires ExcelApi 1.9+');
+    try { return await Excel.run(async (ctx) => {
+      const sheet = ctx.workbook.worksheets.getItem(args.sheet), range = sheet.getRange(spec.address), layout = sheet.pageLayout;
+      sheet.load('name'); range.load('address,rowCount,columnCount');
+      const fields = 'orientation,paperSize,zoom,printGridlines,printHeadings,centerHorizontally,draftMode,blackAndWhite';
+      layout.load(fields); const beforeArea = layout.getPrintAreaOrNullObject(); beforeArea.load('isNullObject,address'); await ctx.sync();
+      if (range.rowCount * range.columnCount > 10000) return errResult('bad_args','Print area must contain at most 10000 cells');
+      const snapshot = area => ({printArea:area.isNullObject ? null : area.address,orientation:layout.orientation,paperSize:layout.paperSize,zoom:layout.zoom,printGridlines:layout.printGridlines,printHeadings:layout.printHeadings,centerHorizontally:layout.centerHorizontally,draftMode:layout.draftMode,blackAndWhite:layout.blackAndWhite});
+      const previousState = snapshot(beforeArea);
+      if (preview) return okResult({host:'Excel',sheet:sheet.name,previewOnly:true,requested:spec,previousState});
+      layout.setPrintArea(range); layout.orientation = spec.orientation; layout.paperSize = spec.paperSize; layout.zoom = {horizontalFitToPages:spec.fitToPagesWide,verticalFitToPages:spec.fitToPagesTall};
+      layout.printGridlines = false; layout.printHeadings = false; layout.centerHorizontally = true; layout.draftMode = false; layout.blackAndWhite = false;
+      await ctx.sync(); layout.load(fields); const afterArea = layout.getPrintAreaOrNullObject(); afterArea.load('isNullObject,address'); await ctx.sync();
+      return okResult({host:'Excel',sheet:sheet.name,requested:spec,previousState,afterState:snapshot(afterArea)});
+    }); } catch (e) { return errResult('execution',String(e && e.message || e)); }
   }
 
   async function listTables(args) {
@@ -449,28 +584,115 @@
     try { return await Excel.run(async (ctx) => { const range = excelRange(ctx, address); range.conditionalFormats.clearAll(); await ctx.sync(); range.conditionalFormats.load('items'); await ctx.sync(); return okResult({ host: 'Excel', address, remaining: range.conditionalFormats.items.length, intersectionSemantics: true }); }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
   }
 
+  async function excelExportFile(args) {
+    const type = String(args && args.type || 'xlsx').toLowerCase();
+    if (type === 'pdf') {
+      if (!isSetSupported('ExcelApi','1.4')) return errResult('requirement','Native PDF nonblank preflight requires ExcelApi 1.4+');
+      try {
+        const printable = await Excel.run(async (ctx) => {
+          const sheets = ctx.workbook.worksheets; sheets.load('items/name'); await ctx.sync();
+          const refs = sheets.items.map(sheet => { const range = sheet.getUsedRangeOrNullObject(true); range.load('isNullObject'); sheet.charts.load('items/name'); return {range,sheet}; });
+          await ctx.sync();
+          return refs.some(({range,sheet}) => !range.isNullObject || sheet.charts.items.length > 0);
+        });
+        if (!printable) return errResult('bad_args','Native PDF export requires nonblank cells or charts; blank workbooks trigger the Office empty-print dialog');
+      } catch (e) { return errResult('execution','Native PDF preflight failed: '+String(e && e.message || e)); }
+    }
+    if (!['xlsx', 'pdf'].includes(type)) return Promise.resolve(errResult('bad_args', 'type must be xlsx or pdf'));
+    if (typeof Office.context.document.getFileAsync !== 'function') return Promise.resolve(errResult('requirement','Native file export is unavailable in this Excel runtime'));
+    const fileType = type === 'pdf' ? Office.FileType.Pdf : Office.FileType.Compressed;
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (out) => { if (settled) return; settled = true; clearTimeout(timer); resolve(out); };
+      const timer = setTimeout(() => finish(errResult('execution', `Office getFileAsync(${type}) did not call back within 30 seconds; native export support is unverified`)), 30000);
+      Office.context.document.getFileAsync(fileType, { sliceSize: 4194304 }, (fileResult) => {
+        if (settled) { if (fileResult.value) try { fileResult.value.closeAsync(() => {}); } catch (e) {} return; }
+        if (fileResult.status !== Office.AsyncResultStatus.Succeeded) {
+          return finish(errResult('execution', JSON.stringify(fileResult.error || { message: 'Office getFileAsync failed' })));
+        }
+        const file = fileResult.value;
+        const chunks = [];
+        let sliceIndex = 0;
+        let received = 0;
+        const done = (out) => { try { file.closeAsync(() => {}); } catch (e) {} finish(out); };
+        const onSlice = (sliceResult) => {
+          if (sliceResult.status !== Office.AsyncResultStatus.Succeeded) {
+            return done(errResult('execution', sliceResult.error && sliceResult.error.message));
+          }
+          chunks.push(new Uint8Array(sliceResult.value.data));
+          sliceIndex += 1;
+          received += sliceResult.value.size;
+          if (sliceIndex >= file.sliceCount || received >= file.size) {
+            const mime = type === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+            const size = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+            const reader = new FileReader();
+            reader.onerror = () => done(errResult('execution', String(reader.error || 'FileReader failed')));
+            reader.onload = () => done(okResult({ host: 'Excel', fileType: type, size, base64: String(reader.result || '').replace(/^data:.*?;base64,/, '') }));
+            reader.readAsDataURL(new Blob(chunks, { type: mime }));
+          } else file.getSliceAsync(sliceIndex, onSlice);
+        };
+        file.getSliceAsync(0, onSlice);
+      });
+    });
+  }
+
   const CHART_TYPES = {
     line: 'Line', column: 'ColumnClustered', bar: 'BarClustered', pie: 'Pie',
     area: 'Area', scatter: 'XYScatter', doughnut: 'Doughnut', radar: 'Radar',
   };
 
-  async function insertChart(args) {
-    const dataRange = String(args.dataRange || '');
-    if (!dataRange) return errResult('bad_args', 'dataRange (e.g. Sheet1!A1:B10) required');
+  async function insertChart(args, previewOnly = false) {
+    const dataRange = args.dataRange;
+    if (typeof dataRange !== 'string' || !dataRange.trim()) return errResult('bad_args','dataRange (e.g. Sheet1!A1:B10) required');
+    const typeKey = args.type === undefined ? 'column' : typeof args.type === 'string' ? args.type.toLowerCase() : '';
+    const typeName = CHART_TYPES[typeKey];
+    if (!typeName) return errResult('bad_args','type must be one of: '+Object.keys(CHART_TYPES).join(', '));
+    if (args.title !== undefined && (typeof args.title !== 'string' || args.title.length > 500)) return errResult('bad_args','title must be a string up to 500 characters');
+    let position;
+    if (args.position !== undefined) {
+      const p = args.position;
+      if (!p || typeof p !== 'object' || Array.isArray(p) || Object.keys(p).some(k => !['startCell','endCell'].includes(k))) return errResult('bad_args','position must be {startCell,endCell}');
+      const cell = value => {
+        if (typeof value !== 'string') return null;
+        const m = /^\$?([A-Za-z]{1,3})\$?([1-9]\d{0,6})$/.exec(value);
+        if (!m) return null;
+        const column = [...m[1].toUpperCase()].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0), row=Number(m[2]);
+        return column<=16384 && row<=1048576 ? {column,row,address:m[1].toUpperCase()+row} : null;
+      };
+      const first=cell(p.startCell),last=cell(p.endCell);
+      if (!first || !last || last.column < first.column || last.row < first.row) return errResult('bad_args','position needs local start/end A1 cells with positive width/height within worksheet bounds');
+      position={startCell:first.address,endCell:last.address};
+    }
+    if (args.font !== undefined && (typeof args.font !== 'string' || !args.font.trim() || args.font.length>200)) return errResult('bad_args','font must be a font family name');
+    if (args.seriesColors !== undefined && (!Array.isArray(args.seriesColors) || args.seriesColors.length < 1 || args.seriesColors.length > 20 || args.seriesColors.some(c => typeof c !== 'string' || !/^#[0-9a-f]{6}$/i.test(c)))) return errResult('bad_args','seriesColors must contain 1-20 #RRGGBB colors');
+    for (const key of ['fill','color']) if (args[key] !== undefined && (typeof args[key] !== 'string' || !/^#[0-9a-f]{6}$/i.test(args[key]))) return errResult('bad_args',key+' must be #RRGGBB');
+    if (!isSetSupported('ExcelApi','1.1')) return errResult('requirement','insert_chart requires ExcelApi 1.1');
     try {
-      return await Excel.run(async (ctx) => {
-        const ws = ctx.workbook.worksheets.getActiveWorksheet();
-        const typeName = CHART_TYPES[String(args.type || '').toLowerCase()] || 'ColumnClustered';
-        // sourceData 传 Range 对象（字符串跨表引用在此环境报 sourceData 错误）
-        const source = excelRange(ctx, dataRange);
-        const chart = ws.charts.add(typeName, source, 'auto');
-        if (args.title) {
-          chart.title.text = args.title;
-        }
+      const sourceRead=previewOnly ? await readRange({address:dataRange,limit:5000}) : null;
+      if (sourceRead && !sourceRead.ok) return sourceRead;
+      return await Excel.run(async ctx => {
+        const source=excelRange(ctx,dataRange),ws=source.worksheet;
+        source.load('address,rowCount,columnCount');ws.load('name');
+        if (previewOnly) ws.charts.load('items/name,items/left,items/top,items/width,items/height');
         await ctx.sync();
-        return okResult({ host: 'Excel', chart: { type: typeName, dataRange, title: args.title || null } });
+        if (previewOnly) return okResult({host:'Excel',sheet:ws.name,dataRange:source.address,source:sourceRead.result,existingCharts:ws.charts.items.map(c=>({name:c.name,left:c.left,top:c.top,width:c.width,height:c.height})),requested:{type:typeName,title:args.title||null,position:position||null}});
+        const chart=ws.charts.add(typeName,source,'Auto');
+        if (args.title !== undefined) {chart.title.text=args.title;chart.title.visible=!!args.title;}
+        if (position) chart.setPosition(position.startCell,position.endCell);
+        if (args.font) chart.format.font.name=args.font;
+        if (args.color) chart.format.font.color=args.color;
+        if (args.fill) chart.format.fill.setSolidColor(args.fill);
+        if (args.seriesColors) {
+          chart.series.load('items/name'); await ctx.sync();
+          chart.series.items.forEach((series,i) => series.format.fill.setSolidColor(args.seriesColors[i % args.seriesColors.length]));
+        }
+        if (args.font) chart.format.font.load('name');
+        chart.load('name,left,top,width,height');
+        chart.title.load('text,visible');
+        await ctx.sync();
+        return okResult({host:'Excel',chart:{name:chart.name,font:args.font?chart.format.font.name:null,type:typeName,sheet:ws.name,dataRange:source.address,title:chart.title.text,titleVisible:chart.title.visible,requestedPosition:position||null,geometry:{left:chart.left,top:chart.top,width:chart.width,height:chart.height}}});
       });
-    } catch (e) { return errResult('execution', String(e && e.message || e)); }
+    } catch(e) {return errResult('execution',String(e&&e.message||e));}
   }
 
   async function addSheet(args) {
@@ -614,8 +836,13 @@
       locate_select: locateSelect,
       // Excel 专有
       list_sheets: listSheets,
+      excel_export_file: excelExportFile,
+      excel_set_print_layout: (args) => excelPrintLayout(args, false),
+      excel_render_range: excelRenderRange,
+      excel_render_chart: excelRenderChart,
       read_range: readRange,
       write_range: writeRange,
+      excel_set_freeze_panes: (args) => excelFreezePanes(args, false),
       format_range: formatRange,
       list_tables: listTables,
       create_table: createTable,
@@ -659,8 +886,10 @@
       format_selection: () => readSelection({ withStyles: true }),
       add_comment: () => readSelection({}),
       write_range: (a) => readRange({ address: a.address }),
-      format_range: (a) => readRange({ address: a.address }),
-      insert_chart: () => listSheets({}),
+      excel_set_freeze_panes: (a) => excelFreezePanes(a, true),
+      excel_set_print_layout: (a) => excelPrintLayout(a, true),
+      format_range: (a) => formatRange(a, true),
+      insert_chart: (a) => insertChart(a,true),
       add_sheet: () => listSheets({}),
       rename_sheet: () => listSheets({}),
       delete_sheet: (a) => deleteSheet({ ...a, dryRun: true }),
@@ -677,7 +906,9 @@
     },
     afterContent: {
       write_range: (a) => JSON.stringify(a.values || a.formulas || []),
+      excel_set_freeze_panes: (a) => JSON.stringify({ sheet: a.sheet, mode: a.mode, count: a.count, range: a.range }),
       format_range: (a) => JSON.stringify(a),
+      excel_set_print_layout: (a) => JSON.stringify(a),
       rename_sheet: (a) => `${a.oldName} → ${a.newName}`,
       delete_sheet: (a) => `删除工作表：${a.name}`,
       apply_sort: (a) => JSON.stringify(a),

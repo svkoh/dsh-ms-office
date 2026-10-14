@@ -1,4 +1,4 @@
-# dsh-office-for-mso
+# dsh-ms-office
 
 > English · [中文](README.md)
 
@@ -15,10 +15,14 @@ This is a **standalone dsh plugin**. Install it and dsh gains an agent capabilit
 ## What it does
 
 - **Works on the live document** — nothing hits disk, nothing gets locked
-- **78 actions** across all three applications: read a selection, write content, format, tables / charts / formulas / comments, group and align PowerPoint shapes…
+- **92 actions** across all three applications: read a selection, write content, format, tables / charts / formulas / comments, group and align PowerPoint shapes…
 - **Precise multi-document routing** — each document gets its own instance and every command must name its target, so it cannot land on the wrong one
 - **Mechanism-level guardrails on writes** — the current state is read before writing and, by default, you click "Apply" in the task pane first (see [Security](#security))
 - **Bilingual UI** (Chinese / English) that follows your Office display language
+
+Two complementary skills: [ms-office](skills/ms-office/SKILL.en.md) handles document operations; the [document style skill](skills/office-document-styles/SKILL.en.md) provides one original element atlas per host: Word document elements, exactly two Excel sheets, and PowerPoint shapes, tables, layouts and color roles, with provenance and layered quality checks. See the [style gallery](docs/style-gallery.html) and [feature roadmap](docs/FEATURE-ROADMAP.en.md).
+
+Chinese defaults: Word body SimSun and headings SimHei; Excel SimSun; PowerPoint titles SimHei and body/table/chart text KaiTi. Atlas modifications run through the actual plugin and retain native Office export evidence.
 
 The full action list is in [docs/CAPABILITIES.en.md](docs/CAPABILITIES.en.md).
 
@@ -37,7 +41,7 @@ The full action list is in [docs/CAPABILITIES.en.md](docs/CAPABILITIES.en.md).
 ## Installation
 
 ```bash
-dsh plugin --profile web add dsh-office-for-mso
+dsh plugin --profile web add dsh-ms-office
 ```
 
 **That is the whole install.** The plugin takes care of the remaining two steps itself:

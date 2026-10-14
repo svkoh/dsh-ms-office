@@ -1,0 +1,394 @@
+{
+  "schemaVersion": 1,
+  "license": "MIT (original tokens and recipes only)",
+  "presets": [
+    {
+      "id": "word-business-blue",
+      "host": "Word",
+      "name": {
+        "zh": "正式工作报告",
+        "en": "Formal work report"
+      },
+      "sourceIds": [
+        "word-business-report"
+      ],
+      "tokens": {
+        "font": "宋体",
+        "fallbacks": [
+          "SimSun",
+          "黑体",
+          "SimHei"
+        ],
+        "colors": {
+          "background": "#FFFFFF",
+          "text": "#000000",
+          "accent": "#000000",
+          "muted": "#000000",
+          "tint": "#FFFFFF"
+        },
+        "fonts": {
+          "title": {
+            "name": "黑体",
+            "size": 18,
+            "bold": false
+          },
+          "heading1": {
+            "name": "黑体",
+            "size": 14,
+            "bold": false
+          },
+          "heading2": {
+            "name": "宋体",
+            "size": 12,
+            "bold": true
+          },
+          "body": {
+            "name": "宋体",
+            "size": 12,
+            "bold": false
+          },
+          "metadata": {
+            "name": "宋体",
+            "size": 12,
+            "bold": false
+          }
+        }
+      },
+      "typography": {
+        "title": 18,
+        "heading1": 14,
+        "heading2": 12,
+        "body": 12,
+        "lineSpacing": 18,
+        "lineMultiple": 1.5
+      },
+      "layout": {
+        "paper": "A4",
+        "marginMm": 25,
+        "columns": 1,
+        "maxSections": 5,
+        "maxParagraphs": 50,
+        "maxParagraphWidth": 300,
+        "maxTitleWidth": 30
+      },
+      "quality": {
+        "minContrast": 4.5,
+        "minBodyPt": 12,
+        "semanticStyles": [
+          "Title",
+          "Heading1",
+          "Heading2",
+          "Normal"
+        ],
+        "scope": "plan"
+      }
+    },
+    {
+      "id": "word-plain-accessible",
+      "host": "Word",
+      "name": {
+        "zh": "正式业务请示/方案",
+        "en": "Formal business proposal"
+      },
+      "sourceIds": [
+        "word-accessible-document"
+      ],
+      "tokens": {
+        "font": "宋体",
+        "fallbacks": [
+          "SimSun",
+          "黑体",
+          "SimHei"
+        ],
+        "colors": {
+          "background": "#FFFFFF",
+          "text": "#000000",
+          "accent": "#000000",
+          "muted": "#000000",
+          "tint": "#FFFFFF"
+        },
+        "fonts": {
+          "title": {
+            "name": "黑体",
+            "size": 18,
+            "bold": false
+          },
+          "heading1": {
+            "name": "黑体",
+            "size": 14,
+            "bold": false
+          },
+          "heading2": {
+            "name": "宋体",
+            "size": 12,
+            "bold": true
+          },
+          "body": {
+            "name": "宋体",
+            "size": 12,
+            "bold": false
+          },
+          "metadata": {
+            "name": "宋体",
+            "size": 12,
+            "bold": false
+          }
+        }
+      },
+      "typography": {
+        "title": 18,
+        "heading1": 14,
+        "heading2": 12,
+        "body": 12,
+        "lineSpacing": 18,
+        "lineMultiple": 1.5
+      },
+      "layout": {
+        "paper": "A4",
+        "marginMm": 25,
+        "columns": 1,
+        "maxSections": 5,
+        "maxParagraphs": 50,
+        "maxParagraphWidth": 300,
+        "maxTitleWidth": 30
+      },
+      "quality": {
+        "minContrast": 4.5,
+        "minBodyPt": 12,
+        "semanticStyles": [
+          "Title",
+          "Heading1",
+          "Heading2",
+          "Normal"
+        ],
+        "scope": "plan"
+      }
+    },
+    {
+      "id": "excel-budget-green",
+      "host": "Excel",
+      "name": {
+        "zh": "月度预算执行分析",
+        "en": "Monthly budget execution analysis"
+      },
+      "sourceIds": [
+        "excel-budget"
+      ],
+      "tokens": {
+        "font": "Microsoft YaHei",
+        "fallbacks": [
+          "DengXian",
+          "SimSun",
+          "Arial"
+        ],
+        "colors": {
+          "background": "#FFFFFF",
+          "text": "#000000",
+          "accent": "#17365D",
+          "muted": "#404040",
+          "tint": "#E7E6E6"
+        }
+      },
+      "typography": {
+        "title": 18,
+        "header": 11,
+        "body": 11
+      },
+      "layout": {
+        "headerRow": 4,
+        "maxRows": 100,
+        "maxColumns": 13,
+        "maxCellWidth": 60,
+        "numberFormat": "#,##0.00",
+        "columnWidth": 108,
+        "rowHeight": 24,
+        "mergeCells": false,
+        "freezeRows": 5
+      },
+      "quality": {
+        "minContrast": 4.5,
+        "minBodyPt": 11,
+        "scope": "plan",
+        "requireUnit": true,
+        "requireDataLabel": true
+      }
+    },
+    {
+      "id": "excel-plain-data",
+      "host": "Excel",
+      "name": {
+        "zh": "项目执行跟踪",
+        "en": "Project delivery tracking"
+      },
+      "sourceIds": [
+        "excel-accessible-reference-table"
+      ],
+      "tokens": {
+        "font": "Microsoft YaHei",
+        "fallbacks": [
+          "DengXian",
+          "SimSun",
+          "Arial"
+        ],
+        "colors": {
+          "background": "#FFFFFF",
+          "text": "#000000",
+          "accent": "#17365D",
+          "muted": "#404040",
+          "tint": "#E7E6E6"
+        }
+      },
+      "typography": {
+        "title": 18,
+        "header": 11,
+        "body": 11
+      },
+      "layout": {
+        "headerRow": 4,
+        "maxRows": 100,
+        "maxColumns": 13,
+        "maxCellWidth": 60,
+        "numberFormat": "#,##0.00",
+        "columnWidth": 108,
+        "rowHeight": 24,
+        "mergeCells": false,
+        "freezeRows": 5
+      },
+      "quality": {
+        "minContrast": 4.5,
+        "minBodyPt": 11,
+        "scope": "plan",
+        "requireUnit": true,
+        "requireDataLabel": true
+      }
+    },
+    {
+      "id": "ppt-clean-blue-deck",
+      "host": "PowerPoint",
+      "name": {
+        "zh": "经营分析复盘",
+        "en": "Business performance review"
+      },
+      "sourceIds": [
+        "ppt-scientific-discovery"
+      ],
+      "tokens": {
+        "font": "Microsoft YaHei",
+        "fallbacks": [
+          "DengXian",
+          "SimSun",
+          "Arial"
+        ],
+        "colors": {
+          "name": "Warm ivory / matte copper",
+          "background": "#FAF9F6",
+          "text": "#24282D",
+          "accent": "#836344",
+          "muted": "#5E6267",
+          "surface": "#EFEEEA",
+          "secondary": "#8E8C88",
+          "grid": "#D7D4CE",
+          "risk": "#8A4031",
+          "tint": "#EFEEEA"
+        }
+      },
+      "typography": {
+        "title": 30,
+        "body": 18,
+        "footer": 12,
+        "label": 16,
+        "table": 14,
+        "chart": 14
+      },
+      "layout": {
+        "width": 960,
+        "height": 540,
+        "aspectRatio": "16:9",
+        "safeMargin": 36,
+        "slides": 8,
+        "autoFit": false,
+        "minNativeSize": {
+          "width": 960,
+          "height": 540
+        }
+      },
+      "quality": {
+        "minContrast": 4.5,
+        "minTitlePt": 28,
+        "minBodyPt": 18,
+        "minFooterPt": 12,
+        "scope": "plan",
+        "minTablePt": 14,
+        "minChartPt": 14,
+        "minLayouts": 6,
+        "minDataSlides": 3,
+        "minEditableCharts": 2,
+        "minEditableTables": 2
+      }
+    },
+    {
+      "id": "ppt-modern-accent",
+      "host": "PowerPoint",
+      "name": {
+        "zh": "项目立项与资源申请",
+        "en": "Project proposal and resource request"
+      },
+      "sourceIds": [
+        "ppt-libreoffice-modern-cc0"
+      ],
+      "tokens": {
+        "font": "Microsoft YaHei",
+        "fallbacks": [
+          "DengXian",
+          "SimSun",
+          "Arial"
+        ],
+        "colors": {
+          "name": "Cool white / mist blue",
+          "background": "#F8FAFC",
+          "text": "#1D2733",
+          "accent": "#44657D",
+          "muted": "#596674",
+          "surface": "#EDF1F4",
+          "secondary": "#8797A4",
+          "grid": "#D3DBE2",
+          "risk": "#8A4031",
+          "tint": "#EDF1F4"
+        }
+      },
+      "typography": {
+        "title": 30,
+        "body": 18,
+        "footer": 12,
+        "label": 16,
+        "table": 14,
+        "chart": 14
+      },
+      "layout": {
+        "width": 960,
+        "height": 540,
+        "aspectRatio": "16:9",
+        "safeMargin": 36,
+        "slides": 8,
+        "autoFit": false,
+        "minNativeSize": {
+          "width": 960,
+          "height": 540
+        }
+      },
+      "quality": {
+        "minContrast": 4.5,
+        "minTitlePt": 28,
+        "minBodyPt": 18,
+        "minFooterPt": 12,
+        "scope": "plan",
+        "minTablePt": 14,
+        "minChartPt": 14,
+        "minLayouts": 6,
+        "minDataSlides": 3,
+        "minEditableCharts": 2,
+        "minEditableTables": 2
+      }
+    }
+  ]
+}

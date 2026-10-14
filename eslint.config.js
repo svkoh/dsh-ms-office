@@ -64,7 +64,7 @@ export default [
 
   {
     // 宿主侧入口 + 测试 + 本配置
-    files: ['lib/index.js', 'lib/sidecar-host.mjs', 'test/**/*.mjs', 'eslint.config.js'],
+    files: ['lib/index.js', 'lib/**/*.mjs', 'scripts/**/*.mjs', 'skills/**/scripts/*.mjs', 'test/**/*.mjs', 'eslint.config.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',

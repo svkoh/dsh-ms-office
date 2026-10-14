@@ -1,7 +1,7 @@
 ﻿# sideload.ps1 — 手动注册/移除本加载项（WEF 注册表方式；普通用户权限，无需 UAC）
 #
 # 通常用不到本脚本：桥接服务（server/server.js）启动时会自动注册加载项，并把「按实际监听端口
-# 改写过的清单」写到 $DSH_HOME/dsh-office-for-mso/manifest.xml（不碰源码树里的模板）。
+# 改写过的清单」写到 $DSH_HOME/dsh-ms-office/manifest.xml（不碰源码树里的模板）。
 # 本脚本用于：自动注册失败、桥接服务暂时不打算跑、或想手工卸载。
 #
 # 用法：
@@ -18,7 +18,7 @@ $ErrorActionPreference = 'Stop'
 if (-not $Manifest) {
   # 优先用运行期清单（SourceLocation 已按实际端口改写）；没有才退回源码树里的模板（端口 3000）
   $runtimeDir = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }
-  $runtimeManifest = Join-Path $runtimeDir 'dsh-office-for-mso\manifest.xml'
+  $runtimeManifest = Join-Path $runtimeDir 'dsh-ms-office\manifest.xml'
   $Manifest = if (Test-Path $runtimeManifest) { $runtimeManifest } else { Join-Path $PSScriptRoot 'manifest.xml' }
 }
 

@@ -21,6 +21,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { renderNativeWordPages } = require('./native-word-pages.cjs');
 
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = __dirname;
@@ -33,7 +34,7 @@ function positiveInt(value, fallback) {
 const VALID_HOSTS = ['Word', 'Excel', 'PowerPoint'];
 // 覆盖类操作确认模式：auto=自动 re-read 后执行（结果附 previousState，不打扰用户）；ask=窗格显示审批面板，用户点确认才执行
 // 默认 ask（审批模式）：所有覆盖类操作都经用户确认，最安全；可用环境变量 OFFICE_CONFIRM_MODE 覆盖
-let CONFIRM_MODE = process.env.OFFICE_CONFIRM_MODE || 'ask';
+let CONFIRM_MODE = initialConfirmMode();
 
 // ---- 能力注册表 ----
 // 唯一真源是 capabilities.json：这里只负责读它并对外提供（/office/capabilities 给 AI 发现能力，
@@ -211,7 +212,40 @@ function stateDir() {
   const env = process.env.DSH_OFFICE_STATE_DIR;
   if (typeof env === 'string' && env.trim()) return env.trim();
   const home = process.env.DSH_HOME && process.env.DSH_HOME.trim() ? process.env.DSH_HOME.trim() : path.join(os.homedir(), '.dsh');
-  return path.join(home, 'dsh-office-for-mso');
+  return path.join(home, 'dsh-ms-office');
+}
+
+// This plugin owns one narrow state file; no source or companion settings are overwritten.
+function validConfirmMode(mode) { return mode === 'ask' || mode === 'auto'; }
+function confirmModeFile() { return path.join(path.resolve(stateDir()), 'confirm-mode.json'); }
+function initialConfirmMode() {
+  if (validConfirmMode(process.env.OFFICE_CONFIRM_MODE)) return process.env.OFFICE_CONFIRM_MODE;
+  try {
+    const saved = JSON.parse(fs.readFileSync(confirmModeFile(), 'utf8'));
+    if (saved && validConfirmMode(saved.confirmMode)) return saved.confirmMode;
+  } catch (e) { /* Missing, unreadable or invalid state keeps the safe default. */ }
+  return 'ask';
+}
+function persistConfirmMode(mode) {
+  const file = confirmModeFile(), directory = path.dirname(file);
+  fs.mkdirSync(directory, { recursive: true });
+  const temporary = path.join(directory, '.confirm-mode.' + process.pid + '.' + crypto.randomUUID() + '.tmp');
+  let created = false;
+  try {
+    const fd = fs.openSync(temporary, 'wx', 0o600);
+    created = true;
+    try {
+      fs.writeFileSync(fd, JSON.stringify({ confirmMode: mode }) + '\n', 'utf8');
+      fs.fsyncSync(fd);
+    } finally { fs.closeSync(fd); }
+    fs.renameSync(temporary, file);
+    created = false;
+  } finally {
+    // Only remove the exact temporary file created above, never an arbitrary state path.
+    if (created && path.dirname(temporary) === directory) {
+      try { fs.unlinkSync(temporary); } catch (e) { /* Preserve the original persistence error. */ }
+    }
+  }
 }
 
 // 代码版本：taskpane.js 与 i18n 字典的 mtime 最大值（毫秒）。
@@ -281,7 +315,7 @@ function writeBridgeAnnouncement(port) {
   const file = path.join(stateDir(), 'bridge.json');
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const payload = {
-    plugin: 'dsh-office-for-mso',
+    plugin: 'dsh-ms-office',
     url: `http://127.0.0.1:${port}`,
     port,
     pid: process.pid,
@@ -296,12 +330,12 @@ function ensureSideloaded() {
   try {
     manifest = writeRuntimeManifest(PORT);
   } catch (e) {
-    console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logManifestWriteFailed', { message: e.message })}`);
+    console.log(`[dsh-ms-office] ${msg(DEFAULT_LANG, 'logManifestWriteFailed', { message: e.message })}`);
     return;
   }
   if (process.env.OFFICE_SKIP_SIDELOAD === '1') return;
   if (process.platform !== 'win32') {
-    console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logNonWindows', { manifest })}`);
+    console.log(`[dsh-ms-office] ${msg(DEFAULT_LANG, 'logNonWindows', { manifest })}`);
     return;
   }
   const { spawnSync } = require('node:child_process');
@@ -309,18 +343,18 @@ function ensureSideloaded() {
   try {
     const xml = fs.readFileSync(manifest, 'utf8');
     const m = xml.match(/<Id>\s*([0-9a-fA-F-]{36})\s*<\/Id>/);
-    if (!m) { console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logManifestNoId')}`); return; }
+    if (!m) { console.log(`[dsh-ms-office] ${msg(DEFAULT_LANG, 'logManifestNoId')}`); return; }
     const guid = m[1];
     const key = 'HKCU\\Software\\Microsoft\\Office\\16.0\\WEF\\Developer';
     // Always refresh the registry value so a port change rewrites the path Office reads.
     if (reg(['add', key, '/v', guid, '/t', 'REG_SZ', '/d', manifest, '/f'])) {
-      console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logRegistered', { guid, url: `http://127.0.0.1:${PORT}/taskpane.html` })}`);
-      console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logPortChanged')}`);
+      console.log(`[dsh-ms-office] ${msg(DEFAULT_LANG, 'logRegistered', { guid, url: `http://127.0.0.1:${PORT}/taskpane.html` })}`);
+      console.log(`[dsh-ms-office] ${msg(DEFAULT_LANG, 'logPortChanged')}`);
     } else {
-      console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logRegisterFailed', { manifest })}`);
+      console.log(`[dsh-ms-office] ${msg(DEFAULT_LANG, 'logRegisterFailed', { manifest })}`);
     }
   } catch (e) {
-    console.log(`[dsh-office-for-mso] ${msg(DEFAULT_LANG, 'logRegisterSkipped', { message: e.message })}`);
+    console.log(`[dsh-ms-office] ${msg(DEFAULT_LANG, 'logRegisterSkipped', { message: e.message })}`);
   }
 }
 
@@ -609,7 +643,7 @@ async function handleRequest(req, res) {
       instances[String(body.instanceId)] = { host, docUrl: body.docUrl ? String(body.docUrl) : '', docTitle: body.docTitle ? String(body.docTitle) : '', lastBeat: now };
       pruneInstances(now);
     }
-    sendJson(res, 200, { ok: true, host, codeVersion: getCodeVersion() });
+    sendJson(res, 200, { ok: true, host, codeVersion: getCodeVersion(), confirmMode: CONFIRM_MODE });
     return;
   }
 
@@ -638,7 +672,7 @@ async function handleRequest(req, res) {
       lastBeat: v.lastBeat,
     }));
     sendJson(res, 200, {
-      plugin: 'dsh-office-for-mso',
+      plugin: 'dsh-ms-office',
       pid: process.pid,
       pending: pendingByInstance.size ? commandView(pendingByInstance.values().next().value) : null,
       pendingCommands: [...pendingByInstance.values()].map(commandView),
@@ -657,6 +691,22 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // Optional Windows native Word full-page images: fixed read-only helper, exact body fingerprint.
+  if (req.method === 'POST' && p === '/office/native-word-pages') {
+    if (!/^application\/json(?:\s*;\s*charset\s*=\s*(?:utf-8|"utf-8"))?$/i.test(String(req.headers['content-type'] || '').trim())) {
+      sendJson(res, 415, { ok: false, code: 'bad_args', error: 'Native Word pages requires application/json with UTF-8 encoding' });
+      return;
+    }
+    let body;
+    try { body = await readBody(req); } catch (e) { sendBodyError(res, e, lang); return; }
+    let output;
+    try { output = await renderNativeWordPages(body); }
+    catch (e) { output = { ok: false, code: 'execution', error: 'Native Word page renderer failed' }; }
+    const status = output.ok ? 200 : ({ bad_args: 400, not_found: 404, busy: 409, requirement: 503, timeout: 504 }[output.code] || 500);
+    sendJson(res, status, output);
+    return;
+  }
+
   // GET/POST /office/config —— 运行时配置（confirmMode: auto|ask，窗格开关同步用）
   if (req.method === 'GET' && p === '/office/config') {
     sendJson(res, 200, { confirmMode: CONFIRM_MODE });
@@ -666,6 +716,11 @@ async function handleRequest(req, res) {
     let body;
     try { body = await readBody(req); } catch (e) { sendBodyError(res, e, lang); return; }
     if (body.confirmMode === 'auto' || body.confirmMode === 'ask') {
+      try { persistConfirmMode(body.confirmMode); }
+      catch (e) {
+        sendJson(res, 500, { ok: false, code: 'execution', error: 'Could not save confirmation mode', confirmMode: CONFIRM_MODE });
+        return;
+      }
       CONFIRM_MODE = body.confirmMode;
       sendJson(res, 200, { ok: true, confirmMode: CONFIRM_MODE });
     } else {
@@ -704,7 +759,7 @@ async function handleRequest(req, res) {
 
 const server = http.createServer((req, res) => {
   handleRequest(req, res).catch((error) => {
-    console.error('[dsh-office-for-mso] request failed:', error);
+    console.error('[dsh-ms-office] request failed:', error);
     if (!res.headersSent) sendJson(res, 500, { ok: false, code: 'execution', error: msg(DEFAULT_LANG, 'requestFailed') });
     else res.destroy();
   });
@@ -712,7 +767,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   const L = DEFAULT_LANG;
-  console.log(`[dsh-office-for-mso] ${msg(L, 'logListening', { url: `http://127.0.0.1:${PORT}` })}`);
+  console.log(`[dsh-ms-office] ${msg(L, 'logListening', { url: `http://127.0.0.1:${PORT}` })}`);
   console.log(`  ${msg(L, 'logTaskpaneUrl', { url: `http://127.0.0.1:${PORT}/taskpane.html` })}`);
   console.log(`  ${msg(L, 'logCommandEndpoint', { timeout: COMMAND_TIMEOUT_MS })}`);
   console.log(`  ${msg(L, 'logCapabilityCount', { count: CAPABILITIES.length })}`);

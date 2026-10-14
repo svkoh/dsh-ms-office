@@ -1,10 +1,10 @@
 ---
-name: office-for-mso
+name: ms-office
 description: Drive the Microsoft Office desktop documents the user already has open (Word / Excel / PowerPoint) through a local bridge and an Office add-in — read, write, format, restructure, charts / equations / comments. Use it for requests like "read the whole Word document", "make a chart in Excel", or "translate the selection into English".
 whenToUse: The user asks to work on a Word / Excel / PowerPoint document (read, edit, format, analyse, generate charts/equations, add comments, …) and that document is already open in Microsoft Office desktop.
 ---
 
-# Office for MSO (DSH ↔ Microsoft Office)
+# MS Office (DSH ↔ Microsoft Office)
 
 ## Scope
 
@@ -19,11 +19,11 @@ it is taken** — so do not assume 3000. The live address is written by the brid
 announcement file. **Read it; do not guess:**
 
 ```
-$DSH_HOME/dsh-office-for-mso/bridge.json      # ~/.dsh when $DSH_HOME is unset
+$DSH_HOME/dsh-ms-office/bridge.json      # ~/.dsh when $DSH_HOME is unset
 ```
 
 ```json
-{ "plugin": "dsh-office-for-mso", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234 }
+{ "plugin": "dsh-ms-office", "url": "http://127.0.0.1:3000", "port": 3000, "pid": 1234 }
 ```
 
 Take the `url` field and append the paths below to it. Every `/office/...` path is relative to that address.

@@ -1,7 +1,7 @@
-# Mount dsh-office-for-mso: one loader row for this package. lib/index.js spawns
+# Mount dsh-ms-office: one loader row for this package. lib/index.js spawns
 # the bridge sidecar (server/server.js), waits for its health endpoint, keeps it
 # alive, and publishes the bundled skill. The sidecar is a plain HTTP daemon
 # with no MCP surface, so there is no @deepseek-ai/dsh-mcp-client row here.
 - insert:
-    - id: dsh-office-for-mso
-      name: dsh-office-for-mso
+    - id: dsh-ms-office
+      name: dsh-ms-office
