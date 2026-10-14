@@ -286,19 +286,12 @@
     try {
       return await Word.run(async (ctx) => {
         const tables = ctx.document.body.tables;
-        tables.load('items/rowCount,items/style,items/styleBuiltIn');
+        tables.load('items/rowCount,items/values,items/style,items/styleBuiltIn');
         await ctx.sync();
-        const out = [];
-        for (let ti = 0; ti < tables.items.length; ti++) {
-          const t = tables.items[ti];
-          const range = t.getRange();
-          range.load('text');
-          await ctx.sync();
-          const raw = range.text || '';
-          const lines = raw.split('\r').filter((l) => l.length > 0);
-          const cells = lines.map((l) => l.split('\t').map((v) => v.trim()));
-          out.push({ index: ti + 1, rowCount: t.rowCount, columnCount: cells.length ? cells[0].length : 0, style: t.style || null, styleBuiltIn: t.styleBuiltIn || null, cells });
-        }
+        const out = tables.items.map((t, ti) => {
+          const cells = t.values.map(row => row.slice());
+          return { index: ti + 1, rowCount: t.rowCount, columnCount: cells.length ? cells[0].length : 0, style: t.style || null, styleBuiltIn: t.styleBuiltIn || null, cells };
+        });
         return okResult({ host: 'Word', tables: out });
       });
     } catch (e) { return errResult('execution', String(e && e.message || e)); }
@@ -405,12 +398,19 @@
   }
 
   async function wordDeleteParagraphs(args) {
+    if (args.paragraphs !== undefined) return errResult('bad_args', 'Use targets, not paragraphs: {targets:[{index:0,expectedText:"exact text"}]}');
     const targets = args.targets;
-    if (!Array.isArray(targets) || !targets.length || targets.some((t) => !t || !Number.isInteger(Number(t.index)) || Number(t.index) < 0 || t.expectedText === undefined)) return errResult('bad_args', 'targets must be [{index,expectedText}] with zero-based indexes');
+    if (!Array.isArray(targets) || !targets.length || targets.some((t) => !t || !Number.isInteger(t.index) || t.index < 0 || typeof t.expectedText !== 'string')) return errResult('bad_args', 'targets must be [{index,expectedText}] with zero-based integer indexes and exact string text');
     try { return await Word.run(async (ctx) => {
       const paragraphs = ctx.document.body.paragraphs; paragraphs.load('items/text,items/inlinePictures/items'); await ctx.sync();
       const indexes = targets.map((t) => Number(t.index)); if (new Set(indexes).size !== indexes.length) return errResult('bad_args', 'target indexes must be unique');
-      for (const target of targets) { const index = Number(target.index), p = paragraphs.items[index]; if (!p) return errResult('not_found', `paragraph ${index} not found`); if (String(p.text || '') !== String(target.expectedText)) return errResult('not_found', `paragraph ${index} text changed`); if (index === paragraphs.items.length - 1 || p.inlinePictures.items.length) return errResult('bad_args', `paragraph ${index} cannot be safely deleted`); }
+      for (const target of targets) {
+        const index = target.index, p = paragraphs.items[index];
+        if (!p) return errResult('not_found', `paragraph ${index} not found`);
+        if (p.text !== target.expectedText) return errResult('not_found', `paragraph ${index} text changed; reread word_list_paragraphs`);
+        if (index === paragraphs.items.length - 1) return errResult('bad_args', `paragraph ${index} cannot be safely deleted: last_paragraph`);
+        if (p.inlinePictures.items.length) return errResult('bad_args', `paragraph ${index} cannot be safely deleted: contains_inline_picture`);
+      }
       for (const index of indexes.slice().sort((a, b) => b - a)) paragraphs.items[index].delete(); await ctx.sync();
       return okResult({ host: 'Word', deleted: indexes.length, indexes });
     }); } catch (e) { return errResult('execution', String(e && e.message || e)); }
@@ -661,8 +661,45 @@
   // Global definitions; use exact localized names from word_read_styles.
   function scriptFontFields(font) { return isSetSupported('WordApiDesktop','1.3') ? ['nameAscii','nameFarEast','nameOther','nameBidirectional'].filter(key => key in font) : []; }
   function scriptFontSnapshot(font) { return Object.fromEntries(scriptFontFields(font).map(key => [key,font[key]])); }
+  function normalizedAlignment(value) {
+    const key = String(value ?? '').toLowerCase();
+    return {left:'left',center:'center',centered:'center',right:'right',justify:'justify',justified:'justify'}[key] || value;
+  }
+  // Exact document names win. Alias matching uses the same built-in map as paragraph formatting.
+  async function resolveParagraphStyles(ctx, names) {
+    if (typeof ctx.document.getStyles !== 'function') throw Object.assign(new Error('Document.getStyles unavailable'), {code:'requirement'});
+    const styles = ctx.document.getStyles();
+    if (typeof styles.getByNameOrNullObject !== 'function') throw Object.assign(new Error('StyleCollection.getByNameOrNullObject unavailable'), {code:'requirement'});
+    const refs = names.map(name => styles.getByNameOrNullObject(name));
+    for (const ref of refs) ref.load('isNullObject,type,nameLocal');
+    await ctx.sync();
+    if (refs.some(ref => ref.isNullObject)) {
+      styles.load('items/nameLocal,items/type,items/builtIn'); await ctx.sync();
+      for (let i = 0; i < refs.length; i++) {
+        if (!refs[i].isNullObject) continue;
+        const alias = mapBuiltInStyle?.(names[i]);
+        const matches = alias ? styles.items.filter(style => style.builtIn && mapBuiltInStyle?.(style.nameLocal) === alias) : [];
+        if (matches.length === 1) refs[i] = matches[0];
+        else throw Object.assign(new Error('style not found: ' + names[i] + '; available paragraph styles: ' + JSON.stringify(styles.items.filter(s => s.type === 'Paragraph').map(s => s.nameLocal))), {code:'not_found'});
+      }
+    }
+    if (refs.some(ref => ref.type !== 'Paragraph')) throw Object.assign(new Error('only paragraph styles supported'), {code:'bad_args'});
+    return refs;
+  }
+  function stylePatchVerification(target, snapshot) {
+    const fields = [];
+    const compare = (field, requested, actual) => {
+      const normalize = value => field.endsWith('.color') && typeof value === 'string' ? value.toUpperCase() : field === 'paragraphFormat.alignment' ? normalizedAlignment(value) : value;
+      const status = actual === undefined || actual === null ? 'unverified' : normalize(requested) === normalize(actual) ? 'applied' : 'mismatch';
+      fields.push({field,requested,actual,status});
+    };
+    for (const [key,value] of Object.entries(target.patch.font || {})) compare('font.' + key, value, snapshot.font[key]);
+    if (target.patch.font?.name !== undefined) for (const key of Object.keys(snapshot.font).filter(k => k.startsWith('name') && k !== 'name')) compare('font.' + key, target.patch.font.name, snapshot.font[key]);
+    for (const key of paragraphFields) if (target.patch[key] !== undefined) compare('paragraphFormat.' + key, target.patch[key], snapshot.paragraphFormat[key]);
+    return {requestedName:target.name,name:snapshot.name,fields};
+  }
   function styleSnapshot(style) {
-    return {name:style.nameLocal,type:style.type,builtIn:style.builtIn,font:{name:style.font.name,size:style.font.size,color:style.font.color,bold:style.font.bold,italic:style.font.italic,...scriptFontSnapshot(style.font)},paragraphFormat:Object.fromEntries(paragraphFields.map(k => [k,style.paragraphFormat[k]]))};
+    return {name:style.nameLocal,type:style.type,builtIn:style.builtIn,font:{name:style.font.name,size:style.font.size,color:style.font.color,bold:style.font.bold,italic:style.font.italic,...scriptFontSnapshot(style.font)},paragraphFormat:Object.fromEntries(paragraphFields.map(k => [k,k === 'alignment' ? normalizedAlignment(style.paragraphFormat[k]) : style.paragraphFormat[k]]))};
   }
   function loadStyleSnapshot(style) { style.load("nameLocal,type,builtIn"); style.font.load(['name','size','color','bold','italic',...scriptFontFields(style.font)].join(',')); style.paragraphFormat.load(paragraphFields.join(",")); }
   async function wordReadStyles(args) {
@@ -674,12 +711,12 @@
       const styles = ctx.document.getStyles();
       if (typeof styles.getByNameOrNullObject !== "function") return errResult("requirement","StyleCollection.getByNameOrNullObject unavailable");
       let refs;
-      if (names) { refs = names.map(n => styles.getByNameOrNullObject(n)); for (const ref of refs) ref.load("isNullObject,type"); await ctx.sync(); if (refs.some(r => r.isNullObject)) return errResult("not_found","style not found; read localized names first"); if (refs.some(r => r.type !== "Paragraph")) return errResult("bad_args","only paragraph styles supported"); }
+      if (names) refs = await resolveParagraphStyles(ctx, names);
       else { styles.load("items/nameLocal,items/type,items/builtIn"); await ctx.sync(); refs = styles.items.filter(s => s.type === "Paragraph"); }
       if (refs.some(r => !r.font || !r.paragraphFormat)) return errResult("requirement","Style font/paragraphFormat unavailable");
       for (const ref of refs) loadStyleSnapshot(ref); await ctx.sync();
       return okResult({host:"Word",styles:refs.map(styleSnapshot)});
-    }); } catch(e) { return errResult("execution",String(e.message || e)); }
+    }); } catch(e) { return errResult(['not_found','bad_args','requirement'].includes(e.code) ? e.code : 'execution',String(e.message || e)); }
   }
   async function wordCreateBodyStyle(previewOnly) {
     if (!isSetSupported("WordApi","1.5")) return errResult("requirement","Global body preset requires WordApi 1.5");
@@ -737,7 +774,9 @@
       if (!Array.isArray(args.styles) || !args.styles.length || args.styles.length > 100) throw new Error("styles must contain 1..100 patches");
       const seen = new Set();
       targets = args.styles.map(raw => {
-        if (!raw || typeof raw.name !== "string" || !raw.name.trim() || seen.has(raw.name) || Object.keys(raw).some(k => !["name","font","paragraphFormat"].includes(k))) throw new Error("each style requires a unique exact localized name and font/paragraphFormat patch");
+        if (!raw || typeof raw.name !== 'string' || !raw.name.trim() || seen.has(raw.name)) throw new Error('each style requires a unique nonempty name and font/paragraphFormat patch');
+        const unknown = Object.keys(raw).find(k => !['name','font','paragraphFormat'].includes(k));
+        if (unknown) throw new Error('unsupported style field: ' + unknown + '; allowed: name, font, paragraphFormat; type is read-only');
         seen.add(raw.name);
         if (raw.paragraphFormat !== undefined && (!raw.paragraphFormat || typeof raw.paragraphFormat !== "object" || Array.isArray(raw.paragraphFormat) || Object.keys(raw.paragraphFormat).some(k => !paragraphFields.includes(k)))) throw new Error("unsupported paragraphFormat field; lineSpacing is points");
         return {name:raw.name,patch:normalizeParagraphPatch({...raw.paragraphFormat,...(raw.font === undefined ? {} : {font:raw.font})})};
@@ -745,14 +784,9 @@
     } catch(e) { return errResult("bad_args",e.message); }
     if (!isSetSupported("WordApi","1.5")) return errResult("requirement","Styles require WordApi 1.5");
     try { return await Word.run(async ctx => {
-      if (typeof ctx.document.getStyles !== "function") return errResult("requirement","Document.getStyles unavailable");
-      const styles = ctx.document.getStyles();
-      if (typeof styles.getByNameOrNullObject !== "function") return errResult("requirement","StyleCollection.getByNameOrNullObject unavailable");
-      const refs = targets.map(t => styles.getByNameOrNullObject(t.name));
-      for (const ref of refs) ref.load("isNullObject,type"); await ctx.sync();
+      const refs = await resolveParagraphStyles(ctx, targets.map(t => t.name));
+      if (new Set(refs.map(ref => ref.nameLocal)).size !== refs.length) return errResult('bad_args','style names resolve to the same definition; use unique styles');
       for (const ref of refs) {
-        if (ref.isNullObject) return errResult("not_found","style not found; read localized names first");
-        if (ref.type !== "Paragraph") return errResult("bad_args","only paragraph style definitions supported");
         if (!ref.font || !ref.paragraphFormat) return errResult("requirement","Style font/paragraphFormat unavailable");
         if (targets[refs.indexOf(ref)].patch.font?.name !== undefined && isSetSupported('WordApiDesktop','1.3') && !('nameFarEast' in ref.font)) return errResult('requirement','Native Far East style font API unavailable');
         loadStyleSnapshot(ref);
@@ -765,8 +799,11 @@
         for (const key of paragraphFields) if (targets[i].patch[key] !== undefined) ref.paragraphFormat[key] = targets[i].patch[key];
       });
       await ctx.sync(); for (const ref of refs) loadStyleSnapshot(ref); await ctx.sync();
-      return okResult({host:"Word",global:true,updated:refs.length,styles:refs.map(styleSnapshot)});
-    }); } catch(e) { return errResult("execution",String(e.message || e)); }
+      const snapshots = refs.map(styleSnapshot);
+      const verification = targets.map((target, i) => stylePatchVerification(target, snapshots[i]));
+      const verificationWarnings = verification.flatMap(style => style.fields.filter(field => field.status !== 'applied').map(field => ({name:style.name,...field})));
+      return okResult({host:'Word',global:true,updated:refs.length,styles:snapshots,verification,verified:verificationWarnings.length === 0,...(verificationWarnings.length ? {verificationWarnings} : {})});
+    }); } catch(e) { return errResult(e.code === 'not_found' || e.code === 'bad_args' || e.code === 'requirement' ? e.code : 'execution',String(e.message || e)); }
   }
 
   async function wordSetHeaderFooter(args) {
@@ -984,8 +1021,10 @@
   }
 
   async function wordInsertHtml(args) {
+    if (!args || typeof args.html !== 'string') return errResult('bad_args', 'html must be a string; example: {html:"<p>Text</p>",target:"body",mode:"append"}');
+    if (Object.keys(args).some(key => !['html','target','mode','confirm'].includes(key))) return errResult('bad_args', 'word_insert_html accepts only html, target, mode');
     if (!isSetSupported('WordApi', '1.1')) return errResult('requirement', 'word_insert_html requires WordApi 1.1+');
-    const html = String(args && args.html || ''), target = String(args.target || 'body'), mode = String(args.mode || 'append');
+    const html = args.html, target = args.target || 'body', mode = args.mode || 'append';
     if (!html || html.length > 8 * 1024 * 1024 || !['body', 'selection'].includes(target) || !['replace', 'append', 'prepend', 'before', 'after'].includes(mode)) return errResult('bad_args', 'html, target body|selection, and valid mode required');
     try { return await Word.run(async (ctx) => {
       const range = target === 'body' ? ctx.document.body : ctx.document.getSelection(); range.load('text'); await ctx.sync(); const previousText = range.text || '';
@@ -1102,11 +1141,13 @@
   function normalizeParagraphPatch(raw) {
     const patch = {};
     if (raw.style !== undefined) {
-      if (raw.style === "范本正文") patch.styleName = "范本正文";
-      else { const style = mapBuiltInStyle(raw.style); if (!style || !Word.BuiltInStyleName[style]) throw new Error("Unknown built-in paragraph style"); patch.styleBuiltIn = Word.BuiltInStyleName[style]; }
+      if (typeof raw.style !== 'string' || !raw.style.trim()) throw new Error('style must be a nonempty document style name or built-in alias');
+      const style = mapBuiltInStyle(raw.style);
+      if (style && Word.BuiltInStyleName?.[style]) patch.styleBuiltIn = Word.BuiltInStyleName[style];
+      patch.styleName = raw.style;
     }
     if (raw.alignment !== undefined) {
-      const align = mapAlignment(raw.alignment);
+      const align = mapAlignment(normalizedAlignment(raw.alignment));
       if (!align) throw new Error('alignment must be left|center|right|justify');
       patch.alignment = align;
     }
@@ -1135,7 +1176,7 @@
   }
 
   function paragraphSnapshot(p, index, withStyle = true) {
-    return {index,text:p.text,...(p.style === undefined ? {} : {styleName:p.style}),...(withStyle ? {styleBuiltIn:p.styleBuiltIn} : {styleRead:false}), ...Object.fromEntries(paragraphFields.map(key => [key,p[key]])),
+    return {index,text:p.text,...(p.style === undefined ? {} : {styleName:p.style}),...(withStyle ? {styleBuiltIn:p.styleBuiltIn} : {styleRead:false}), ...Object.fromEntries(paragraphFields.map(key => [key,key === 'alignment' ? normalizedAlignment(p[key]) : p[key]])),
       font:{name:p.font.name,size:p.font.size,color:p.font.color,bold:p.font.bold,italic:p.font.italic}};
   }
 
@@ -1152,16 +1193,29 @@
     for (const [key,value] of Object.entries(patch.font || {})) p.font[key] = value;
   }
 
-  async function validateNamedBodyStyle(ctx) {
-    if (!isSetSupported("WordApi","1.5") || typeof ctx.document.getStyles !== "function") return errResult("requirement","Named global body styles require WordApi 1.5");
-    const styles=ctx.document.getStyles();
-    if (typeof styles.getByNameOrNullObject !== "function") return errResult("requirement","Global style lookup unavailable");
-    const style=styles.getByNameOrNullObject("范本正文"); style.load("isNullObject,type"); await ctx.sync();
-    return style.isNullObject || style.type !== "Paragraph" ? errResult("not_found","Create the 范本正文 global body preset before applying it") : null;
+  async function validateNamedParagraphStyles(ctx, patches) {
+    const names = [...new Set(patches.map(p => p.styleName).filter(Boolean))];
+    if (!names.length) return null;
+    if (!isSetSupported('WordApi','1.5') || typeof ctx.document.getStyles !== 'function') {
+      if (patches.some(patch => patch.styleName && !patch.styleBuiltIn)) return errResult('requirement','Document style names require WordApi 1.5');
+      for (const patch of patches) delete patch.styleName;
+      return null;
+    }
+    try {
+      const refs = await resolveParagraphStyles(ctx, names);
+      for (const patch of patches) if (patch.styleName) {
+        patch.styleName = refs[names.indexOf(patch.styleName)].nameLocal;
+        delete patch.styleBuiltIn;
+      }
+      return null;
+    } catch (e) { return errResult(e.code || 'bad_args', e.message); }
   }
   async function wordFormatParagraphs(args, previewOnly = false) {
     let targets;
     try {
+      if (args.style !== undefined) throw new Error('style must be inside each target: {targets:[{index:0,expectedText:"exact text",style:"Normal"}]}');
+      const unknown = Object.keys(args).find(key => !['targets','confirm'].includes(key));
+      if (unknown) throw new Error('unsupported word_format_paragraphs argument: ' + unknown + '; format fields belong inside targets[]');
       if (!Array.isArray(args.targets) || !args.targets.length || args.targets.length > 500) throw new Error('targets must contain 1..500 explicit paragraphs');
       const seen = new Set();
       targets = args.targets.map(t => {
@@ -1174,7 +1228,7 @@
     if (!isSetSupported('WordApi','1.3')) return errResult('requirement','word_format_paragraphs requires WordApi 1.3');
     try {
       return await Word.run(async ctx => {
-        if (targets.some(t => t.patch.styleName)) { const unavailable=await validateNamedBodyStyle(ctx); if (unavailable) return unavailable; }
+        const unavailable = await validateNamedParagraphStyles(ctx, targets.map(t => t.patch)); if (unavailable) return unavailable;
         const paragraphs = ctx.document.body.paragraphs;
         paragraphs.load('items/text');
         await ctx.sync();
@@ -1213,7 +1267,7 @@
     if (listType && !isSetSupported('WordApi','1.3')) return errResult('requirement','WordApi 1.3 is required for list formatting');
     try {
       return await Word.run(async ctx => {
-        if (patch.styleName) { const unavailable=await validateNamedBodyStyle(ctx); if (unavailable) return unavailable; }
+        const unavailable = await validateNamedParagraphStyles(ctx, [patch]); if (unavailable) return unavailable;
         const paras = ctx.document.getSelection().paragraphs;
         paras.load(listType ? 'items/isListItem' : 'items');
         await ctx.sync();

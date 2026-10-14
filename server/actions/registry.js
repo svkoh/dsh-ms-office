@@ -106,7 +106,14 @@
     // 注意：user-actions.js 里的 action 不经过 capabilities.json，必须自带 hosts/destructive/preview。
     const userActions = window.__USER_ACTIONS__ || {};
     const meta = userActions[action] || ACTIONS_TABLE[action];
-    if (!meta) return errResult('unknown_action', `unknown action: ${action}`);
+    if (!meta) {
+      const normalize = name => String(name).replace(/^(word|excel|ppt)_/, '');
+      const requested = normalize(action), tokens = new Set(requested.split('_'));
+      const candidates = [...new Set([...Object.keys(ACTIONS_TABLE),...Object.keys(userActions)])]
+        .map(name => ({name,score:normalize(name) === requested ? 100 : normalize(name).split('_').filter(token => tokens.has(token)).length}))
+        .filter(candidate => candidate.score > 0).sort((a,b) => b.score - a.score || a.name.localeCompare(b.name)).slice(0,5).map(candidate => candidate.name);
+      return errResult('unknown_action', `unknown action: ${action}; candidates: ${JSON.stringify(candidates)}; use GET /office/capabilities for exact names and arguments`);
+    }
     const host = String(Office.context.host || '');
     if (!meta.hosts.includes(host)) return errResult('unsupported_host', `${action} not supported in ${host}`);
     // 只读文档保护（Common API mode 探测）：readOnly/view 模式拒绝覆盖类操作，明确告知原因而非执行失败
@@ -143,7 +150,7 @@
             } catch (e) { warnings.push({ stage: 'document', error: String(e && e.message || e) }); }
           }
         }
-        if (warnings.length) r.result.verificationWarnings = warnings;
+        if (warnings.length) r.result.verificationWarnings = [...(r.result.verificationWarnings || []),...warnings];
       }
       return r;
     };

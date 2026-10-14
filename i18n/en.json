@@ -198,6 +198,14 @@
         "text": "string, required: paragraph appended at the end of the document"
       }
     },
+    "read_tables": {
+      "args": {},
+      "returns": {"result.tables": "[{index,rowCount,columnCount,style,styleBuiltIn,cells:string[][]}]; 1-based table indexes; native values preserve empty cells, line breaks and whitespace without separator rows"}
+    },
+    "read_table_borders": {
+      "args": {},
+      "returns": {"result": "{host,tableCount,borders:[{table,location,color,type,width}]}; 1-based table index, width in pt"}
+    },
     "set_table_borders": {
       "args": {
         "color": "string, required: #RRGGBB",
@@ -219,7 +227,7 @@
     },
     "word_delete_paragraphs": {
       "args": {
-        "targets": "array, required: [{index,expectedText}], index is 0-based"
+        "targets": "required [{index,expectedText}]; zero-based integer index and exact string text; not paragraphs. Final paragraph and paragraphs containing inline pictures cannot be deleted; index 0 is allowed when nonfinal."
       }
     },
     "insert_paragraph": {
@@ -240,7 +248,7 @@
     },
     "word_insert_html": {
       "args": {
-        "html": "string, required: 8 MiB max",
+        "html": "required string, at most 8*1024*1024 UTF-16 code units; objects/arrays/numbers rejected; serialize the whole request once; example {html:\"<p>Text</p>\",target:\"body\",mode:\"append\"}",
         "target": "body|selection, optional, defaults to body",
         "mode": "replace|append|prepend|before|after, optional, defaults to append"
       }
@@ -310,7 +318,7 @@
       "args": {
         "alignment": "string, optional: left|center|right|justify",
         "indent": "number, optional (cm)",
-        "lineSpacing": "Optional native numeric line spacing; Word UI divides by12 (18 =>1.5)",
+        "lineSpacing": "Optional positive point value; 18pt does not prove native 1.5-line spacing. Use a native preset and export verification for multiples.",
         "listType": "none|numbered|bulleted; WordApi1.3; existing lists must be explicitly removed before conversion"
       }
     },
@@ -653,9 +661,10 @@
     },
     "word_format_paragraphs": {
       "args": {
-        "targets": "required1..500 exact targets[{index,expectedText,style?,font?:{name,size,color,bold,italic},alignment?,spaceBefore?,spaceAfter?,lineSpacing?,leftIndent?,rightIndent?,firstLineIndent?}]; unique zero-based indexes and complete-text guards preflight every target. Supports built-in or atlas body styles. Dimensions are points; numeric lineSpacing18 is not true1.5 spacing"
+        "targets": "required 1..500 exact targets [{index,expectedText,style?,font?:{name,size,color,bold,italic},alignment?,spaceBefore?,spaceAfter?,lineSpacing?,leftIndent?,rightIndent?,firstLineIndent?}]; unique zero-based indexes and full-text preflight. style belongs inside each target; style-only patches supported. Built-in aliases or existing document paragraph style names (WordApi1.5 for document names). alignment accepts left|center|right|justify or Left|Centered|Right|Justified and returns normalized lowercase. Dimensions in pt; lineSpacing18 is not true1.5 spacing"
       },
-      "description": "Format paragraphs by exact index and complete text using built-in or native atlas body styles"
+      "returns": {"result": "{host,formatted,paragraphs:[{index,text,styleName,styleBuiltIn,alignment,font,...}]}"},
+      "description": "Format exact guarded paragraphs using built-in aliases or existing document paragraph styles"
     },
     "excel_set_freeze_panes": {
       "args": {
@@ -697,15 +706,17 @@
     },
     "word_read_styles": {
       "args": {
-        "names": "string[] optional; exact localized style names; omit to list paragraph styles"
+        "names": "optional string[]: actual document names or supported Chinese/English built-in aliases; omit to list all paragraph styles; prefer returned actual name"
       },
+      "returns": {"result.styles": "[{name,type,builtIn,font,paragraphFormat}]; alignment normalized to left|center|right|justify; other host values preserved"},
       "description": "Read actual global paragraph style definitions and script-specific fonts"
     },
     "word_set_styles": {
       "args": {
-        "styles": "required style array{name,font?,paragraphFormat?}; or the single reserved body-1.5 atlas preset for a global SimSun12pt/24pt-indent/true1.5 style. Its exact localized name is documented in the style skill. Numeric lineSpacing is points, not a multiple"
+        "styles": "required 1..100 {name,font?,paragraphFormat?}; existing document names or supported Chinese/English built-in aliases such as Normal/Title/Heading1. Missing styles are not created. type is read-only and must not be sent. font accepts name/size/color/bold/italic; paragraphFormat accepts paragraph fields with canonical alignment or Office enum values. Alternatively the single reserved body-1.5 atlas preset. Numeric lineSpacing is points, not a multiple"
       },
-      "description": "Set actual global paragraph style definitions; numeric lineSpacing is points, not a multiple"
+      "returns": {"result": "{host,global,updated,styles,verified,verification:[{requestedName,name,fields:[{field,requested,actual,status:applied|mismatch|unverified}]}],verificationWarnings?}; ok=true means execution, inspect verified and per-field status for actual application; preset returns its separate created/styles fields"},
+      "description": "Patch global paragraph styles and compare each requested field with readback; affects all paragraphs using the style"
     },
     "word_read_fields": {
       "args": {
@@ -750,13 +761,15 @@
       "args": {
         "syncConfig": "optional boolean; sync pane to existing user-selected server confirmation mode; no mode/approval input",
         "reloadPane": "optional boolean; reload this pane only after public command status is explicitly empty; leaves the document intact"
-      }
+      },
+      "returns": {"result": "Environment diagnostics; Word pagination at probe.nativeDiagnostics.pagination, section info under probe.nativeDiagnostics when supported; do not read nonexistent result.pagination"}
     },
     "word_render_pages": {
       "description": "Read-only native Word full-page PNGs including headers/footers; Windows desktop Word PrintLayout required",
       "args": {
         "expectedPageCount": "required integer 1..10; expected native page count"
-      }
+      },
+      "returns": {"result": "{pages:[{index,width,height,base64,...}],pageCount,renderer,documentFingerprint,...}; unique exact document match only, no closest-candidate fallback; no-match errors include matching diagnostics, other errors report the specific reason"}
     }
   }
 }

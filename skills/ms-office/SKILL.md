@@ -64,11 +64,21 @@ $DSH_HOME/dsh-ms-office/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
 - **`instance` 必填。** 多文档同时打开时省略它，指令可能落到错误的文档上——这是硬性拒绝，不是警告。
 - 同步等待最终结果，默认最长 180s（超时返回 `timeout`）；调用脚本的 HTTP 超时应略长于此值。
 - 同一实例一次只执行一条指令，不同实例可独立执行。写入请求建议携带顶层 `idempotencyKey`（非空字符串，最长 128 字符）；同实例同 key 和相同参数会复用原命令或结果，不同参数会被拒绝。
-- 返回 `{ ok, commandId, host, instance, result }`，失败时是 `{ ok: false, code, error, result? }`。
-- **请求体按 UTF-8 字节发。** 脚本里发中文，先把 JSON 编码成 UTF-8 再发（PowerShell：
-  `[Text.Encoding]::UTF8.GetBytes($json)` 配 `Content-Type: application/json; charset=utf-8`）。
-  直接 `ConvertTo-Json` 交出去会按本地代码页编码——中文标题曾被写成 `??????`。
-  服务端现在会明确回 `bad_encoding`，不会静默把乱码写进文档。
+- 返回 `{ ok, commandId, host, instance, result }`，失败时是 `{ ok: false, code, error, result? }`。成功动作数据在响应的 `result`，不是 `result.result`；查询命令状态时先取 `response` 再按此结构处理。
+- **请求对象只序列化一次，再按 UTF-8 字节发**；中文和嵌套参数都必须保真。以下 PowerShell 示例在公告地址、唯一实例及样式名称均已读回后使用（只读，不修改文档）：
+
+```powershell
+# $bridgeUrl 来自 bridge.json.url；$instanceId 来自已确认的目标实例。
+# $styleName 为 word_read_styles({}) 实际返回的精确本地化名称，如“正文”。
+$payload = @{ action = 'word_read_styles'; instance = $instanceId; args = @{ names = @($styleName) } }
+$json = $payload | ConvertTo-Json -Depth 8
+$bytes = [Text.Encoding]::UTF8.GetBytes($json)
+$response = Invoke-RestMethod -Uri "$bridgeUrl/office/command" -Method Post -Body $bytes -ContentType 'application/json; charset=utf-8' -TimeoutSec 200
+if (-not $response.ok) { throw "$($response.code): $($response.error)" }
+$data = $response.result
+```
+
+不要再次序列化 `$json` 或把 JSON 字符串当作请求对象；嵌套 `targets` / `font` 等参数也沿用这一发送方式。`bad_encoding` 表示字节不是合法 UTF-8，修正编码后再发。
 
 ## 5. 处理结果
 
@@ -83,6 +93,14 @@ $DSH_HOME/dsh-ms-office/bridge.json      # $DSH_HOME 未设置时是 ~/.dsh
 - Excel `read_range` / `read_document` 最多实际加载 5000 格，检查 `truncated` 并按区域读取大表。`apply_filter` 的 `column` 从 1 开始，`criteria` 是筛选条件对象（Values 亦可用字符串数组简写）。
 
 完整错误码与处理建议（含每个码是否可重试）：`GET /office/errors?lang=<zh|en>`。
+
+## 6. 编辑后必须评估排版
+
+每轮内容编辑完成后、报告完成前，**必须判断受影响区域是否需要排版美化**，即使用户只说“补充内容”或时间紧。结合实际读回的内容、相邻样式和文档用途检查层级、列表/表格、间距、对齐与可读性；仅在改动影响全局时扩大检查范围。
+
+用户明确约束、锁定模板和既有合理样式优先。单字纠错且格式正常可判定无需美化；不要借评估重设整篇字体、主题或全局样式。新增丰富内容出现层级缺失、风格不一致或布局问题时，加载 `office-document-styles`，在已授权范围内直接做有依据的局部改进；扩大范围或违背明确约束时先澄清。
+
+按当前能力读回修改区域的内容与样式；可用时查看相关原生渲染/导出。最终简述实际编辑、排版判断及采取的修正、核验证据和未观察到的效果；无视觉证据不能声称分页/溢出全部合格，不能把“命令成功”当作效果已验证。
 
 ## 安全约定
 

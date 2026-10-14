@@ -95,7 +95,10 @@ test('PS helper uses documented read-only native page APIs and matches uniquely 
   assert.match(source,/\$view\.Type -ne 3/);
   assert.doesNotMatch(source,/New-Object\s+-ComObject|Invoke-Expression|FinalReleaseComObject|\.(?:Quit|Activate|Select|Repaginate|Open|Close)\s*\(/i);
   assert.doesNotMatch(source,/\$(?:word|matchedDocument|pane|view|page)\.[A-Za-z]+\s*=/);
+  assert.match(source,/Word document changed before native page access/);
   assert.match(source,/Word document changed during native page rendering/);
+  assert.ok(source.indexOf('Document-Fingerprint $matchedDocument')<source.indexOf('$pages = $pane.Pages'));
+  assert.ok(source.lastIndexOf('Document-Fingerprint $matchedDocument')>source.indexOf('$bits = $page.EnhMetaFileBits'));
 });
 
 test('Windows PowerShell 5 parses the helper without executing or attaching to Office',{skip:process.platform!=='win32'},()=>{

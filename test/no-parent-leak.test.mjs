@@ -23,7 +23,8 @@ const PATTERNS = [
   ['platform.config.json', '父项目的构建期产物'],
 ];
 
-const SKIP_DIRS = new Set(['.git', 'node_modules', '.tmp', 'dist']);
+// Local AST indexes are generated binary analysis artifacts, not distributed plugin source.
+const SKIP_DIRS = new Set(['.git', 'node_modules', '.tmp', '.codegraph', 'dist']);
 // 本文件按设计包含这些关键词
 const SKIP_FILES = new Set([path.basename(fileURLToPath(import.meta.url))]);
 

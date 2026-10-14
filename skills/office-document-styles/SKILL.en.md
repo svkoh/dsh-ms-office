@@ -1,12 +1,12 @@
 ---
 name: office-document-styles
-description: Baseline design recipes and quality checks for Word reports, Excel tables and budgets, and PowerPoint presentations. Build a reviewable Office command plan with consistent headings, fonts, colors, spacing and slide grids, then verify content and rendered output.
-whenToUse: The user wants to create, format, improve or standardize a Word, Excel or PowerPoint document, asks for a template or visual style, or needs document quality checks.
+description: Native baseline elements, design recipes and quality checks for Word, Excel and PowerPoint. Use for formatting, visual improvement and affected regions whose post-edit assessment identifies hierarchy, consistency or layout problems; verify actual output.
+whenToUse: The user wants to create, format, improve or standardize an Office document, asks for a template or quality check, or post-edit assessment finds readability, hierarchy, layout or style consistency needs. A typo-only edit with healthy formatting does not trigger beautification.
 ---
 
 # Office document styles
 
-Understand the content before choosing a layout. Use the host's default recipe when no brand is specified; existing company templates and explicit user preferences take priority. All bundled design tokens and recipes are original. Internet examples are references, with provenance and licensing recorded in [sources.md](references/sources.md). Third-party templates, images, masters and fonts are not bundled, and a color recipe is not an Office theme.
+Understand the content before choosing a layout. Explicit constraints, brand rules, company templates and established reasonable styles take priority. Use host defaults only when no suitable style exists; absence of a brand request does not justify resetting a document. All bundled design tokens and recipes are original. Internet references have provenance and licensing in [sources.md](references/sources.md). Third-party templates, images, masters and fonts are not bundled; a color recipe is not an Office theme.
 
 ## Resources
 Use one native file per host, with different pages demonstrating elements and layouts. Do not multiply similar business templates.
@@ -24,8 +24,17 @@ Available PDFs and native PNGs are listed in each verification record; missing e
 4. Briefly explain the design and affected scope, then work within existing authorization. Keep the current approval mode. External `confirm:true` and private approval hooks cannot grant permission.
 5. Execute steps in order with the plan's instance and each step's stable idempotency key. Resolve bindings through `resolveStep(step,results)` only after the referenced action succeeds; `results[from]` contains its `result` data. Never send unresolved nulls or placeholders, use eval, or guess IDs. Bindings are local to this plan and instance.
 6. On rejection or failure, stop dependent writes and retain receipts for successful steps. The batch is not an atomic transaction. For timeout/execution_unknown, query the original command and inspect the document before any retry; keep the existing key.
-7. Read back content and styles, then inspect real output. Render only newly created PPT pages with `ppt_render_slides({slideIds:[...]})`; render Excel ranges with `excel_render_range` when available; render complete Word pages including headers/footers with `word_render_pages({expectedPageCount:actualCount})` on Windows PrintLayout; export native Word PDF when available. Decode Base64 into local artifacts before inspecting them. Export success alone is not proof of correct pagination or absence of overflow.
-8. Report completed work, verified checks, repairs and outstanding manual checks. Content correctness and visual correctness require separate evidence.
+7. **Assess formatting after every editing round**, including content-only requests and deadline pressure. Inspect the affected region for hierarchy, lists/tables, spacing, alignment, readability and layout in context. Healthy formatting, typo-only requests and locked templates may require no beautification. Make the smallest justified improvements within authorization and reassess; expand only for global effects, never restyle the whole document by default.
+8. Read back changed content and styles and inspect relevant native output when available. Render affected PPT pages with `ppt_render_slides({slideIds:[...]})`; Excel ranges with `excel_render_range`; complete Word pages including headers/footers with `word_render_pages({expectedPageCount:actualCount})` on Windows PrintLayout. Decode base64 locally before viewing. Export success alone does not prove pagination or absence of overflow; record visual limitations when rendering is unavailable.
+9. Report actual edits, the formatting decision and reasons, corrections, evidence and remaining manual checks. Verify content and appearance separately.
+
+## Word style fields and recovery
+
+Apply paragraph styles with `targets[].style`, not top-level `style` or `styleName`; every target includes a fresh zero-based `index` and exact full `expectedText`. Style-only patches are supported. Use supported built-in aliases such as `Heading1`, or actual existing document paragraph style names with WordApi1.5 after reading `word_read_styles`. Missing names are not created; follow live capabilities.
+
+For global `word_set_styles`, prefer the exact names returned by `word_read_styles`; supported Chinese/English built-in aliases also resolve. Do not send read-only `type`. Global definitions affect every paragraph using them, so local beautification does not justify redefining global styles. Inspect `verified`, per-field `verification` and `verificationWarnings`; `ok:true` reports execution, not proof all fields took effect.
+
+On unknown names or arguments, read live capabilities and the specific error. Refresh names or paragraph indexes/text as needed; do not guess translations, repeatedly try names or reuse stale anchors. Unknown execution status still follows bridge recovery and does not authorize blind resends.
 
 ## Host defaults
 **Word:** one multi-page atlas; SimSun12pt body,24pt first-line indent,true1.5 spacing; SimHei14pt H1,18pt document title,28pt cover. Actual global atlas body, Normal, Title, Heading1/2/3/Caption definitions. Create the true1.5 global body style with word_set_styles({styles:[{name:"范本正文",preset:"body-1.5"}]}). Apply this named style to body paragraphs; unused Normal spacing is not claimed as1.5, real TOC/PAGE fields, native table and embedded image. Direct formatting does not redefine global styles. When the live runtime supports WordApi1.5, use word_read_styles/word_set_styles for global styles and word_insert_field/header-footer field parameters for real TOC/PAGE. lineSpacing is in points; verify native360/auto before claiming true1.5 spacing. Choose alignment by purpose and keep color restrained.

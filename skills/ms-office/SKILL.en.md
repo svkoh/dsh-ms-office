@@ -45,10 +45,10 @@ Take the `url` field and append the paths below to it. Every `/office/...` path 
 
 ## 3. Look up capabilities
 
-`GET /office/capabilities?lang=<zh|en>` → `actions: [{ name, hosts, destructive, requirement, args }]`
+`GET /office/capabilities?lang=<zh|en>` → `actions: [{ name, hosts, destructive, requirement, args, returns? }]`
 
 - `hosts` = the applications that can run the action; `destructive: true` = an overwriting action (see step 5).
-- `args` documents each parameter, including its type and whether it is required.
+- `args` documents inputs; `returns` documents action data within the single response `result` object. Read `response.result.tables`, not `response.tables` or `response.result.result.tables`.
 - Enum values are case-insensitive (`align:"left"` passes as well); when one is rejected the error lists the
   valid values — fix it from the list instead of guessing.
 - Field names follow `args`. `kind`→`type`, `width`/`height`→`w`/`h`, `fontSize`→`size` are accepted aliases;
@@ -72,11 +72,19 @@ Take the `url` field and append the paths below to it. Every `/office/...` path 
 - It waits for the final result, up to 180s by default (`timeout`); set the calling script's HTTP timeout slightly longer.
 - Commands are serialized per instance; different instances execute independently. For writes, supply a top-level `idempotencyKey` (non-empty string, at most 128 characters). The same instance, key and arguments reuse the original command or result; changed arguments are rejected.
 - Returns `{ ok, commandId, host, instance, result }`, or `{ ok: false, code, error, result? }` on failure.
-- **Send the body as UTF-8 bytes.** When a script writes non-ASCII text, encode the JSON as UTF-8 first
-  (PowerShell: `[Text.Encoding]::UTF8.GetBytes($json)` with `Content-Type: application/json; charset=utf-8`).
-  Handing `ConvertTo-Json` straight to the request encodes it in the local codepage — a document title once
-  came out as `??????`. The bridge now rejects such a body with `bad_encoding` instead of silently
-  writing mojibake into the user's document.
+- **Serialize the request once with sufficient JSON depth and send UTF-8 bytes.** Objects and arrays are not strings; do not serialize `$json` again or wrap a string parameter in `{value:...}`. Prefer `Invoke-RestMethod` in noninteractive PowerShell.
+
+```powershell
+# Set $bridgeUrl, $instanceId and $styleName from live discovery and actual style reads.
+$payload = @{ action = 'word_read_styles'; instance = $instanceId; args = @{ names = @($styleName) } }
+$json = $payload | ConvertTo-Json -Depth 8
+$bytes = [Text.Encoding]::UTF8.GetBytes($json)
+$response = Invoke-RestMethod -Uri "$bridgeUrl/office/command" -Method Post -Body $bytes -ContentType 'application/json; charset=utf-8' -TimeoutSec 200
+if (-not $response.ok) { throw "$($response.code): $($response.error)" }
+$data = $response.result
+```
+
+Use the same serialization for nested targets/font patches. Correct malformed UTF-8 before resending a `bad_encoding` request; do not resend the same bytes.
 
 ## 5. Handle the result
 
@@ -94,6 +102,14 @@ Take the `url` field and append the paths below to it. Every `/office/...` path 
 - `POST /office/commands/:id/start` and `/office/result` are pane-only; callers must not claim execution or submit results themselves.
 
 Full error codes and what to do about each (including whether it is retryable): `GET /office/errors?lang=<zh|en>`.
+
+## 6. Assess formatting after every edit
+
+Before reporting an editing round complete, **assess whether the affected region needs formatting improvements**, including content-only requests and deadline pressure. Read actual content and nearby styles; consider purpose, heading hierarchy, lists/tables, spacing, alignment, readability and layout. Expand the assessment only when the edit has a wider effect.
+
+Explicit constraints, locked templates and established reasonable styles take priority. A typo correction with healthy formatting needs no beautification. Where added content introduces actual hierarchy, consistency or layout problems, load `office-document-styles` and make justified local improvements within existing authorization. Do not reset whole-document fonts, themes or global styles as a default; clarify changes that exceed scope or conflict with constraints.
+
+Read back changed content/styles and inspect relevant native output when available. Report the formatting decision, actual corrections and evidence briefly. Without visual evidence, do not claim pagination or overflow was verified.
 
 ## Security contract
 

@@ -31,6 +31,40 @@ function Body-Diagnostics([string] $Text, [string] $Expected) {
   $tableProjection=$Text.Replace(([string][char]13+[char]7),[string][char]9)
   return @{ objectMarkers=([regex]::Matches($Text,[string][char]1)).Count; fieldBegins=([regex]::Matches($Text,[string][char]19)).Count; tableProjectedHash=(Body-Fingerprint $tableProjection); tableWithoutObjectHash=(Body-Fingerprint ($tableProjection.Replace([string][char]1,''))); length=$actual.Length; hash=(Body-Fingerprint $Text); tableCellEnds=([regex]::Matches($Text, ([string][char]13+[char]7))).Count; tabs=([regex]::Matches($Text,[string][char]9)).Count; paragraphMarks=([regex]::Matches($Text,[string][char]13)).Count; pageBreaks=([regex]::Matches($Text,[string][char]12)).Count; firstMismatch=$index; expectedCode=$(if($index -lt $wanted.Length){[int]$wanted[$index]}else{-1}); actualCode=$(if($index -lt $actual.Length){[int]$actual[$index]}else{-1}) }
 }
+# A row has a final cell marker followed by its own marker. Empty cells have
+# identical bytes, so only COM row ranges may identify a row-tail replacement.
+function Native-RowTailRanges([object] $Document, [int] $Start, [int] $End) {
+  $tables=$null; $tails=New-Object 'System.Collections.Generic.List[object]'
+  try {
+    $tables=$Document.Tables
+    if([int]$tables.Count -gt 1000) { Fail-Native 'requirement' 'Too many native tables for bounded matching' }
+    for($tableIndex=1;$tableIndex -le [int]$tables.Count;$tableIndex++) {
+      $table=$null; $rows=$null
+      try {
+        $table=$tables.Item($tableIndex)
+        if([int]$table.NestingLevel -ne 1) { Fail-Native 'requirement' 'Nested native tables require an unsupported body projection' }
+        $rows=$table.Rows
+        if([int]$rows.Count -gt 10000 -or $tails.Count+[int]$rows.Count -gt 10000) { Fail-Native 'requirement' 'Too many native rows for bounded matching' }
+        for($rowIndex=1;$rowIndex -le [int]$rows.Count;$rowIndex++) {
+          $row=$null; $range=$null; $characters=$null; $cellMark=$null; $rowMark=$null
+          try {
+            $row=$rows.Item($rowIndex); $range=$row.Range
+            $rowStart=[int]$range.Start; $rowEnd=[int]$range.End
+            if($rowStart -lt $Start -or $rowEnd -gt $End -or $rowEnd -le $rowStart) { Fail-Native 'requirement' 'Native table row range leaves the body scope' }
+            # Word character positions are not necessarily Range.Text UTF-16 offsets.
+            $characters=$range.Characters; $characterCount=[int]$characters.Count
+            if($characterCount -lt 2) { Fail-Native 'requirement' 'Native table row has no final-cell and row markers' }
+            $cellMark=$characters.Item($characterCount-1); $rowMark=$characters.Item($characterCount)
+            $marker=([string][char]13+[char]7)
+            if([string]$cellMark.Text -cne $marker -or [string]$rowMark.Text -cne $marker -or [int]$cellMark.Start -lt $rowStart -or [int]$cellMark.End -le [int]$cellMark.Start -or [int]$cellMark.End -ne [int]$rowMark.Start -or [int]$rowMark.End -le [int]$rowMark.Start -or [int]$rowMark.End -ne $rowEnd) { Fail-Native 'requirement' 'Native table row does not expose the supported final-cell and row markers' }
+            $tails.Add(@{start=[int]$cellMark.Start;end=[int]$rowMark.End;replacement=[string][char]13})
+          } finally { Release-OwnedCom $rowMark; Release-OwnedCom $cellMark; Release-OwnedCom $characters; Release-OwnedCom $range; Release-OwnedCom $row }
+        }
+      } finally { Release-OwnedCom $rows; Release-OwnedCom $table }
+    }
+    return $tails.ToArray()
+  } finally { Release-OwnedCom $tables }
+}
 function Projected-DocumentBody([object] $Document) {
   $content=$null; $shapes=$null
   try {
@@ -38,15 +72,17 @@ function Projected-DocumentBody([object] $Document) {
     $shapes=$Document.InlineShapes
     if([int]$shapes.Count -gt 1000) { Fail-Native 'requirement' 'Too many native inline object ranges for bounded matching' }
     $intervals=New-Object 'System.Collections.Generic.List[object]'
+    foreach($tail in @(Native-RowTailRanges $Document $start $end)) { $intervals.Add($tail) }
     for($i=1;$i -le [int]$shapes.Count;$i++) {
       $shape=$null; $range=$null
-      try { $shape=$shapes.Item($i); $range=$shape.Range; $intervals.Add(@{start=[int]$range.Start;end=[int]$range.End}) } finally { Release-OwnedCom $range; Release-OwnedCom $shape }
+      try { $shape=$shapes.Item($i); $range=$shape.Range; $intervals.Add(@{start=[int]$range.Start;end=[int]$range.End;replacement=''}) } finally { Release-OwnedCom $range; Release-OwnedCom $shape }
     }
     $builder=New-Object Text.StringBuilder; $cursor=$start
     foreach($interval in @($intervals | Sort-Object { $_.start })) {
-      if($interval.start -lt $cursor -or $interval.end -le $interval.start -or $interval.end -gt $end) { Fail-Native 'requirement' 'Native inline object ranges overlap or leave the body scope' }
+      if($interval.start -lt $cursor -or $interval.end -le $interval.start -or $interval.end -gt $end) { Fail-Native 'requirement' 'Native projection ranges overlap or leave the body scope' }
       $segment=$null
       try { $segment=$Document.Range($cursor,$interval.start); [void]$builder.Append([string]$segment.Text) } finally { Release-OwnedCom $segment }
+      [void]$builder.Append([string]$interval.replacement)
       $cursor=$interval.end
     }
     $last=$null
@@ -89,7 +125,9 @@ try {
         try {
           $shapes=$candidate.InlineShapes
           $diagnostic.inlineShapeCount=[int]$shapes.Count
-          $diagnostic.inlineRangesExcludedTableProjectedHash=Body-Fingerprint ((Projected-DocumentBody $candidate).Replace(([string][char]13+[char]7),[string][char]9))
+          $projectedBody=Projected-DocumentBody $candidate
+          $diagnostic.projectedBody=Body-Diagnostics $projectedBody $request.bodyText
+          $diagnostic.inlineRangesExcludedTableProjectedHash=Body-Fingerprint $projectedBody
           for($shapeIndex=1;$shapeIndex -le [Math]::Min([int]$shapes.Count,100);$shapeIndex++) {
             $shape=$null; $shapeRange=$null
             try { $shape=$shapes.Item($shapeIndex); $shapeRange=$shape.Range; $codes=@(([string]$shapeRange.Text).ToCharArray() | ForEach-Object {[int]$_}); $shapeRangeCodes.Add($codes) } finally { Release-OwnedCom $shapeRange; Release-OwnedCom $shape }

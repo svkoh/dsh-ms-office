@@ -6,7 +6,7 @@ const source = fs.readFileSync(new URL('../server/actions/word.js', import.meta.
 const pane = fs.readFileSync(new URL('../server/taskpane.js', import.meta.url), 'utf8');
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
-function fixture({ supported = true, requirements = { WordApi: '1.3', WordApiDesktop: '1.3' }, texts = ['Summary', 'Details'], listed = false, failBorderRead = false, fixedBorderWidth = false } = {}) {
+function fixture({ supported = true, requirements = { WordApi: '1.3', WordApiDesktop: '1.3' }, texts = ['Summary', 'Details'], namedStyles, listed = false, failBorderRead = false, fixedBorderWidth = false } = {}) {
   let writes = 0, runs = 0, listIdQueued = false, listIdLoaded = false, pendingBorderFailure = false;
   const gates = [], events = [], pendingBorders = new Set();
   const tracked = (data, prefix = '') => new Proxy(data, { set(object, key, value) { writes++; events.push(`${prefix}.${String(key)}`); object[key] = value; return true; } });
@@ -49,7 +49,8 @@ function fixture({ supported = true, requirements = { WordApi: '1.3', WordApiDes
     for (const apply of pendingBorders) apply(); pendingBorders.clear();
     if (listIdQueued) { listIdLoaded = true; listIdQueued = false; }
   } };
-  const Word = { run: async (fn) => { runs++; return fn(ctx); }, BuiltInStyleName: { title: 'Title', subtitle: 'Subtitle', normal: 'Normal', heading1: 'Heading1', heading2: 'Heading2', heading9: 'Heading9', caption: 'Caption' }, Alignment: { left: 'Left', centered: 'Centered', right: 'Right', justified: 'Justified' }, ListNumbering: { arabic: 'Arabic' }, ListBullet: { solid: 'Solid' } };
+  if (namedStyles) ctx.document.getStyles = () => ({items:namedStyles,load(){},getByNameOrNullObject(name){return namedStyles.find(s => s.nameLocal === name) || {isNullObject:true,load(){}};}});
+  const Word = { run: async (fn) => { runs++; return fn(ctx); }, BuiltInStyleName: { title: 'Title', subtitle: 'Subtitle', normal: 'Normal', heading1: 'Heading1', heading2: 'Heading2', heading9: 'Heading9', caption: 'Caption', listParagraph:'ListParagraph' }, Alignment: { left: 'Left', centered: 'Centered', right: 'Right', justified: 'Justified' }, ListNumbering: { arabic: 'Arabic' }, ListBullet: { solid: 'Solid' } };
   const window = { __OFFICE_ACTIONS__: { util: { okResult: (result) => ({ ok: true, result }), errResult: (code, error) => ({ ok: false, code, error }) }, hosts: {}, isSetSupported(name, version) {
     gates.push([name, version]);
     if (!supported || !requirements[name]) return false;
@@ -71,7 +72,7 @@ test('semantic style inherits font first and explicit font/paragraph patches ove
   const p = out.result.paragraphs[0];
   assert.equal(p.styleBuiltIn, 'Heading1'); assert.equal(p.font.name, 'Theme Heading'); assert.equal(p.font.size, 24); assert.equal(p.font.color, '#245B8A'); assert.equal(p.font.bold, true); assert.equal(p.spaceAfter, 8); assert.equal(p.lineSpacing, 18); assert.equal(f.paragraphs[1].font.color, '#000000');
   assert.ok(f.events.indexOf('p0.styleBuiltIn') < f.events.lastIndexOf('p0.font.color'));
-  assert.deepEqual(f.gates, [['WordApi', '1.3']]);
+  assert.deepEqual(f.gates, [['WordApi', '1.3'],['WordApi','1.5']]);
 });
 
 test('patches without style preserve absent font, spacing and other paragraph fields', async () => {
@@ -92,7 +93,7 @@ test('all paragraph text targets preflight before any writes', async () => {
 });
 
 test('invalid paragraph fields fail before entering Office', async () => {
-  for (const extra of [{ font: { size: NaN } }, { font: { color: 'red' } }, { font: { bold: 'false' } }, { spaceAfter: -1 }, { lineSpacing: 0 }, { bogus: 1 }, { style: 'FakeHeading' }]) {
+  for (const extra of [{ font: { size: NaN } }, { font: { color: 'red' } }, { font: { bold: 'false' } }, { spaceAfter: -1 }, { lineSpacing: 0 }, { bogus: 1 }, { style: {} }]) {
     const f = fixture(); const out = await f.host.actions.word_format_paragraphs({ targets: [{ index: 0, expectedText: 'Summary', ...extra }] }); assert.equal(out.code, 'bad_args'); assert.equal(f.writes(), 0); assert.equal(f.runs(), 0);
   }
   const f = fixture(); assert.equal((await f.host.actions.word_format_paragraphs({ targets: [{ index: 0, expectedText: 'Summary', spaceAfter: 1 }, { index: 0, expectedText: 'Summary', spaceAfter: 2 }] })).code, 'bad_args'); assert.equal(f.writes(), 0);
@@ -104,6 +105,7 @@ test('paragraph preview reads target style and font without mutation', async () 
 
 test('built-in style mapping includes Heading1..9 and localized caption', () => {
   const f = fixture(); assert.equal(f.style('Heading-9'), 'heading9'); assert.equal(f.style('标题4'), 'heading4'); assert.equal(f.style('题注'), 'caption'); assert.equal(f.style('Heading10'), null);
+  assert.equal(f.style('BodyText'),null); assert.equal(f.style('正文文本首行缩进'),null); assert.equal(f.style('List Paragraph'),'listParagraph');
 });
 
 test('legacy base paragraph properties work on WordApi 1.1 without fictitious range.paragraphFormat', async () => {
@@ -165,4 +167,27 @@ test('border load failure precedes even enableGrid writes, and fixed-width readb
   const fixed = fixture({ fixedBorderWidth: true });
   const result = await fixed.host.actions.set_table_borders({ color: '#D9DEE5', width: 0.5, locations: ['Top'] });
   assert.equal(result.ok, true); assert.equal(result.result.width, 0.5); assert.equal(result.result.borders[0].width, 1); assert.match(result.result.warning, /fixed widths/);
+});
+
+test('actual custom paragraph styles apply style-only patches and all missing names preflight', async () => {
+  const namedStyles = ['报告正文','正文文本首行缩进','列表段落','Heading-1'].map(name => ({nameLocal:name,type:'Paragraph',builtIn:false,isNullObject:false,load(){}}));
+  for (const style of namedStyles) {
+    const f = fixture({namedStyles,requirements:{WordApi:'1.5'}});
+    const out = await f.host.actions.word_format_paragraphs({targets:[{index:0,expectedText:'Summary',style:style.nameLocal}]});
+    assert.equal(out.ok,true,out.error); assert.equal(out.result.paragraphs[0].styleName,style.nameLocal); assert.equal(out.result.paragraphs[0].font.name,'Arial');
+  }
+  const f = fixture({namedStyles,requirements:{WordApi:'1.5'}});
+  const out = await f.host.actions.word_format_paragraphs({targets:[{index:0,expectedText:'Summary',style:'报告正文'},{index:1,expectedText:'Details',style:'不存在'}]});
+  assert.equal(out.code,'not_found'); assert.match(out.error,/报告正文/); assert.equal(f.writes(),0);
+  const low = fixture(); assert.equal((await low.host.actions.word_format_paragraphs({targets:[{index:0,expectedText:'Summary',style:'报告正文'}]})).code,'requirement'); assert.equal(low.writes(),0);
+});
+
+test('paragraph alignment accepts its own readback and top-level style gives actionable error', async () => {
+  for (const [input,expected] of [['Justified','justify'],['Centered','center'],['LEFT','left']]) {
+    const f = fixture(); const out = await f.host.actions.word_format_paragraphs({targets:[{index:0,expectedText:'Summary',alignment:input}]});
+    assert.equal(out.ok,true); assert.equal(out.result.paragraphs[0].alignment,expected);
+    assert.equal((await f.host.actions.word_format_paragraphs({targets:[{index:0,expectedText:'Summary',alignment:out.result.paragraphs[0].alignment}]})).ok,true);
+  }
+  const f = fixture(); const out = await f.host.actions.word_format_paragraphs({style:'Normal',targets:[{index:0,expectedText:'Summary'}]});
+  assert.equal(out.code,'bad_args'); assert.match(out.error,/inside each target/); assert.equal(f.runs(),0);
 });

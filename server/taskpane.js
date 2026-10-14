@@ -162,6 +162,7 @@ function mapBuiltInStyle(name) {
     '标题1': 'heading1', heading1: 'heading1', '标题2': 'heading2', heading2: 'heading2',
     '标题3': 'heading3', heading3: 'heading3', '正文': 'normal', normal: 'normal',
     '引用': 'quote', quote: 'quote', '强调': 'strong', strong: 'strong',
+    '列表段落': 'listParagraph', listparagraph: 'listParagraph',
   };
   const heading = /^(?:标题|heading)([1-9])$/.exec(n);
   if (heading) return 'heading' + heading[1];
@@ -170,7 +171,7 @@ function mapBuiltInStyle(name) {
 }
 
 function mapAlignment(a) {
-  const m = { left: Word.Alignment.left, center: Word.Alignment.centered, right: Word.Alignment.right, justify: Word.Alignment.justified };
+  const m = { left: Word.Alignment.left, center: Word.Alignment.centered, centered: Word.Alignment.centered, right: Word.Alignment.right, justify: Word.Alignment.justified, justified: Word.Alignment.justified };
   return m[String(a || '').toLowerCase()] || null;
 }
 

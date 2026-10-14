@@ -198,6 +198,14 @@
         "text": "string 必填：文末追加段落"
       }
     },
+    "read_tables": {
+      "args": {},
+      "returns": {"result.tables": "[{index,rowCount,columnCount,style,styleBuiltIn,cells:string[][]}]；表索引从1开始；使用原生values保留空单元格、换行和空白，无额外分隔行"}
+    },
+    "read_table_borders": {
+      "args": {},
+      "returns": {"result": "{host,tableCount,borders:[{table,location,color,type,width}]}；table从1开始，width单位pt"}
+    },
     "set_table_borders": {
       "args": {
         "color": "string 必填：#RRGGBB",
@@ -219,7 +227,7 @@
     },
     "word_delete_paragraphs": {
       "args": {
-        "targets": "array 必填：[{index,expectedText}]，index 从0开始"
+        "targets": "array 必填：[{index,expectedText}]，index为从0开始的整数，expectedText为完整字符串；参数名不是paragraphs；最后一段及含内嵌图片的段落不可删除，第0段非末段时可删除"
       }
     },
     "insert_paragraph": {
@@ -240,7 +248,7 @@
     },
     "word_insert_html": {
       "args": {
-        "html": "string 必填：最大 8 MiB",
+        "html": "string 必填：最多8*1024*1024个UTF-16代码单元；对象/数组/数字拒绝，禁止重复JSON序列化；示例{html:\"<p>正文</p>\",target:\"body\",mode:\"append\"}",
         "target": "body|selection 可选，默认 body",
         "mode": "replace|append|prepend|before|after 可选，默认 append"
       }
@@ -310,7 +318,7 @@
       "args": {
         "alignment": "string 可选：left|center|right|justify",
         "indent": "number 可选(cm)",
-        "lineSpacing": "可选原生行距数值，Word界面除以12显示(18=>1.5)",
+        "lineSpacing": "可选正数，单位pt；18pt不能据此宣称原生1.5倍行距，倍数行距需原生预设及导出核验",
         "listType": "none|numbered|bulleted；WordApi1.3；已有列表须先显式移除后再转换"
       }
     },
@@ -653,9 +661,10 @@
     },
     "word_format_paragraphs": {
       "args": {
-        "targets": "必填1..500个精确目标[{index,expectedText,style?,font?:{name,size,color,bold,italic},alignment?,spaceBefore?,spaceAfter?,lineSpacing?,leftIndent?,rightIndent?,firstLineIndent?}]；0基索引不重复，先验证全部完整文本；style支持内置样式及范本正文；尺寸单位pt，lineSpacing=18不等于原生1.5倍"
+        "targets": "必填1..500个精确目标[{index,expectedText,style?,font?:{name,size,color,bold,italic},alignment?,spaceBefore?,spaceAfter?,lineSpacing?,leftIndent?,rightIndent?,firstLineIndent?}]；0基索引不重复，先验证全部完整文本；style必须在每个target内，支持仅style修改；支持内置别名及文档已存在段落样式名（文档名需要WordApi1.5）；alignment接受left|center|right|justify和Left|Centered|Right|Justified，读回统一小写；尺寸pt，lineSpacing=18不等于原生1.5倍"
       },
-      "description": "按精确索引及完整文本格式化段落，支持内置样式及范本正文全局样式"
+      "returns": {"result": "{host,formatted,paragraphs:[{index,text,styleName,styleBuiltIn,alignment,font,...}]}"},
+      "description": "按精确索引及完整文本格式化段落，支持内置样式和文档已存在的段落样式"
     },
     "excel_set_freeze_panes": {
       "args": {
@@ -697,15 +706,17 @@
     },
     "word_read_styles": {
       "args": {
-        "names": "string[] optional; exact localized style names; omit to list paragraph styles"
+        "names": "string[] 可选：文档实际段落样式名或受支持的中英内置别名；省略列出全部，推荐使用读回的实际name"
       },
+      "returns": {"result.styles": "[{name,type,builtIn,font,paragraphFormat}]；alignment统一left|center|right|justify，其他宿主值原样保留"},
       "description": "读取真实全局段落样式及中西文字体属性"
     },
     "word_set_styles": {
       "args": {
-        "styles": "必填样式数组{name,font?,paragraphFormat?}；或单独{name:\"范本正文\",preset:\"body-1.5\"}原生导入全局宋体12pt、首缩24pt、真实1.5倍样式；数值lineSpacing是pt，不能代替倍数预设"
+        "styles": "必填1..100个{name,font?,paragraphFormat?}；name为已存在文档样式名或受支持中英内置别名（Normal/Title/Heading1等），不存在不自动创建；type是只读字段不可传；font仅name/size/color/bold/italic；paragraphFormat为段落格式字段，alignment接受规范值或Office枚举值；或单独{name:\"范本正文\",preset:\"body-1.5\"}导入原生预设；数值lineSpacing为pt，不能代替倍数"
       },
-      "description": "设置真实全局段落样式；行距数值为pt，不能据此宣称倍数行距"
+      "returns": {"result": "{host,global,updated,styles,verified,verification:[{requestedName,name,fields:[{field,requested,actual,status:applied|mismatch|unverified}]}],verificationWarnings?}；ok=true代表写入执行，verified与逐字段状态确认生效；预设返回created/styles等独立字段"},
+      "description": "设置真实全局段落样式并逐字段回读核对；可能影响所有使用该样式的段落"
     },
     "word_read_fields": {
       "args": {
@@ -750,13 +761,15 @@
       "args": {
         "syncConfig": "可选boolean；将本窗格同步到服务端用户已选择的确认模式，不接受模式值或审批参数",
         "reloadPane": "可选boolean；仅在公开命令状态明确为空后重新载入本窗格，不改变文档"
-      }
+      },
+      "returns": {"result": "环境诊断对象；Word分页在probe.nativeDiagnostics.pagination，section信息在probe.nativeDiagnostics内，字段是否存在取决于宿主支持；勿从不存在的result.pagination读取"}
     },
     "word_render_pages": {
       "description": "只读导出Word原生整页PNG，包含页眉页脚；要求Windows桌面Word打印布局",
       "args": {
         "expectedPageCount": "必填整数1..10；预期原生页数"
-      }
+      },
+      "returns": {"result": "{pages:[{index,width,height,base64,...}],pageCount,renderer,documentFingerprint,...}；只接受唯一精确匹配文档，不使用最接近候选；未匹配时error包含匹配诊断，其他错误给出具体原因"}
     }
   }
 }

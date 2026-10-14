@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import fs from "node:fs";
 const source = fs.readFileSync(new URL("../server/actions/word.js",import.meta.url),"utf8");
+const pane = fs.readFileSync(new URL('../server/taskpane.js',import.meta.url),'utf8');
 const plain = x => JSON.parse(JSON.stringify(x));
 function fixture({supported=true,missingStyles=false,missingFields=false,missingSecondFooter=false,missingStyleFont=false,missingFarEast=false,nativeHtml=false,missingClear=false,createDocument=false,missingBreakRange=false,nativeBodyPreset=false,nativeToc=false,failRead=false}={}) {
   let writes=0,runs=0; const pending=new Set(),events=[];
@@ -35,8 +36,12 @@ function fixture({supported=true,missingStyles=false,missingFields=false,missing
   if(createDocument)ctx.application={createDocument(...args){assert.equal(args.length,0);writes++;events.push("createDocument");return {open(){writes++;events.push("open");}};}};
   if(nativeHtml){ctx.document.body.load=()=>{};ctx.document.body.text="old";ctx.document.body.insertHtml=(html,location)=>{writes++;events.push(["html",html,location]);};if(!missingClear)ctx.document.body.clear=()=>{writes++;events.push("clear");};}
   if(!missingStyles)ctx.document.getStyles=()=>collection;
-  const window={__OFFICE_ACTIONS__:{util:{okResult:result=>({ok:true,result}),errResult:(code,error)=>({ok:false,code,error}),mapAlignment:x=>({left:"Left",center:"Centered",right:"Right",justify:"Justified"}[x])},hosts:{},isSetSupported:()=>supported}};
-  vm.runInNewContext(source,{window,fetch:async(url,options)=>{events.push(["render",url,JSON.parse(options.body)]);return {ok:true,json:async()=>({ok:true,result:{pages:[{index:1,base64:"native-page"}]}})};},Word:{InsertLocation:{replace:"Replace",end:"End",start:"Start",before:"Before",after:"After"},run:async f=>{runs++;return f(ctx);}},Office:{context:{platform:"PC"}}});
+  const window={__OFFICE_ACTIONS__:{util:{okResult:result=>({ok:true,result}),errResult:(code,error)=>({ok:false,code,error})},hosts:{},isSetSupported:()=>supported}};
+  const context = vm.createContext({window,fetch:async(url,options)=>{events.push(['render',url,JSON.parse(options.body)]);return {ok:true,json:async()=>({ok:true,result:{pages:[{index:1,base64:'native-page'}]}})};},Word:{Alignment:{left:'Left',centered:'Centered',right:'Right',justified:'Justified'},InsertLocation:{replace:'Replace',end:'End',start:'Start',before:'Before',after:'After'},run:async f=>{runs++;return f(ctx);}},Office:{context:{platform:'PC'}}});
+  vm.runInContext(pane.slice(pane.indexOf('function mapBuiltInStyle('),pane.indexOf('// Excel：')),context);
+  window.__OFFICE_ACTIONS__.util.mapBuiltInStyle=vm.runInContext('mapBuiltInStyle',context);
+  window.__OFFICE_ACTIONS__.util.mapAlignment=vm.runInContext('mapAlignment',context);
+  vm.runInContext(source,context);
   return {host:window.__OFFICE_ACTIONS__.hosts.Word,writes:()=>writes,runs:()=>runs,events,styles,ctx};
 }
 const patches={styles:[{name:"正文",font:{name:"宋体",size:12},paragraphFormat:{firstLineIndent:24,lineSpacing:18}},{name:"标题 1",font:{name:"黑体",size:14}},{name:"标题",font:{name:"黑体",size:18}}]};
@@ -108,3 +113,40 @@ test("replacing an identical native footer PAGE field reuses it without reinsert
 
 test("whole paragraph field anchor rejects stale text before writes",async()=>{const f=fixture();const out=await f.host.actions.word_insert_field({type:"TOC",paragraph:{index:1,expectedText:"changed"}});assert.equal(out.code,"bad_args");assert.equal(f.writes(),0);});
 test("native desktop TOC clears only anchored paragraph content and reads actual generated field cache",async()=>{const f=fixture({nativeToc:true});const out=await f.host.actions.word_insert_field({type:"TOC",mode:"replace",paragraph:{index:1,expectedText:"目录"}});assert.equal(out.ok,true);assert.equal(out.result.nativeTocCollection,true);assert.equal(out.result.field.type,"TOC");assert.match(out.result.field.text,/一、示例/);assert.ok(f.events.some(e=>e[0]==="paragraphRange"&&e[2]==="Content"));assert.ok(f.events.some(e=>e[0]==="rangeText"&&e[1]===""&&e[2]==="Replace"));const add=f.events.find(e=>e[0]==="nativeTocCollection");assert.equal(add[1].upperHeadingLevel,1);assert.equal(add[1].lowerHeadingLevel,3);const invalid=fixture({nativeToc:true});assert.equal((await invalid.host.actions.word_insert_field({type:"TOC",switches:"custom",paragraph:{index:1,expectedText:"目录"}})).code,"bad_args");assert.equal(invalid.writes(),0);});
+
+test('HTML objects, arrays and numbers reject before any Office read or clear',async()=>{
+  for (const html of [{value:'<p>text</p>'},['text'],15,null,undefined]) {
+    const f=fixture({nativeHtml:true}); const out=await f.host.actions.word_insert_html({html,mode:'replace'});
+    assert.equal(out.code,'bad_args'); assert.match(out.error,/html must be a string/); assert.equal(f.writes(),0); assert.equal(f.runs(),0);
+  }
+});
+test('style aliases resolve to actual definitions and normalized alignment roundtrips',async()=>{
+  const f=fixture(); const out=await f.host.actions.word_set_styles({styles:[{name:'Normal',font:{color:'#123abc'}},{name:'Heading1',paragraphFormat:{alignment:'Justified'}},{name:'Title',font:{size:18}}]});
+  assert.equal(out.ok,true,out.error); assert.deepEqual(plain(out.result.styles.map(s=>s.name)),['正文','标题 1','标题']); assert.equal(out.result.styles[1].paragraphFormat.alignment,'justify'); assert.equal(out.result.verified,true);
+  assert.ok(out.result.verification.every(s=>s.fields.every(field=>field.status==='applied')));
+  const duplicate=fixture(); assert.equal((await duplicate.host.actions.word_set_styles({styles:[{name:'Normal',font:{size:12}},{name:'正文',font:{size:13}}]})).code,'bad_args'); assert.equal(duplicate.writes(),0);
+});
+test('style write reports a silently ignored theme color as mismatch without pretending rollback',async()=>{
+  const f=fixture(); const font=f.styles[1].font;
+  f.styles[1].font=new Proxy(font,{set(target,key,value){if(key==='color')return true;target[key]=value;return true;}});
+  const out=await f.host.actions.word_set_styles({styles:[{name:'Heading1',font:{color:'#123ABC',size:18}}]});
+  assert.equal(out.ok,true); assert.equal(out.result.verified,false); assert.equal(out.result.styles[0].font.size,18);
+  assert.equal(out.result.verificationWarnings[0].field,'font.color'); assert.equal(out.result.verificationWarnings[0].actual,'#000000'); assert.equal(out.result.verificationWarnings[0].status,'mismatch');
+});
+test('style error identifies unsupported type field and missing name candidates',async()=>{
+  const f=fixture(); const out=await f.host.actions.word_set_styles({styles:[{name:'正文',type:'Paragraph',font:{size:12}}]}); assert.equal(out.code,'bad_args'); assert.match(out.error,/type is read-only/); assert.equal(f.runs(),0);
+  const missing=fixture(); const notFound=await missing.host.actions.word_set_styles({styles:[{name:'报告正文',font:{size:12}}]}); assert.equal(notFound.code,'not_found'); assert.match(notFound.error,/available paragraph styles/); assert.equal(missing.writes(),0);
+});
+test('table values preserve empty cells, internal tabs and whitespace without phantom rows',async()=>{
+  const f=fixture(); const values=[['  A ',''],['line1\rline2','x\ty']];
+  f.ctx.document.body.tables={items:[{rowCount:2,values,style:'Grid',styleBuiltIn:'TableGrid'}],load(fields){assert.match(fields,/items\/values/);}};
+  const out=await f.host.actions.read_tables({}); assert.equal(out.ok,true); assert.equal(out.result.tables[0].cells.length,2); assert.deepEqual(plain(out.result.tables[0].cells),values); assert.equal(f.writes(),0);
+});
+test('deletion accepts first nonfinal paragraph but reports final and picture guards precisely',async()=>{
+  for(const [index,picture,reason] of [[1,false,'last_paragraph'],[0,true,'contains_inline_picture']]) {
+    const f=fixture(); const items=f.ctx.document.body.paragraphs.items; for(const p of items)p.inlinePictures={items:[]}; if(picture)items[index].inlinePictures.items=[{}];
+    const out=await f.host.actions.word_delete_paragraphs({targets:[{index,expectedText:items[index].text}]}); assert.equal(out.code,'bad_args'); assert.match(out.error,new RegExp(reason)); assert.equal(f.writes(),0);
+  }
+  const f=fixture(); let deleted=false; for(const p of f.ctx.document.body.paragraphs.items)p.inlinePictures={items:[]}; f.ctx.document.body.paragraphs.items[0].delete=()=>{deleted=true;};
+  assert.equal((await f.host.actions.word_delete_paragraphs({targets:[{index:0,expectedText:'封面 / 目录 / 章节'}]})).ok,true); assert.equal(deleted,true);
+});
