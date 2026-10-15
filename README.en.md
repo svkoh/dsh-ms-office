@@ -46,7 +46,7 @@ File → Options → Customize Ribbon → tick "Developer", then with a document
 
 The full action list is in [docs/CAPABILITIES.en.md](docs/CAPABILITIES.en.md).
 
-Two skills ship with the plugin. [ms-office](skills/ms-office/SKILL.en.md) handles safe operations; [office-document-styles](skills/office-document-styles/SKILL.en.md) provides one original base style atlas per host — Word covers document elements, Excel is fixed to two sheets, and PowerPoint shows shapes, tables, spatial layout and colour roles, each with provenance records and layered quality checks. See the [style gallery](docs/style-gallery.html) and the [feature roadmap](docs/FEATURE-ROADMAP.en.md).
+Two skills ship with the plugin. [ms-office](skills/ms-office/SKILL.en.md) handles safe operations; [office-document-styles](skills/office-document-styles/SKILL.en.md) provides one original base style atlas per host — Word covers document elements, Excel is fixed to two sheets, and PowerPoint shows shapes, tables, spatial layout and colour roles, each with provenance records and layered quality checks. See the [style gallery](docs/style-gallery.en.md) and the [feature roadmap](docs/FEATURE-ROADMAP.en.md).
 
 Chinese defaults: Word body SimSun and headings SimHei; Excel SimSun; PowerPoint titles SimHei, body and table/chart labels KaiTi. Every change to an atlas runs through the plugin itself, and exports and screenshots keep native Office evidence.
 

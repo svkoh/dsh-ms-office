@@ -53,6 +53,15 @@ test('fixed PS5 STA helper receives UTF-8 JSON through stdin only and returns fi
   assert.ok(!process.invocation.args.some(arg=>arg.includes(input.bodyText)));assert.equal(process.invocation.options.shell,false);assert.equal(process.child.kills,0);
 });
 
+test('native page rasters accept 2400 pixels and reject larger widths',async()=>{
+  for(const width of [2400,2401]){
+    const output=validOutput();Object.assign(output.result.pages[0],{width,base64:pngHeader(width)});
+    const process=fakeProcess(child=>emit(child,output));
+    const result=await renderNativeWordPages(request,{platform:'win32',spawn:process.spawn});
+    assert.equal(result.ok,width===2400);
+  }
+});
+
 test('wrong native fingerprint, page count, image dimensions or exit status can never produce success',async()=>{
   const corruptions=[out=>out.result.documentFingerprint='0'.repeat(64),out=>out.result.pageCount=2,out=>out.result.pages[0].width=101,out=>out.result.pages[0].base64='not-a-png'];
   for(const corrupt of corruptions){const output=validOutput();corrupt(output);const process=fakeProcess(child=>emit(child,output));assert.equal((await renderNativeWordPages(request,{platform:'win32',spawn:process.spawn})).code,'execution');}

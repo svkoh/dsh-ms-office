@@ -46,7 +46,7 @@ dsh plugin --profile web add dsh-ms-office
 
 完整 action 清单见 [docs/CAPABILITIES.md](docs/CAPABILITIES.md)。
 
-插件自带两个技能。[ms-office](skills/ms-office/SKILL.md) 负责安全操作；[office-document-styles](skills/office-document-styles/SKILL.md) 为每种宿主提供一份原创的基础样式范本——Word 覆盖文档元素，Excel 固定两个 Sheet，PowerPoint 展示图形、表格、空间布局与配色，并附带来源记录和分层质量检查。范本预览见[样式画廊](docs/style-gallery.html)，后续计划见[功能路线](docs/FEATURE-ROADMAP.md)。
+插件自带两个技能。[ms-office](skills/ms-office/SKILL.md) 负责安全操作；[office-document-styles](skills/office-document-styles/SKILL.md) 为每种宿主提供一份原创的基础样式范本——Word 覆盖文档元素，Excel 固定两个 Sheet，PowerPoint 展示图形、表格、空间布局与配色，并附带来源记录和分层质量检查。范本预览见[样式画廊](docs/style-gallery.md)，后续计划见[功能路线](docs/FEATURE-ROADMAP.md)。
 
 中文默认字体：Word 正文宋体、标题黑体；Excel 宋体；PowerPoint 标题黑体，正文及表格、图表标签楷体。范本的所有修改都通过插件实际执行，导出与截图保留原生 Office 证据。
 

@@ -165,8 +165,8 @@ try {
       $page = $pages.Item($pageIndex)
       $widthPt = [double]$page.Width; $heightPt = [double]$page.Height
       if ([double]::IsNaN($widthPt) -or [double]::IsInfinity($widthPt) -or [double]::IsNaN($heightPt) -or [double]::IsInfinity($heightPt) -or $widthPt -le 0 -or $heightPt -le 0) { Fail-Native 'requirement' 'Native Word page has invalid dimensions' }
-      $scale = [Math]::Min(2.0, 1600.0 / $widthPt)
-      $width = [int][Math]::Min(1600, [Math]::Ceiling($widthPt * $scale))
+      $scale = [Math]::Min(3.0, 2400.0 / $widthPt)
+      $width = [int][Math]::Min(2400, [Math]::Ceiling($widthPt * $scale))
       $height = [int][Math]::Ceiling($heightPt * $scale)
       if ($height -lt 1 -or $height -gt 10000) { Fail-Native 'requirement' 'Native Word page dimensions exceed the bounded raster size' }
       [byte[]]$bits = $page.EnhMetaFileBits

@@ -42,4 +42,4 @@ Excel已经能批量写公式、创建原生Table、设置条件格式和数据�
 
 用真实业务内容分别做一份5页左右的报告、一张含金额/计数/比例与合计的报表、一份6–8页的汇报。先确认内容与品牌要求，再执行计划，逐项保存读回与PDF/PNG；检查“内容对、结构可编辑、样式一致、实际无截断”。将发现的问题变成小型原生样本和回归，之后再扩大模板数量。
 
-本轮六套设计是带来源说明的原创配方。[图库](style-gallery.html)是浏览器示意；[样式技能](../skills/office-document-styles/SKILL.md)包含使用方法与边界。互联网模板引用与授权证据见[来源说明](../skills/office-document-styles/references/sources.md)。
+本轮六套设计是带来源说明的原创配方。[图库](style-gallery.md)为原生 Office 页面预览；[样式技能](../skills/office-document-styles/SKILL.md)包含使用方法与边界。互联网模板引用与授权证据见[来源说明](../skills/office-document-styles/references/sources.md)。

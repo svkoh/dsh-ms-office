@@ -23,7 +23,7 @@ function validateNativeResult(value, request) {
   if (result.renderer !== RENDERER || result.documentFingerprint !== documentFingerprint(request.bodyText)
       || result.pageCount !== request.expectedPageCount || !Array.isArray(result.pages) || result.pages.length !== result.pageCount) return false;
   return result.pages.every((page, offset) => {
-    if (!page || page.index !== offset + 1 || !Number.isInteger(page.width) || page.width < 1 || page.width > 1600
+    if (!page || page.index !== offset + 1 || !Number.isInteger(page.width) || page.width < 1 || page.width > 2400
         || !Number.isInteger(page.height) || page.height < 1 || page.height > 10000
         || typeof page.base64 !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(page.base64)) return false;
     const png = Buffer.from(page.base64, 'base64');

@@ -31,4 +31,4 @@ Excel already supports formula matrices, native Tables, conditional formatting a
 
 Next acceptance should use a roughly five-page report, a sheet mixing money/counts/ratios/totals, and a six-to-eight-page deck. Capture actual readbacks and native exports, verify content and visual quality separately, and turn failures into small reproducible native fixtures before expanding the catalog.
 
-The [gallery](style-gallery.html) is a browser illustration, not an Office screenshot. See the [style skill](../skills/office-document-styles/SKILL.en.md), [source evidence](../skills/office-document-styles/references/sources.md), and [full Chinese audit](FEATURE-ROADMAP.md).
+The [gallery](style-gallery.en.md) shows native Office page previews. See the [style skill](../skills/office-document-styles/SKILL.en.md), [source evidence](../skills/office-document-styles/references/sources.md), and [full Chinese audit](FEATURE-ROADMAP.md).
