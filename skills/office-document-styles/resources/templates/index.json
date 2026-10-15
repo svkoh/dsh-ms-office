@@ -42,12 +42,12 @@
       "checksums": {
         "skills/office-document-styles/resources/templates/word-base-styles.docx": "2e9cada57e5ab2950121cab667250603cb14312ebe479aa12b63baa1450009e1",
         "docs/style-atlas/word-base-styles.docx": "2e9cada57e5ab2950121cab667250603cb14312ebe479aa12b63baa1450009e1",
-        "skills/office-document-styles/resources/previews/word-base-styles/page-01.png": "85a4652c97c49f4fb76597511e5705c3705ce0f160688dcd103c17b5d1cbf3d7",
-        "skills/office-document-styles/resources/previews/word-base-styles/page-02.png": "45f25650ec605c4051e3e0d470e3b6319b9c84fdfc22ccf5f773315635f44e73",
-        "skills/office-document-styles/resources/previews/word-base-styles/page-03.png": "d6c24909c3aff2094b1be35be178cadb0f0f91069d38c6dde15b59ae222203e3",
-        "skills/office-document-styles/resources/previews/word-base-styles/page-04.png": "db9d94f2ed2a1b555b6131097f28a261a36734c0c49cc8f891a8aed460670a12",
-        "skills/office-document-styles/resources/previews/word-base-styles/page-05.png": "dac0fee657bcf72d5f185eafa0f83a096aa5cea367f4fbebafdbcf730b1272ab",
-        "skills/office-document-styles/resources/previews/word-base-styles.png": "85a4652c97c49f4fb76597511e5705c3705ce0f160688dcd103c17b5d1cbf3d7"
+        "skills/office-document-styles/resources/previews/word-base-styles/page-01.png": "73a2d64c1c02ad813fb1dcdcb847e364e17b4697576fb2a1e701f6c3e506a04b",
+        "skills/office-document-styles/resources/previews/word-base-styles/page-02.png": "d0ee22b320a5998526c84d45cdf078a72f72d4344564ec1e2c1f55b611bdaedc",
+        "skills/office-document-styles/resources/previews/word-base-styles/page-03.png": "c7471d7200108e725b5cef700b66453f7784c724cac0a3d2748665927432f5a6",
+        "skills/office-document-styles/resources/previews/word-base-styles/page-04.png": "735b71b3d945993c5eabe00a16dfc7e0e482469fd5a8942067c16cc1c919551f",
+        "skills/office-document-styles/resources/previews/word-base-styles/page-05.png": "630e78f57d06f540587e57e0d08e07a53946b72aafd289b9b8fb739cd81c3976",
+        "skills/office-document-styles/resources/previews/word-base-styles.png": "73a2d64c1c02ad813fb1dcdcb847e364e17b4697576fb2a1e701f6c3e506a04b"
       }
     },
     {
@@ -85,9 +85,9 @@
         "docs/style-atlas/excel-base-styles.xlsx": "d917e813c6a0665241e86e95d25eb19b37a29887545d31fe333ec0a80c189074",
         "skills/office-document-styles/resources/templates/excel-base-styles.pdf": "a42a3c36e60079afce4da6fe401f6d3dda601658cf2201bac28d50d001c2a848",
         "docs/style-atlas/excel-base-styles.pdf": "a42a3c36e60079afce4da6fe401f6d3dda601658cf2201bac28d50d001c2a848",
-        "skills/office-document-styles/resources/previews/excel-base-styles/page-01.png": "102e6b3ca768399ff13fca3f7349689bad39b1cb9115acf8794c6d0c631969f2",
-        "skills/office-document-styles/resources/previews/excel-base-styles/page-02.png": "e9119162bc5d1a4dbbe505773eabcf3562cb5a7cac826aff05256215b67f8744",
-        "skills/office-document-styles/resources/previews/excel-base-styles.png": "102e6b3ca768399ff13fca3f7349689bad39b1cb9115acf8794c6d0c631969f2"
+        "skills/office-document-styles/resources/previews/excel-base-styles/page-01.png": "e80aa48856f5528de02234b5f18d4aa1c49c785d6ceead5cc000e16b87fa2cf2",
+        "skills/office-document-styles/resources/previews/excel-base-styles/page-02.png": "51d0236d1428c9307058203cd7b2650b7f5cfdde0535141cbc1ada7536b0f7d9",
+        "skills/office-document-styles/resources/previews/excel-base-styles.png": "e80aa48856f5528de02234b5f18d4aa1c49c785d6ceead5cc000e16b87fa2cf2"
       }
     },
     {
@@ -132,17 +132,17 @@
         "docs/style-atlas/ppt-base-styles.pptx": "43ecc1a48eb8033c979ecb1226f9ea3127bf58ce73443ef923ac55c244c9c724",
         "skills/office-document-styles/resources/templates/ppt-base-styles.pdf": "94834fd5c9994c409da214c5470b3c01620191b689805bee8a4f7fc9943c4c71",
         "docs/style-atlas/ppt-base-styles.pdf": "94834fd5c9994c409da214c5470b3c01620191b689805bee8a4f7fc9943c4c71",
-        "skills/office-document-styles/resources/previews/ppt-base-styles/page-01.png": "0d95c146d632ba207ce5f53b9360b5f9ea24ee703c5536250cb56f8f1bded9d2",
-        "skills/office-document-styles/resources/previews/ppt-base-styles/page-02.png": "3bc8713a448fe9442842f31d18f85072269e99c6dc2099df1e7e348f37ccfdcc",
-        "skills/office-document-styles/resources/previews/ppt-base-styles/page-03.png": "aba5686b549e11c99a28a9ba04f4ec227088569b52c27301711c2edc4d1a579e",
-        "skills/office-document-styles/resources/previews/ppt-base-styles/page-04.png": "f6813f854717663e5b7f9973e226f266367fe5800a09abaf4014b90c11c129a0",
-        "skills/office-document-styles/resources/previews/ppt-base-styles/page-05.png": "ff340a537d31473ddde8edf5ae9eefee5bedb7d7bcc1676b9c7af98511ddf183",
-        "skills/office-document-styles/resources/previews/ppt-base-styles/page-06.png": "99010c8e3e2bd4156449c734b25155541fd53e923308deaa59b668e841ad8e0c",
-        "skills/office-document-styles/resources/previews/ppt-base-styles/page-07.png": "f3945c6e9b248a1323004cf47c6abb6a5fc9b7775a11f8ea4e57dad1eae2dd9c",
-        "skills/office-document-styles/resources/previews/ppt-base-styles/page-08.png": "de45f61db76d4df673abf6de0c72ca05a0cf0462ed9413e6dd0688af50450bad",
-        "skills/office-document-styles/resources/previews/ppt-base-styles/page-09.png": "38310012c845bdd1649bbb23967c49ffadcf37d49624cf4084f679e826cf6634",
-        "skills/office-document-styles/resources/previews/ppt-base-styles/page-10.png": "53ca09e757b54317e5375af0d8b5a57602c1fe35a8dffd77147411311c73a6bc",
-        "skills/office-document-styles/resources/previews/ppt-base-styles.png": "0d95c146d632ba207ce5f53b9360b5f9ea24ee703c5536250cb56f8f1bded9d2"
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-01.png": "f338a135f308e72bff1e2e06b64fc36549d92a009abd378f8eb49e7fd9853143",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-02.png": "07b66cf75b6102f64d607f579ba6997b4a4e6b06906f6e78ffbec195a0e20300",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-03.png": "2b3622954c68f13a094a24c07e08962700d3ef12715bb53e67f5239110922ca8",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-04.png": "687924da629d1aa968280c55880c7838a9baabc1f1c36696cdd772c17925bf48",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-05.png": "cc2c03f0762f5c2566f8219dd23815dbdaaab3d4bce3397a41fee7357531ff0c",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-06.png": "08ce6da59278e396402b5a938a6c0fdffc999a1e8b59a62c0b12be2d9eeea878",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-07.png": "898f3df74b3df8acb5eeb2e51f6729a541031dc71c29eec6b83706e87c31646e",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-08.png": "6554bb880de77e4df765857c933dfa0feca5e5ef510a7b27b7ae69939430b00a",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-09.png": "4bde9ee89c6b82731f65d9c4999df858d5442d5cdde82ae037c38eaa5dbdc3cb",
+        "skills/office-document-styles/resources/previews/ppt-base-styles/page-10.png": "fe82ea3eae1fb67bb2275141cf410f78411ea10c57e2684f07738a01208ae19c",
+        "skills/office-document-styles/resources/previews/ppt-base-styles.png": "f338a135f308e72bff1e2e06b64fc36549d92a009abd378f8eb49e7fd9853143"
       }
     }
   ]

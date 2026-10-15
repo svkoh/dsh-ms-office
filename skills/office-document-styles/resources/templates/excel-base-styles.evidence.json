@@ -11,9 +11,9 @@
     "docs/style-atlas/excel-base-styles.xlsx": "d917e813c6a0665241e86e95d25eb19b37a29887545d31fe333ec0a80c189074",
     "skills/office-document-styles/resources/templates/excel-base-styles.pdf": "a42a3c36e60079afce4da6fe401f6d3dda601658cf2201bac28d50d001c2a848",
     "docs/style-atlas/excel-base-styles.pdf": "a42a3c36e60079afce4da6fe401f6d3dda601658cf2201bac28d50d001c2a848",
-    "skills/office-document-styles/resources/previews/excel-base-styles/page-01.png": "102e6b3ca768399ff13fca3f7349689bad39b1cb9115acf8794c6d0c631969f2",
-    "skills/office-document-styles/resources/previews/excel-base-styles/page-02.png": "e9119162bc5d1a4dbbe505773eabcf3562cb5a7cac826aff05256215b67f8744",
-    "skills/office-document-styles/resources/previews/excel-base-styles.png": "102e6b3ca768399ff13fca3f7349689bad39b1cb9115acf8794c6d0c631969f2"
+    "skills/office-document-styles/resources/previews/excel-base-styles/page-01.png": "e80aa48856f5528de02234b5f18d4aa1c49c785d6ceead5cc000e16b87fa2cf2",
+    "skills/office-document-styles/resources/previews/excel-base-styles/page-02.png": "51d0236d1428c9307058203cd7b2650b7f5cfdde0535141cbc1ada7536b0f7d9",
+    "skills/office-document-styles/resources/previews/excel-base-styles.png": "e80aa48856f5528de02234b5f18d4aa1c49c785d6ceead5cc000e16b87fa2cf2"
   },
   "native": {
     "chartFontChecks": [
@@ -421,5 +421,45 @@
   "numberFormatsVerified": true,
   "wrappedRowsVerified": true,
   "dateOverflowFixed": true,
-  "allCellsSongVerified": true
+  "allCellsSongVerified": true,
+  "nativeRendering": {
+    "renderer": "Microsoft Excel native Range.getImage",
+    "ranges": [
+      "基础样式!A1:F26",
+      "数据与图表!A1:F26"
+    ],
+    "pages": [
+      {
+        "index": 1,
+        "width": 1390,
+        "height": 1487,
+        "sha256": "e80aa48856f5528de02234b5f18d4aa1c49c785d6ceead5cc000e16b87fa2cf2"
+      },
+      {
+        "index": 2,
+        "width": 1634,
+        "height": 1307,
+        "sha256": "51d0236d1428c9307058203cd7b2650b7f5cfdde0535141cbc1ada7536b0f7d9"
+      }
+    ]
+  },
+  "screenshotRefresh": {
+    "capturedAt": "2026-10-15T09:27:09.024Z",
+    "readOnly": true,
+    "pageCount": 2,
+    "source": "Existing native Office template; document text unchanged before/after capture",
+    "method": "Office.js native image API"
+  },
+  "visualQa": {
+    "reviewedAt": "2026-10-15T09:51:05.569Z",
+    "method": "Reviewed every fresh native page PNG without image retouching",
+    "pageCount": 2,
+    "passed": false,
+    "notes": [
+      "Both worksheet range images reviewed; tables, dates, wrapped notes and chart are visible."
+    ],
+    "warnings": [
+      "Existing base-styles sheet has a left-clipped first character in its A13 explanatory note; screenshot refresh did not edit workbook layout."
+    ]
+  }
 }

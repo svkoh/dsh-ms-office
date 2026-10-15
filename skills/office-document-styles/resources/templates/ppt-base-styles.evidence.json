@@ -11,17 +11,17 @@
     "docs/style-atlas/ppt-base-styles.pptx": "43ecc1a48eb8033c979ecb1226f9ea3127bf58ce73443ef923ac55c244c9c724",
     "skills/office-document-styles/resources/templates/ppt-base-styles.pdf": "94834fd5c9994c409da214c5470b3c01620191b689805bee8a4f7fc9943c4c71",
     "docs/style-atlas/ppt-base-styles.pdf": "94834fd5c9994c409da214c5470b3c01620191b689805bee8a4f7fc9943c4c71",
-    "skills/office-document-styles/resources/previews/ppt-base-styles/page-01.png": "0d95c146d632ba207ce5f53b9360b5f9ea24ee703c5536250cb56f8f1bded9d2",
-    "skills/office-document-styles/resources/previews/ppt-base-styles/page-02.png": "3bc8713a448fe9442842f31d18f85072269e99c6dc2099df1e7e348f37ccfdcc",
-    "skills/office-document-styles/resources/previews/ppt-base-styles/page-03.png": "aba5686b549e11c99a28a9ba04f4ec227088569b52c27301711c2edc4d1a579e",
-    "skills/office-document-styles/resources/previews/ppt-base-styles/page-04.png": "f6813f854717663e5b7f9973e226f266367fe5800a09abaf4014b90c11c129a0",
-    "skills/office-document-styles/resources/previews/ppt-base-styles/page-05.png": "ff340a537d31473ddde8edf5ae9eefee5bedb7d7bcc1676b9c7af98511ddf183",
-    "skills/office-document-styles/resources/previews/ppt-base-styles/page-06.png": "99010c8e3e2bd4156449c734b25155541fd53e923308deaa59b668e841ad8e0c",
-    "skills/office-document-styles/resources/previews/ppt-base-styles/page-07.png": "f3945c6e9b248a1323004cf47c6abb6a5fc9b7775a11f8ea4e57dad1eae2dd9c",
-    "skills/office-document-styles/resources/previews/ppt-base-styles/page-08.png": "de45f61db76d4df673abf6de0c72ca05a0cf0462ed9413e6dd0688af50450bad",
-    "skills/office-document-styles/resources/previews/ppt-base-styles/page-09.png": "38310012c845bdd1649bbb23967c49ffadcf37d49624cf4084f679e826cf6634",
-    "skills/office-document-styles/resources/previews/ppt-base-styles/page-10.png": "53ca09e757b54317e5375af0d8b5a57602c1fe35a8dffd77147411311c73a6bc",
-    "skills/office-document-styles/resources/previews/ppt-base-styles.png": "0d95c146d632ba207ce5f53b9360b5f9ea24ee703c5536250cb56f8f1bded9d2"
+    "skills/office-document-styles/resources/previews/ppt-base-styles/page-01.png": "f338a135f308e72bff1e2e06b64fc36549d92a009abd378f8eb49e7fd9853143",
+    "skills/office-document-styles/resources/previews/ppt-base-styles/page-02.png": "07b66cf75b6102f64d607f579ba6997b4a4e6b06906f6e78ffbec195a0e20300",
+    "skills/office-document-styles/resources/previews/ppt-base-styles/page-03.png": "2b3622954c68f13a094a24c07e08962700d3ef12715bb53e67f5239110922ca8",
+    "skills/office-document-styles/resources/previews/ppt-base-styles/page-04.png": "687924da629d1aa968280c55880c7838a9baabc1f1c36696cdd772c17925bf48",
+    "skills/office-document-styles/resources/previews/ppt-base-styles/page-05.png": "cc2c03f0762f5c2566f8219dd23815dbdaaab3d4bce3397a41fee7357531ff0c",
+    "skills/office-document-styles/resources/previews/ppt-base-styles/page-06.png": "08ce6da59278e396402b5a938a6c0fdffc999a1e8b59a62c0b12be2d9eeea878",
+    "skills/office-document-styles/resources/previews/ppt-base-styles/page-07.png": "898f3df74b3df8acb5eeb2e51f6729a541031dc71c29eec6b83706e87c31646e",
+    "skills/office-document-styles/resources/previews/ppt-base-styles/page-08.png": "6554bb880de77e4df765857c933dfa0feca5e5ef510a7b27b7ae69939430b00a",
+    "skills/office-document-styles/resources/previews/ppt-base-styles/page-09.png": "4bde9ee89c6b82731f65d9c4999df858d5442d5cdde82ae037c38eaa5dbdc3cb",
+    "skills/office-document-styles/resources/previews/ppt-base-styles/page-10.png": "fe82ea3eae1fb67bb2275141cf410f78411ea10c57e2684f07738a01208ae19c",
+    "skills/office-document-styles/resources/previews/ppt-base-styles.png": "f338a135f308e72bff1e2e06b64fc36549d92a009abd378f8eb49e7fd9853143"
   },
   "fontChecks": [
     {
@@ -3175,5 +3175,92 @@
     "height": 540
   },
   "tableVerified": true,
-  "imageAspectPreserved": true
+  "imageAspectPreserved": true,
+  "nativeRendering": {
+    "renderer": "Microsoft PowerPoint native Slide.getImageAsBase64",
+    "slideSize": {
+      "width": 960,
+      "height": 540,
+      "unit": "pt"
+    },
+    "pages": [
+      {
+        "index": 1,
+        "width": 1920,
+        "height": 1080,
+        "sha256": "f338a135f308e72bff1e2e06b64fc36549d92a009abd378f8eb49e7fd9853143"
+      },
+      {
+        "index": 2,
+        "width": 1920,
+        "height": 1080,
+        "sha256": "07b66cf75b6102f64d607f579ba6997b4a4e6b06906f6e78ffbec195a0e20300"
+      },
+      {
+        "index": 3,
+        "width": 1920,
+        "height": 1080,
+        "sha256": "2b3622954c68f13a094a24c07e08962700d3ef12715bb53e67f5239110922ca8"
+      },
+      {
+        "index": 4,
+        "width": 1920,
+        "height": 1080,
+        "sha256": "687924da629d1aa968280c55880c7838a9baabc1f1c36696cdd772c17925bf48"
+      },
+      {
+        "index": 5,
+        "width": 1920,
+        "height": 1080,
+        "sha256": "cc2c03f0762f5c2566f8219dd23815dbdaaab3d4bce3397a41fee7357531ff0c"
+      },
+      {
+        "index": 6,
+        "width": 1920,
+        "height": 1080,
+        "sha256": "08ce6da59278e396402b5a938a6c0fdffc999a1e8b59a62c0b12be2d9eeea878"
+      },
+      {
+        "index": 7,
+        "width": 1920,
+        "height": 1080,
+        "sha256": "898f3df74b3df8acb5eeb2e51f6729a541031dc71c29eec6b83706e87c31646e"
+      },
+      {
+        "index": 8,
+        "width": 1920,
+        "height": 1080,
+        "sha256": "6554bb880de77e4df765857c933dfa0feca5e5ef510a7b27b7ae69939430b00a"
+      },
+      {
+        "index": 9,
+        "width": 1920,
+        "height": 1080,
+        "sha256": "4bde9ee89c6b82731f65d9c4999df858d5442d5cdde82ae037c38eaa5dbdc3cb"
+      },
+      {
+        "index": 10,
+        "width": 1920,
+        "height": 1080,
+        "sha256": "fe82ea3eae1fb67bb2275141cf410f78411ea10c57e2684f07738a01208ae19c"
+      }
+    ]
+  },
+  "screenshotRefresh": {
+    "capturedAt": "2026-10-15T09:32:35.553Z",
+    "readOnly": true,
+    "pageCount": 10,
+    "source": "Existing native Office template; document text unchanged before/after capture",
+    "method": "Office.js native image API"
+  },
+  "visualQa": {
+    "reviewedAt": "2026-10-15T09:51:05.578Z",
+    "method": "Reviewed every fresh native page PNG without image retouching",
+    "pageCount": 10,
+    "passed": true,
+    "notes": [
+      "All ten slides reviewed: readable type, native table, editable shape chart, image, flow, timeline and colour grid."
+    ],
+    "warnings": []
+  }
 }

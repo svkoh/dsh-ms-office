@@ -9,105 +9,62 @@
   "checksums": {
     "skills/office-document-styles/resources/templates/word-base-styles.docx": "2e9cada57e5ab2950121cab667250603cb14312ebe479aa12b63baa1450009e1",
     "docs/style-atlas/word-base-styles.docx": "2e9cada57e5ab2950121cab667250603cb14312ebe479aa12b63baa1450009e1",
-    "skills/office-document-styles/resources/previews/word-base-styles/page-01.png": "85a4652c97c49f4fb76597511e5705c3705ce0f160688dcd103c17b5d1cbf3d7",
-    "skills/office-document-styles/resources/previews/word-base-styles/page-02.png": "45f25650ec605c4051e3e0d470e3b6319b9c84fdfc22ccf5f773315635f44e73",
-    "skills/office-document-styles/resources/previews/word-base-styles/page-03.png": "d6c24909c3aff2094b1be35be178cadb0f0f91069d38c6dde15b59ae222203e3",
-    "skills/office-document-styles/resources/previews/word-base-styles/page-04.png": "db9d94f2ed2a1b555b6131097f28a261a36734c0c49cc8f891a8aed460670a12",
-    "skills/office-document-styles/resources/previews/word-base-styles/page-05.png": "dac0fee657bcf72d5f185eafa0f83a096aa5cea367f4fbebafdbcf730b1272ab",
-    "skills/office-document-styles/resources/previews/word-base-styles.png": "85a4652c97c49f4fb76597511e5705c3705ce0f160688dcd103c17b5d1cbf3d7"
+    "skills/office-document-styles/resources/previews/word-base-styles/page-01.png": "73a2d64c1c02ad813fb1dcdcb847e364e17b4697576fb2a1e701f6c3e506a04b",
+    "skills/office-document-styles/resources/previews/word-base-styles/page-02.png": "d0ee22b320a5998526c84d45cdf078a72f72d4344564ec1e2c1f55b611bdaedc",
+    "skills/office-document-styles/resources/previews/word-base-styles/page-03.png": "c7471d7200108e725b5cef700b66453f7784c724cac0a3d2748665927432f5a6",
+    "skills/office-document-styles/resources/previews/word-base-styles/page-04.png": "735b71b3d945993c5eabe00a16dfc7e0e482469fd5a8942067c16cc1c919551f",
+    "skills/office-document-styles/resources/previews/word-base-styles/page-05.png": "630e78f57d06f540587e57e0d08e07a53946b72aafd289b9b8fb739cd81c3976",
+    "skills/office-document-styles/resources/previews/word-base-styles.png": "73a2d64c1c02ad813fb1dcdcb847e364e17b4697576fb2a1e701f6c3e506a04b"
   },
   "visualQa": {
+    "reviewedAt": "2026-10-15T09:51:05.562Z",
+    "method": "Reviewed every fresh native page PNG without image retouching",
+    "pageCount": 5,
     "passed": true,
-    "method": "Read every unchanged native Microsoft Word page PNG with read_image",
-    "pages": [
-      {
-        "page": 1,
-        "passed": true,
-        "checks": [
-          "Complete cover on page 1",
-          "No first-page header/footer",
-          "Readable Chinese title and body"
-        ]
-      },
-      {
-        "page": 2,
-        "passed": true,
-        "checks": [
-          "12 native TOC entries",
-          "Actual cached references 3/4/5",
-          "Readable header and footer PAGE 2"
-        ]
-      },
-      {
-        "page": 3,
-        "passed": true,
-        "checks": [
-          "Heading hierarchy and body clear",
-          "Four native list paragraphs visible",
-          "No clipping or overflow",
-          "Footer PAGE 3"
-        ]
-      },
-      {
-        "page": 4,
-        "passed": true,
-        "checks": [
-          "Native 6x5 editable table",
-          "Totals 300/290/10 and 96.7%",
-          "Readable emphasis/signature",
-          "Footer PAGE 4"
-        ]
-      },
-      {
-        "page": 5,
-        "passed": true,
-        "checks": [
-          "Original diagram correct 3:1 aspect ratio",
-          "Separate editable caption",
-          "No text/image overflow",
-          "Footer PAGE 5"
-        ]
-      }
+    "notes": [
+      "Cover, twelve-entry TOC, heading/list hierarchy, native table and diagram retain five-page layout.",
+      "Text edges are smoother after bounded 2x native EMF sampling."
     ],
-    "fonts": "Native Word rendering; no text rasterization workaround"
+    "warnings": []
   },
   "tocCacheVerified": true,
   "nativeRendering": {
-    "renderer": "Microsoft Word native Page.EnhMetaFileBits",
     "pageCount": 5,
+    "renderer": "Microsoft Word native Page.EnhMetaFileBits",
     "documentFingerprint": "52dbd944e11e8e01df2afe76ad72e640c0b96dd97b7e1c324778bb769addcc4a",
     "viewType": "PrintLayout",
-    "nominalDpi": 144,
+    "nominalDpi": 216,
+    "rasterization": "Native EMF playback with bounded supersampling and bicubic downsampling",
     "pages": [
       {
         "index": 1,
-        "width": 1190,
-        "height": 1682,
-        "sha256": "85a4652c97c49f4fb76597511e5705c3705ce0f160688dcd103c17b5d1cbf3d7"
+        "width": 1785,
+        "height": 2526,
+        "sha256": "73a2d64c1c02ad813fb1dcdcb847e364e17b4697576fb2a1e701f6c3e506a04b"
       },
       {
         "index": 2,
-        "width": 1190,
-        "height": 1682,
-        "sha256": "45f25650ec605c4051e3e0d470e3b6319b9c84fdfc22ccf5f773315635f44e73"
+        "width": 1785,
+        "height": 2526,
+        "sha256": "d0ee22b320a5998526c84d45cdf078a72f72d4344564ec1e2c1f55b611bdaedc"
       },
       {
         "index": 3,
-        "width": 1190,
-        "height": 1682,
-        "sha256": "d6c24909c3aff2094b1be35be178cadb0f0f91069d38c6dde15b59ae222203e3"
+        "width": 1785,
+        "height": 2526,
+        "sha256": "c7471d7200108e725b5cef700b66453f7784c724cac0a3d2748665927432f5a6"
       },
       {
         "index": 4,
-        "width": 1190,
-        "height": 1682,
-        "sha256": "db9d94f2ed2a1b555b6131097f28a261a36734c0c49cc8f891a8aed460670a12"
+        "width": 1785,
+        "height": 2526,
+        "sha256": "735b71b3d945993c5eabe00a16dfc7e0e482469fd5a8942067c16cc1c919551f"
       },
       {
         "index": 5,
-        "width": 1190,
-        "height": 1682,
-        "sha256": "dac0fee657bcf72d5f185eafa0f83a096aa5cea367f4fbebafdbcf730b1272ab"
+        "width": 1785,
+        "height": 2526,
+        "sha256": "630e78f57d06f540587e57e0d08e07a53946b72aafd289b9b8fb739cd81c3976"
       }
     ]
   },
@@ -172,5 +129,12 @@
   "hasNativeNumbering": true,
   "hasToc": true,
   "hasPage": true,
-  "originalPngEmbedded": true
+  "originalPngEmbedded": true,
+  "screenshotRefresh": {
+    "capturedAt": "2026-10-15T09:39:15.858Z",
+    "readOnly": true,
+    "pageCount": 5,
+    "source": "Existing native Office template; document text unchanged before/after capture",
+    "method": "Repository native Word renderer; EMF supersampling and bicubic downsampling"
+  }
 }

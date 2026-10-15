@@ -30,6 +30,7 @@ for(const cells of observedRows){
 }
 observedRaw+='tail\r';observedProjected+='tail\r';
 const fixtures = [
+  {...fixture('flattened Office.js row tails preserve exact cells, images and literal slashes',tableText,[[tableImageIndex,tableImageIndex+1]],'A\r\u0007B\t\t\r\r正文/\r','A\tB\t\t\n\n正文/',false,[[0,8]]),rowTail:'\t\t'},
   {...fixture('native character positions can differ from Range.Text UTF-16 offsets','A\r\u0007\r\u0007tail\r',[],'A\rtail\r','A\ntail',false,[[0,3]]),nativeOffsets:[0,1,3,5,6,7,8,9,10]},
   fixture('native row tails produce exactly 103 tabs and 96 paragraphs from the reported counts',observedRaw,[],observedProjected,'paragraph\n'.repeat(53)+observedRows.map(cells=>cells.join('\t')+'\n').join('')+'tail',false,observedRanges),
   {...fixture('reject nested table projection','A\r\u0007\r\u0007tail',[],null,null,true,[[0,5]]),nestingLevel:2},
@@ -79,7 +80,7 @@ $ProgressPreference='SilentlyContinue'
 $tokens=$null; $parseErrors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile('${helper}',[ref]$tokens,[ref]$parseErrors)
 if($parseErrors.Count){throw 'Native helper has PowerShell syntax errors'}
-$allowed=@('Release-OwnedCom','Canonical-Body','Body-Fingerprint','Body-Diagnostics','Native-RowTailRanges','Projected-DocumentBody','Fail-Native')
+$allowed=@('Release-OwnedCom','Canonical-Body','Body-Fingerprint','Body-Diagnostics','Native-RowTailRanges','Projected-DocumentBody','Document-Fingerprint','Fail-Native')
 $definitions=@($ast.EndBlock.Statements|Where-Object{$_ -is [Management.Automation.Language.FunctionDefinitionAst] -and $_.Name -in $allowed})
 if($definitions.Count -ne $allowed.Count){throw 'Missing or duplicate allowlisted projection functions'}
 foreach($definition in $definitions){
@@ -122,8 +123,8 @@ $receipts=New-Object 'System.Collections.Generic.List[object]'
 foreach($fixture in $fixtures){
   $doc=New-FakeDocument $fixture
   try {
-    $projected=Projected-DocumentBody $doc
-    $receipts.Add(@{name=$fixture.name;ok=$true;projected=$projected;canonical=(Canonical-Body $projected);fingerprint=(Body-Fingerprint $projected);diagnostics=(Body-Diagnostics $projected $fixture.canonical);calls=$doc.Calls.ToArray()})
+    $projected=if($fixture.rowTail){Projected-DocumentBody $doc $fixture.rowTail}else{Projected-DocumentBody $doc}
+    $receipts.Add(@{name=$fixture.name;ok=$true;projected=$projected;canonical=(Canonical-Body $projected);fingerprint=(Body-Fingerprint $projected);matchedFingerprint=(Document-Fingerprint (New-FakeDocument $fixture) (Body-Fingerprint $fixture.canonical));unmatchedFingerprint=(Document-Fingerprint (New-FakeDocument $fixture) ('0'*64));diagnostics=(Body-Diagnostics $projected $fixture.canonical);calls=$doc.Calls.ToArray()})
   } catch {
     $receipts.Add(@{name=$fixture.name;ok=$false;code=$_.Exception.Data['nativeCode'];error=$_.Exception.Message;calls=$doc.Calls.ToArray()})
   }
@@ -158,6 +159,8 @@ for(const scenario of fixtures){
     assert.equal(receipt.diagnostics.firstMismatch,scenario.canonical.length,'Projected diagnostics compare the text actually used for matching');
     assert.equal(receipt.diagnostics.length,scenario.canonical.length);
     assert.equal(receipt.fingerprint,documentFingerprint(scenario.projected),'Both languages hash identical UTF-8 text');
+    assert.equal(receipt.matchedFingerprint,documentFingerprint(scenario.projected),'Matching accepts only an exact expected fingerprint');
+    assert.notEqual(receipt.unmatchedFingerprint,'0'.repeat(64),'Unrelated expected fingerprints must not match');
     const offsets=scenario.nativeOffsets||Array.from({length:scenario.raw.length+1},(_,i)=>i);
     if(!scenario.rows.length)assert.equal(receipt.calls.map(call=>scenario.raw.slice(offsets[call.start-base],offsets[call.end-base])).join(''),scenario.projected,'All retained text comes from bounded native ranges');
     for(const call of receipt.calls)assert.ok(call.start>=base&&call.end>=call.start&&call.end<=base+offsets.length-1,'Every text probe remains within the body');

@@ -65,14 +65,14 @@ function Native-RowTailRanges([object] $Document, [int] $Start, [int] $End) {
     return $tails.ToArray()
   } finally { Release-OwnedCom $tables }
 }
-function Projected-DocumentBody([object] $Document) {
+function Projected-DocumentBody([object] $Document, [string] $RowTail = "`r") {
   $content=$null; $shapes=$null
   try {
     $content=$Document.Content; $start=[int]$content.Start; $end=[int]$content.End
     $shapes=$Document.InlineShapes
     if([int]$shapes.Count -gt 1000) { Fail-Native 'requirement' 'Too many native inline object ranges for bounded matching' }
     $intervals=New-Object 'System.Collections.Generic.List[object]'
-    foreach($tail in @(Native-RowTailRanges $Document $start $end)) { $intervals.Add($tail) }
+    foreach($tail in @(Native-RowTailRanges $Document $start $end)) { $tail.replacement=$RowTail; $intervals.Add($tail) }
     for($i=1;$i -le [int]$shapes.Count;$i++) {
       $shape=$null; $range=$null
       try { $shape=$shapes.Item($i); $range=$shape.Range; $intervals.Add(@{start=[int]$range.Start;end=[int]$range.End;replacement=''}) } finally { Release-OwnedCom $range; Release-OwnedCom $shape }
@@ -90,9 +90,15 @@ function Projected-DocumentBody([object] $Document) {
     return $builder.ToString()
   } finally { Release-OwnedCom $shapes; Release-OwnedCom $content }
 }
-function Document-Fingerprint([object] $Document) {
-  $content = $null
-  return Body-Fingerprint (Projected-DocumentBody $Document)
+function Document-Fingerprint([object] $Document, [string] $ExpectedHash) {
+  $hash = Body-Fingerprint (Projected-DocumentBody $Document)
+  # Office.js hosts expose table row tails as either a paragraph or two tabs.
+  # Both projections retain every other character and still require an exact hash.
+  if ($ExpectedHash -and $hash -cne $ExpectedHash) {
+    $flattenedHash = Body-Fingerprint (Projected-DocumentBody $Document "`t`t")
+    if ($flattenedHash -ceq $ExpectedHash) { return $flattenedHash }
+  }
+  return $hash
 }
 function Fail-Native([string] $Code, [string] $Message) {
   $failure = New-Object System.InvalidOperationException($Message)
@@ -136,14 +142,14 @@ try {
         } finally { Release-OwnedCom $shapes }
         $diagnostics.Add($diagnostic)
       } finally { Release-OwnedCom $candidateContent }
-      if ((Document-Fingerprint $candidate) -ceq $expectedHash) { $matchingDocumentIndexes.Add($documentIndex) }
+      if ((Document-Fingerprint $candidate $expectedHash) -ceq $expectedHash) { $matchingDocumentIndexes.Add($documentIndex) }
     } finally { Release-OwnedCom $candidate }
   }
   if ($matchingDocumentIndexes.Count -eq 0) { Fail-Native 'not_found' ('No existing Word document exactly matches the Office.js body fingerprint; metadata=' + (@{expected=(Body-Diagnostics $request.bodyText $request.bodyText);candidates=$diagnostics.ToArray()} | ConvertTo-Json -Compress -Depth 8)) }
   if ($matchingDocumentIndexes.Count -ne 1) { Fail-Native 'requirement' 'More than one existing Word document matches the body fingerprint; document selection is ambiguous' }
   $matchedDocument = $documents.Item($matchingDocumentIndexes[0])
   $ownedReferences.Add($matchedDocument)
-  if ((Document-Fingerprint $matchedDocument) -cne $expectedHash) { Fail-Native 'requirement' 'Word document changed before native page access' }
+  if ((Document-Fingerprint $matchedDocument $expectedHash) -cne $expectedHash) { Fail-Native 'requirement' 'Word document changed before native page access' }
   $window = $matchedDocument.ActiveWindow
   $ownedReferences.Add($window)
   $panes = $window.Panes
@@ -160,7 +166,7 @@ try {
   Add-Type -AssemblyName System.Drawing
   $renderedPages = New-Object 'System.Collections.Generic.List[object]'
   for ($pageIndex = 1; $pageIndex -le $pageCount; $pageIndex++) {
-    $page = $null; $emfStream = $null; $metafile = $null; $bitmap = $null; $graphics = $null; $pngStream = $null
+    $page = $null; $emfStream = $null; $metafile = $null; $bitmap = $null; $graphics = $null; $pngStream = $null; $outputBitmap = $null; $outputGraphics = $null
     try {
       $page = $pages.Item($pageIndex)
       $widthPt = [double]$page.Width; $heightPt = [double]$page.Height
@@ -173,18 +179,31 @@ try {
       if ($bits.Length -lt 1 -or $bits.Length -gt 67108864) { Fail-Native 'requirement' 'Native Word page EMF is unavailable or exceeds its bounded size' }
       $emfStream = [IO.MemoryStream]::new($bits)
       $metafile = [Drawing.Imaging.Metafile]::new($emfStream)
-      $bitmap = [Drawing.Bitmap]::new($width, $height, [Drawing.Imaging.PixelFormat]::Format32bppArgb)
-      $bitmap.SetResolution([single](72 * $scale), [single](72 * $scale))
+      # Supersample typical pages without exceeding the existing 24M-pixel raster bound.
+      $sampleFactor = if ($width * $height -le 6000000) { 2 } else { 1 }
+      $bitmap = [Drawing.Bitmap]::new(($width * $sampleFactor), ($height * $sampleFactor), [Drawing.Imaging.PixelFormat]::Format32bppArgb)
+      $bitmap.SetResolution([single](72 * $scale * $sampleFactor), [single](72 * $scale * $sampleFactor))
       $graphics = [Drawing.Graphics]::FromImage($bitmap)
       $graphics.Clear([Drawing.Color]::White)
       $graphics.PageUnit = [Drawing.GraphicsUnit]::Pixel
       # Playback Word's complete native page EMF, including headers and footers.
       # No text layout, font substitution, document reconstruction, or PDF renderer.
-      $graphics.DrawImage($metafile, [Drawing.RectangleF]::new(0, 0, [single]($widthPt * $scale), [single]($heightPt * $scale)))
+      $graphics.TextRenderingHint = [Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+      $graphics.SmoothingMode = [Drawing.Drawing2D.SmoothingMode]::HighQuality
+      $graphics.DrawImage($metafile, [Drawing.RectangleF]::new(0, 0, [single]($widthPt * $scale * $sampleFactor), [single]($heightPt * $scale * $sampleFactor)))
+      $outputBitmap = [Drawing.Bitmap]::new($width, $height, [Drawing.Imaging.PixelFormat]::Format32bppArgb)
+      $outputBitmap.SetResolution([single](72 * $scale), [single](72 * $scale))
+      $outputGraphics = [Drawing.Graphics]::FromImage($outputBitmap)
+      $outputGraphics.Clear([Drawing.Color]::White)
+      $outputGraphics.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+      $outputGraphics.PixelOffsetMode = [Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+      $outputGraphics.DrawImage($bitmap, [Drawing.Rectangle]::new(0, 0, $width, $height), 0, 0, $bitmap.Width, $bitmap.Height, [Drawing.GraphicsUnit]::Pixel)
       $pngStream = [IO.MemoryStream]::new()
-      $bitmap.Save($pngStream, [Drawing.Imaging.ImageFormat]::Png)
+      $outputBitmap.Save($pngStream, [Drawing.Imaging.ImageFormat]::Png)
       $renderedPages.Add([ordered]@{ index = $pageIndex; width = $width; height = $height; pageWidthPt = $widthPt; pageHeightPt = $heightPt; dpi = 72 * $scale; base64 = [Convert]::ToBase64String($pngStream.ToArray()) })
     } finally {
+      if ($null -ne $outputGraphics) { $outputGraphics.Dispose() }
+      if ($null -ne $outputBitmap) { $outputBitmap.Dispose() }
       if ($null -ne $graphics) { $graphics.Dispose() }
       if ($null -ne $bitmap) { $bitmap.Dispose() }
       if ($null -ne $metafile) { $metafile.Dispose() }
@@ -193,8 +212,8 @@ try {
       Release-OwnedCom $page
     }
   }
-  if ((Document-Fingerprint $matchedDocument) -cne $expectedHash -or [int]$pages.Count -ne $pageCount) { Fail-Native 'requirement' 'Word document changed during native page rendering; output discarded' }
-  $output = [ordered]@{ ok = $true; result = [ordered]@{ pages = @($renderedPages.ToArray()); pageCount = $pageCount; renderer = 'Microsoft Word native Page.EnhMetaFileBits'; documentFingerprint = $expectedHash; viewType = 'PrintLayout'; nominalDpi = 144 } }
+  if ((Document-Fingerprint $matchedDocument $expectedHash) -cne $expectedHash -or [int]$pages.Count -ne $pageCount) { Fail-Native 'requirement' 'Word document changed during native page rendering; output discarded' }
+  $output = [ordered]@{ ok = $true; result = [ordered]@{ pages = @($renderedPages.ToArray()); pageCount = $pageCount; renderer = 'Microsoft Word native Page.EnhMetaFileBits'; documentFingerprint = $expectedHash; viewType = 'PrintLayout'; nominalDpi = 216; rasterization = 'Native EMF playback with bounded supersampling and bicubic downsampling' } }
 } catch {
   $code = 'requirement'
   if ($_.Exception.Data.Contains('nativeCode')) { $code = [string]$_.Exception.Data['nativeCode'] }
