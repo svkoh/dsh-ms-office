@@ -49,10 +49,24 @@ describe('package.json 清单', () => {
 
   test('dsh 清单字段完整且指向真实文件', () => {
     assert.equal(pkg.dsh.manifestVersion, 1);
-    assert.equal(pkg.dsh.bundle.patch, './cordis.patch.yml');
+    assert.equal(pkg.dsh.bundle.patch, 'cordis.patch.yml');
     assert.ok(fs.existsSync(path.join(ROOT, pkg.dsh.bundle.patch)), 'dsh.bundle.patch 指向的文件不存在');
     assert.equal(pkg.dsh.client.platform, 'web');
     assert.ok(Array.isArray(pkg.dsh.client.inject) && pkg.dsh.client.inject.length > 0);
+  });
+
+  test('NanoAI native manifest matches the npm package and declares real facet entries', () => {
+    const native = readJson(path.join(ROOT, 'dsh-plugin.json'));
+    assert.equal(native.id, pkg.name);
+    assert.equal(native.version, pkg.version);
+    assert.equal(native.license, pkg.license);
+    assert.ok(pkg.files.includes('dsh-plugin.json'));
+    assert.deepEqual(Object.keys(native.facets).sort(), ['client', 'host']);
+    for (const facet of Object.values(native.facets)) {
+      assert.equal(path.posix.normalize(facet.entry), facet.entry);
+      assert.ok(!facet.entry.startsWith('../') && !path.isAbsolute(facet.entry));
+      assert.ok(fs.existsSync(path.join(ROOT, facet.entry)));
+    }
   });
 
   test('main / exports 指向真实文件', () => {

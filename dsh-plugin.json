@@ -1,0 +1,10 @@
+{
+  "id": "dsh-ms-office",
+  "name": "Microsoft Office",
+  "version": "0.3.2",
+  "license": "MIT",
+  "facets": {
+    "host": { "entry": "lib/index.js" },
+    "client": { "entry": "lib/client.js" }
+  }
+}
