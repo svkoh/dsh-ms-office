@@ -1,77 +1,77 @@
 # dsh-ms-office
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%E2%89%A5%2018-3c873a.svg)](#兼容性)
+[![Node.js](https://img.shields.io/badge/node-%E2%89%A5%2018-3c873a.svg)](#compatibility)
 [![CI](https://github.com/svkoh/dsh-ms-office/actions/workflows/ci.yml/badge.svg)](https://github.com/svkoh/dsh-ms-office/actions/workflows/ci.yml)
 
-[English](README.en.md) · 中文
+English · [中文](README.zh.md)
 
-在 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 会话里读写你已经打开的 Microsoft Office 文档：Word、Excel、PowerPoint 的内容、格式、结构、表格、图表、公式与批注。
+Read and write the Microsoft Office documents you already have open — Word, Excel and PowerPoint — from a [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) session: content, formatting, structure, tables, charts, formulas and comments.
 
-![运行时数据流：dsh 会话 → 桥接服务 → 加载项窗格 → Office 文档](docs/architecture-runtime.svg)
+![Runtime data flow: dsh session → bridge → add-in task pane → Office document](docs/architecture-runtime.svg)
 
-加载项运行在 Office 内部，直接修改你当前打开的那份文档。改动立刻可见，不需要保存或重新打开；你和 AI 也可以同时编辑，由 Office 依次处理。
+The add-in runs inside Office and edits the document you currently have open. Changes are visible immediately, with no saving or reopening, and you and the AI can edit at the same time — Office applies the changes in order.
 
-> 文中「Office」均指 Microsoft Office 桌面版，不含 WPS 等兼容产品，也不含网页版。
+> Throughout this document, "Office" means the Microsoft Office desktop applications, not WPS or other compatible suites, and not the web versions.
 
-## 快速开始
+## Quick start
 
 ```bash
 dsh plugin --profile web add dsh-ms-office
 ```
 
-`--profile web` 是 dsh 的配置名，和你平时使用的那份保持一致即可。
+`--profile web` is a dsh profile name; use whichever one you normally run.
 
-安装后 dsh 会加载插件，插件随即自动启动本地桥接服务，不需要手动操作。在插件面板确认服务状态为 `healthy`。
+Installing makes dsh load the plugin, which then starts the local bridge service on its own — there is nothing to launch by hand. Confirm the service state is `healthy` on the plugin panel.
 
-1. 打开一个 Word、Excel 或 PowerPoint 文档。
-2. 打开加载项窗格：
-   - Windows：服务启动时已自动注册加载项。关闭并重新打开文档，窗格即出现。
-   - macOS：需要手动加载清单，见 [macOS 手动加载](#macos-手动加载)。
-3. 窗格显示「已连接：等待 DSH 指令」即表示就绪。
-4. 在 dsh 会话里让它读文档，例如「读一下当前 Word 的全文」。
+1. Open a Word, Excel or PowerPoint document.
+2. Open the add-in task pane:
+   - Windows: the service registers the add-in when it starts. Close and reopen the document and the pane appears.
+   - macOS: the manifest has to be loaded by hand — see [Loading the manifest on macOS](#loading-the-manifest-on-macos).
+3. The pane shows "Connected — waiting for DSH commands" — you are ready.
+4. Ask your dsh session to read the document, for example "read the whole of the Word document I have open".
 
-窗格必须保持打开。Office.js 在窗格中执行，关掉会得到 `addin_offline`。窗格可以缩小或拖到角落。
+The pane must stay open. Office.js runs inside it, and closing it produces `addin_offline`. The pane can be shrunk or tucked into a corner.
 
-### macOS 手动加载
+### Loading the manifest on macOS
 
-文件 → 选项 → 自定义功能区 → 勾选「开发人员」，打开文档后依次进入 开发人员 → 加载项 → 管理「开发人员加载项」，添加 `manifest.xml`。
+File → Options → Customize Ribbon → tick "Developer", then with a document open go to Developer → Add-ins → manage "Developer Add-ins" → add `manifest.xml`.
 
-## 能力
+## Capabilities
 
-- 覆盖 Word、Excel、PowerPoint 三个应用，共 92 个 action：读选区、写内容、格式化、表格、图表、公式、批注、PPT 分组与对齐等。
-- 每份文档对应一个独立实例，指令必须指明目标文档，不会误伤其他文档。
-- 覆盖类操作前会先读取当前状态；预览失败直接禁止执行，默认还需要你在窗格中点一次「更改」。
-- 界面中英双语，跟随 Office 显示语言。
+- 92 actions across Word, Excel and PowerPoint: reading selections, writing content, formatting, tables, charts, formulas, comments, PowerPoint grouping and alignment.
+- One instance per document, and every command must name its target, so a command cannot land on the wrong document.
+- Destructive operations read the current state first; a failed preview blocks execution, and by default you still click "Apply" in the pane.
+- Bilingual UI (Chinese / English) that follows your Office display language.
 
-完整 action 清单见 [docs/CAPABILITIES.md](docs/CAPABILITIES.md)。
+The full action list is in [docs/CAPABILITIES.en.md](docs/CAPABILITIES.en.md).
 
-插件自带两个技能。[ms-office](skills/ms-office/SKILL.md) 负责安全操作；[office-document-styles](skills/office-document-styles/SKILL.md) 为每种宿主提供一份原创的基础样式范本——Word 覆盖文档元素，Excel 固定两个 Sheet，PowerPoint 展示图形、表格、空间布局与配色，并附带来源记录和分层质量检查。范本预览见[样式画廊](docs/style-gallery.md)，后续计划见[功能路线](docs/FEATURE-ROADMAP.md)。
+Two skills ship with the plugin. [ms-office](skills/ms-office/SKILL.en.md) handles safe operations; [office-document-styles](skills/office-document-styles/SKILL.en.md) provides one original base style atlas per host — Word covers document elements, Excel is fixed to two sheets, and PowerPoint shows shapes, tables, spatial layout and colour roles, each with provenance records and layered quality checks. See the [style gallery](docs/style-gallery.en.md) and the [feature roadmap](docs/FEATURE-ROADMAP.en.md).
 
-中文默认字体：Word 正文宋体、标题黑体；Excel 宋体；PowerPoint 标题黑体，正文及表格、图表标签楷体。范本的所有修改都通过插件实际执行，导出与截图保留原生 Office 证据。
+Chinese defaults: Word body SimSun and headings SimHei; Excel SimSun; PowerPoint titles SimHei, body and table/chart labels KaiTi. Every change to an atlas runs through the plugin itself, and exports and screenshots keep native Office evidence.
 
-## 兼容性
+## Compatibility
 
-| 平台 | 状态 | 说明 |
+| Platform | Status | Notes |
 | --- | --- | --- |
-| Windows | 完整支持 | 加载项自动注册，走 WEF 注册表 |
-| macOS | 核心可用 | Node 与加载项正常；自动注册不适用，需在 Office 中手动加载清单 |
-| Linux | 不支持 | 没有 Office 桌面版加载项宿主 |
+| Windows | Full | Add-in auto-registration via the WEF registry |
+| macOS | Core | Node and the add-in work; auto-registration does not apply, load the manifest manually from Office |
+| Linux | None | No Office desktop add-in host |
 
-- Node.js ≥ 18（桥接服务只用标准库）
-- Microsoft Office 桌面版（Word / Excel / PowerPoint）
-- dsh：版本要求见 `package.json` 的 `peerDependencies`
+- Node.js ≥ 18 (the bridge uses only the standard library)
+- Microsoft Office desktop (Word / Excel / PowerPoint)
+- dsh — see `peerDependencies` in `package.json`
 
-## 文档
+## Documentation
 
-| 文档 | 内容 |
+| Document | Contents |
 | --- | --- |
-| [docs/CAPABILITIES.md](docs/CAPABILITIES.md) | 全部 action 清单与能力边界 |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | 架构、文件职责、分片契约、i18n、热更新、自定义 action、打包约定 |
-| [docs/AGENT.md](docs/AGENT.md) | HTTP 接口、错误码、审批协议，供脚本和其他 agent 对接 |
+| [docs/CAPABILITIES.en.md](docs/CAPABILITIES.en.md) | Full action list and capability boundaries |
+| [docs/DEVELOPMENT.en.md](docs/DEVELOPMENT.en.md) | Architecture, file map, fragment contract, i18n, hot reload, custom actions, packaging rules |
+| [docs/AGENT.en.md](docs/AGENT.en.md) | HTTP endpoints, error codes, approval protocol, for scripts and other agents |
 
-## 许可
+## License
 
-[MIT](LICENSE)。第三方组件 pako 的许可与出处见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+[MIT](LICENSE). The license and provenance of the third-party component (pako) are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-本项目 fork 自 <https://github.com/Mikuzjc/dsh-office-for-mso>。
+This project is a fork of <https://github.com/Mikuzjc/dsh-office-for-mso>.

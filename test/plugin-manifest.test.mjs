@@ -221,14 +221,12 @@ describe('文档与实际一致', () => {
   const count = capabilities.length;
 
   test('README 里的 action 数就是 capabilities.json 的条数', () => {
-    const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
-    assert.ok(readme.includes(`${count} 个 action`), `README.md 里没有 "${count} 个 action"`);
-    assert.ok(!/\b(34|36) 个 action/.test(readme), 'README.md 里还有过期的 action 数');
-  });
-
-  test('README.en.md 里的 action 数与实际一致', () => {
-    const readme = fs.readFileSync(path.join(ROOT, 'README.en.md'), 'utf8');
-    assert.ok(readme.includes(`${count} actions`), `README.en.md 里没有 "${count} actions"`);
+    for (const [file, phrase] of [['README.md', `${count} actions`], ['README.en.md', `${count} actions`], ['README.zh.md', `${count} 个 action`]]) {
+      const readme = fs.readFileSync(path.join(ROOT, file), 'utf8');
+      assert.ok(readme.includes(phrase), `${file} 里没有 "${phrase}"`);
+    }
+    const chinese = fs.readFileSync(path.join(ROOT, 'README.zh.md'), 'utf8');
+    assert.ok(!/\b(34|36) 个 action/.test(chinese), 'README.zh.md 里还有过期的 action 数');
   });
 
   test('文档里列出的每个 action 都真实存在', () => {
@@ -237,6 +235,7 @@ describe('文档与实际一致', () => {
     const files = [
       'README.md',
       'README.en.md',
+      'README.zh.md',
       ...fs
         .readdirSync(path.join(ROOT, 'docs'))
         .filter((f) => f.endsWith('.md'))
@@ -251,7 +250,7 @@ describe('文档与实际一致', () => {
   });
 
   test('README 指向的每份文档都存在', () => {
-    for (const readme of ['README.md', 'README.en.md']) {
+    for (const readme of ['README.md', 'README.en.md', 'README.zh.md']) {
       const text = fs.readFileSync(path.join(ROOT, readme), 'utf8');
       const links = [...text.matchAll(/\]\((docs\/[^)#]+)(?:#[^)]*)?\)/g)].map((m) => m[1]);
       assert.ok(links.length >= 3, `${readme} 应该指向 docs/ 下的文档（实际 ${links.length} 条）`);

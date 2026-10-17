@@ -4,7 +4,7 @@
 [![Node.js](https://img.shields.io/badge/node-%E2%89%A5%2018-3c873a.svg)](#compatibility)
 [![CI](https://github.com/svkoh/dsh-ms-office/actions/workflows/ci.yml/badge.svg)](https://github.com/svkoh/dsh-ms-office/actions/workflows/ci.yml)
 
-English · [中文](README.md)
+English · [中文](README.zh.md)
 
 Read and write the Microsoft Office documents you already have open — Word, Excel and PowerPoint — from a [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) session: content, formatting, structure, tables, charts, formulas and comments.
 
