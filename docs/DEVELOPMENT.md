@@ -83,7 +83,7 @@ dsh 加载的是 `dsh.profile.bundles` 这个**有序清单**，只装依赖不�
 {
   "dsh": {
     "profile": {
-      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-ms-office"]
+      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@nanoai-dev/dsh-ms-office"]
     }
   }
 }
@@ -100,6 +100,23 @@ dsh 加载的是 `dsh.profile.bundles` 这个**有序清单**，只装依赖不�
 ### 发布白名单（`package.json#files`）
 
 本插件在父仓 `plugins/manifest.json` 里是 `"sync": "npm-files"` ⇒ **发布包只装 `files` 列出的东西**。加新目录时**必须同时加进 `files`**，否则会打出一个缺文件的包而**打包全程不报错**（`test/plugin-manifest.test.mjs` 静态兜住这一类）。
+
+## 发布到 npm
+
+包名 `@nanoai-dev/dsh-ms-office`。本机使用带 Bypass 2FA 的发布凭据，命令行发布不需要验证码。凭据在 npm 网页的 Access Tokens 生成，写入 `~/.npmrc` 的 `//registry.npmjs.org/:_authToken`。本机若配置了下载镜像，仍须用 `--registry` 把发布指向官方 registry。
+
+npm 不允许覆盖已发布的版本。每次发布先升版本号：
+
+```bash
+npm pack --dry-run
+npm version patch --no-git-tag-version
+npm publish --registry=https://registry.npmjs.org/ --access public
+npm view @nanoai-dev/dsh-ms-office version --registry=https://registry.npmjs.org/
+```
+
+`npm pack --dry-run` 列出将要上传的文件，用于核对 `package.json` 的 `files` 清单。最后一条命令显示已发布的版本号。带前缀的包默认是私有的，`--access public` 不能省。
+
+未配置发布凭据的机器上，先执行 `npm login --registry=https://registry.npmjs.org/`，`npm publish` 会要求输入验证器 App 上的一次性验证码。
 
 ## 分片契约（`server/actions/`）
 

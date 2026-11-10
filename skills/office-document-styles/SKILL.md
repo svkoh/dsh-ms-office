@@ -23,7 +23,7 @@ PDF与原生PNG预览以核验记录列出的实际导出为准；未完成的�
 用户数据不得被演示数字替换；不为凑页数、字数或记录数编造事实。示例持续标注DEMO，用户资料按用户希望的sourceLabel显示，不打印内部USER标签。
 ## 执行流程
 
-1. 加载 Office 桥接技能 `ms-office`，读其公告和 `/office/status`，定位唯一目标实例；读取 `/office/capabilities` 和 `get_environment`。动作以当前运行时为准，源码中存在不等于已安装运行时支持。未上线或不满足 requirement 时停止执行，说明缺什么，不伪造成功。
+1. 加载 Office 桥接技能 `ms-office`，读其公告和 `/office/status`，定位唯一目标实例；读取 `/office/capabilities` 和 `get_environment`。动作以当前运行时为准，源码中存在不等于已安装运行时支持。能力缺失或流程阻塞时按 `ms-office` 的「优先级」一节处置：先排除可恢复情况，确认插件无法工作后由用户选择修复插件或改用外部工具。不自行切换文件级工具，不伪造成功。
 2. 读取文档基线与用户需要。Word 读 `word_list_paragraphs`、`read_document`；Excel 读 `list_sheets`；PPT 读 `ppt_read_presentation_info`、`ppt_inspect_slides({withStyles:true})`、`read_document`。PPT 的真实 `slideSize` 为 pt，不能拿导出 PNG 的像素宽高代替。
 3. 按需要选择范本中的元素或版式，读取当前内容与样式后限定修改范围。新建空白文档必须实际读回确认；已有正文、表格和用户幻灯片不得因套样式被清空。Excel新表名须不冲突。批量命令如使用计划，仍须检查preconditions与checkPlan。
 4. 向用户简述方案与影响范围，按已有授权执行。保持运行时审批模式，不能通过 `confirm:true`、内部批准入口或更改审批设置来绕过用户审批。计划自身不会获得额外批准权。

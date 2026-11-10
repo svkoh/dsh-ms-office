@@ -2,7 +2,7 @@
 
 > English · [中文](DEVELOPMENT.md)
 
-For people changing this plugin. Usage lives in the [README](../README.en.md); the wire protocol is in the [integration reference](AGENT.en.md).
+For people changing this plugin. Usage lives in the [README](../README.md); the wire protocol is in the [integration reference](AGENT.en.md).
 
 ## Architecture
 
@@ -83,7 +83,7 @@ dsh loads the ordered `dsh.profile.bundles` list; a bare dependency is not loade
 {
   "dsh": {
     "profile": {
-      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-ms-office"]
+      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@nanoai-dev/dsh-ms-office"]
     }
   }
 }
@@ -100,6 +100,23 @@ The skill name is its **directory name**, so both language variants live in the 
 ### Publish allow-list (`package.json#files`)
 
 This plugin is `"sync": "npm-files"` in the parent repo's `plugins/manifest.json` ⇒ **the published package contains only what `files` lists**. When you add a directory you **must** add it to `files` too, otherwise you ship a package with missing files and **packaging reports nothing** (`test/plugin-manifest.test.mjs` catches this class statically).
+
+## Publishing to npm
+
+The package name is `@nanoai-dev/dsh-ms-office`. This machine uses a publishing token with Bypass 2FA, so command-line publishing needs no one-time code. Generate the token under Access Tokens on npmjs.com and store it in `~/.npmrc` as `//registry.npmjs.org/:_authToken`. Keep `--registry` pointing at the official registry even when the machine uses a download mirror.
+
+npm does not allow republishing an existing version. Bump the version before each release:
+
+```bash
+npm pack --dry-run
+npm version patch --no-git-tag-version
+npm publish --registry=https://registry.npmjs.org/ --access public
+npm view @nanoai-dev/dsh-ms-office version --registry=https://registry.npmjs.org/
+```
+
+`npm pack --dry-run` lists the files that would be uploaded, so the `files` list in `package.json` can be checked. The last command shows the published version. Scoped packages are private by default, so `--access public` is required.
+
+On a machine without a publishing token, run `npm login --registry=https://registry.npmjs.org/` first; `npm publish` then asks for a one-time code from the authenticator app.
 
 ## Fragment contract (`server/actions/`)
 

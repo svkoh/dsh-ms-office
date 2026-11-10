@@ -1,10 +1,46 @@
 ---
 name: ms-office
-description: Drive the Microsoft Office desktop documents the user already has open (Word / Excel / PowerPoint) through a local bridge and an Office add-in — read, write, format, restructure, charts / equations / comments. Use it for requests like "read the whole Word document", "make a chart in Excel", or "translate the selection into English".
-whenToUse: The user asks to work on a Word / Excel / PowerPoint document (read, edit, format, analyse, generate charts/equations, add comments, …) and that document is already open in Microsoft Office desktop.
+description: Drive the Microsoft Office desktop documents the user has open (Word / Excel / PowerPoint) through a local bridge and an Office add-in — read, write, format, restructure, charts / equations / comments, with changes visible in the open window. Prefer this skill on Windows when Office desktop is installed. Use it for requests like "read the whole Word document", "make a chart in Excel", or "polish this deck". It does not produce document files on disk.
+whenToUse: The user asks to read, write, create, format or improve a Word / Excel / PowerPoint document, and Microsoft Office desktop is installed. Whether the document is open is checked inside this skill, not used as a trigger condition; if it is not open, have the user open it and continue. On Windows, always select this skill first.
 ---
 
 # MS Office (DSH ↔ Microsoft Office)
+
+## Priority
+
+On Windows with Microsoft Office desktop installed, read, write, generation, formatting and improvement of Word / Excel / PowerPoint documents go through this skill first. Changes happen in the open document window, so the user sees the work and can intervene at any point.
+
+If the document is not open, have the user open it in Office, or create and open a blank document, then continue with this skill. Do not switch to a file-level tool for that reason.
+
+Other platforms do not meet the precondition; state the reason and let the user choose how to proceed.
+
+File-level tools are not a fallback for this skill. They edit files on disk; the document the user has open does not change, and unsaved edits may be overwritten.
+
+### Rule out recoverable conditions first
+
+The following are not plugin failures. Ask the user to restore the condition and continue:
+
+- Announcement file missing or bridge not running: have the user start the service in plugin settings.
+- `addin_offline`, target offline, or a manifest not reloaded after a port change: have the user open the pane, open the document, or close and reopen it.
+- Rejected arguments, enum values, style names or paragraph indexes: correct them from `/office/capabilities` and the error's actual list, then resend.
+- `timeout`, `execution_unknown`, `verificationWarnings`: query the original command and read the document back before deciding.
+- `rejected`: the user declined the change in the pane. The task ends here; do not resend and do not bypass that decision with another tool.
+
+### After the plugin is confirmed unusable
+
+Only these conditions count as the plugin being unable to complete the task:
+
+- The capability list has no action for it, or the runtime interface requirement is not met.
+- The bridge repeatedly fails to start, or the pane and instance stay offline.
+- The same action keeps failing after arguments were corrected from the live list.
+- The precondition is absent: no Office desktop, WPS or web Office only, or the document cannot be opened in Office.
+
+Stop writing. Tell the user where it stopped and what was already tried, then offer two options and wait for an explicit choice:
+
+1. Fix the plugin and continue. State which action or interface level is missing; extend the capability after the user agrees, then finish through the plugin.
+2. Use an external tool. State the cost: it edits a file on disk, the open document does not sync, and the work and approval are not visible.
+
+Until the user chooses, do not change plugin code, do not start an external tool, and do not leave a generated file behind. If the user explicitly chooses an external tool, follow that choice.
 
 ## Scope
 
@@ -87,6 +123,8 @@ $data = $response.result
 Use the same serialization for nested targets/font patches. Correct malformed UTF-8 before resending a `bad_encoding` request; do not resend the same bytes.
 
 ## 5. Handle the result
+
+This section covers each return code. On a blocked flow, apply the Priority section above; the tool path does not change.
 
 - In `ask` mode the pane shows a preview and waits for user approval; keep waiting on the original request rather than resending. Approval lasts at most 120 seconds and cannot exceed `expiresAt`; a failed preview prevents execution.
 - External `args.confirm` is ignored. Internal approval invokes a single-use closure bound to `commandId`, without a `confirm` argument. Do not resend approval arguments when seeing `confirm_required`.

@@ -1,7 +1,7 @@
 {
-  "id": "dsh-ms-office",
+  "id": "@nanoai-dev/dsh-ms-office",
   "name": "Microsoft Office",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "license": "MIT",
   "facets": {
     "host": { "entry": "lib/index.js" },

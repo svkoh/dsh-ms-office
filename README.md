@@ -1,74 +1,63 @@
 # dsh-ms-office
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%E2%89%A5%2018-3c873a.svg)](#compatibility)
-[![CI](https://github.com/svkoh/dsh-ms-office/actions/workflows/ci.yml/badge.svg)](https://github.com/svkoh/dsh-ms-office/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Node.js](https://img.shields.io/badge/node-%E2%89%A5%2018-3c873a.svg)](#compatibility) [![CI](https://github.com/svkoh/dsh-ms-office/actions/workflows/ci.yml/badge.svg)](https://github.com/svkoh/dsh-ms-office/actions/workflows/ci.yml)
 
 English · [中文](README.zh.md)
 
-Read and write the Microsoft Office documents you already have open — Word, Excel and PowerPoint — from a [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) session: content, formatting, structure, tables, charts, formulas and comments.
+Read and write the Word, Excel and PowerPoint documents you have open from a [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) session. The add-in edits the open document in place, so changes appear immediately and you can keep editing alongside it.
 
-![Runtime data flow: dsh session → bridge → add-in task pane → Office document](docs/architecture-runtime.svg)
-
-The add-in runs inside Office and edits the document you currently have open. Changes are visible immediately, with no saving or reopening, and you and the AI can edit at the same time — Office applies the changes in order.
-
-> Throughout this document, "Office" means the Microsoft Office desktop applications, not WPS or other compatible suites, and not the web versions.
-
-## Quick start
+## Install
 
 ```bash
-dsh plugin --profile web add dsh-ms-office
+dsh plugin --profile web add @nanoai-dev/dsh-ms-office
 ```
 
-`--profile web` is a dsh profile name; use whichever one you normally run.
+Replace `--profile web` with the profile you normally run.
 
-Installing makes dsh load the plugin, which then starts the local bridge service on its own — there is nothing to launch by hand. Confirm the service state is `healthy` on the plugin panel.
+Or install from the GitHub repository:
 
-1. Open a Word, Excel or PowerPoint document.
-2. Open the add-in task pane:
-   - Windows: the service registers the add-in when it starts. Close and reopen the document and the pane appears.
-   - macOS: the manifest has to be loaded by hand — see [Loading the manifest on macOS](#loading-the-manifest-on-macos).
-3. The pane shows "Connected — waiting for DSH commands" — you are ready.
-4. Ask your dsh session to read the document, for example "read the whole of the Word document I have open".
+```bash
+dsh plugin --profile web add github:svkoh/dsh-ms-office
+```
 
-The pane must stay open. Office.js runs inside it, and closing it produces `addin_offline`. The pane can be shrunk or tucked into a corner.
+## First use
 
-### Loading the manifest on macOS
+1. Open a Word, Excel or PowerPoint document in Microsoft Office desktop.
+2. Open the add-in task pane and keep it open. If it does not appear, close and reopen the document.
+3. Wait for "Connected — waiting for DSH commands".
+4. In the dsh chat box, type "read the whole of the Word document I have open".
 
-File → Options → Customize Ribbon → tick "Developer", then with a document open go to Developer → Add-ins → manage "Developer Add-ins" → add `manifest.xml`.
+| Open the add-in task pane | Pane ready |
+| --- | --- |
+| ![Open DSH Office Runner from Add-ins → Developer Add-ins](docs/taskpane-open.png) | ![The pane reads Connected — waiting for DSH commands](docs/taskpane-connected.png) |
 
-## Capabilities
+The pane can be shrunk or moved to a corner. It cannot be closed.
 
-- 92 actions across Word, Excel and PowerPoint: reading selections, writing content, formatting, tables, charts, formulas, comments, PowerPoint grouping and alignment.
-- One instance per document, and every command must name its target, so a command cannot land on the wrong document.
-- Destructive operations read the current state first; a failed preview blocks execution, and by default you still click "Apply" in the pane.
-- Bilingual UI (Chinese / English) that follows your Office display language.
+## Features
 
-The full action list is in [docs/CAPABILITIES.en.md](docs/CAPABILITIES.en.md).
+92 actions across Word, Excel and PowerPoint cover content, formatting, structure, tables, charts, formulas and comments. The full list is in [docs/CAPABILITIES.en.md](docs/CAPABILITIES.en.md).
 
-Two skills ship with the plugin. [ms-office](skills/ms-office/SKILL.en.md) handles safe operations; [office-document-styles](skills/office-document-styles/SKILL.en.md) provides one original base style atlas per host — Word covers document elements, Excel is fixed to two sheets, and PowerPoint shows shapes, tables, spatial layout and colour roles, each with provenance records and layered quality checks. See the [style gallery](docs/style-gallery.en.md) and the [feature roadmap](docs/FEATURE-ROADMAP.en.md).
+## Troubleshooting
 
-Chinese defaults: Word body SimSun and headings SimHei; Excel SimSun; PowerPoint titles SimHei, body and table/chart labels KaiTi. Every change to an atlas runs through the plugin itself, and exports and screenshots keep native Office evidence.
+In the dsh chat box, type:
 
-## Compatibility
-
-| Platform | Status | Notes |
-| --- | --- | --- |
-| Windows | Full | Add-in auto-registration via the WEF registry |
-| macOS | Core | Node and the add-in work; auto-registration does not apply, load the manifest manually from Office |
-| Linux | None | No Office desktop add-in host |
-
-- Node.js ≥ 18 (the bridge uses only the standard library)
-- Microsoft Office desktop (Word / Excel / PowerPoint)
-- dsh — see `peerDependencies` in `package.json`
+```
+Check whether the dsh-ms-office plugin is working properly and fix it
+```
 
 ## Documentation
 
 | Document | Contents |
 | --- | --- |
 | [docs/CAPABILITIES.en.md](docs/CAPABILITIES.en.md) | Full action list and capability boundaries |
-| [docs/DEVELOPMENT.en.md](docs/DEVELOPMENT.en.md) | Architecture, file map, fragment contract, i18n, hot reload, custom actions, packaging rules |
-| [docs/AGENT.en.md](docs/AGENT.en.md) | HTTP endpoints, error codes, approval protocol, for scripts and other agents |
+| [docs/AGENT.en.md](docs/AGENT.en.md) | HTTP endpoints, error codes, approval protocol |
+| [docs/DEVELOPMENT.en.md](docs/DEVELOPMENT.en.md) | Architecture, file map, packaging, npm publishing |
+| [docs/style-gallery.en.md](docs/style-gallery.en.md) | Style atlas previews |
+| [docs/FEATURE-ROADMAP.en.md](docs/FEATURE-ROADMAP.en.md) | Planned work |
+
+## Compatibility
+
+Windows only. Other platforms are not supported.
 
 ## License
 

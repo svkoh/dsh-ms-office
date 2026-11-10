@@ -8,6 +8,7 @@ import { createRequire } from 'node:module';
 import { ROOT, readJson, readParts } from './helpers/paths.mjs';
 
 const pkg = readJson(path.join(ROOT, 'package.json'));
+const PKG_NAME = '@nanoai-dev/dsh-ms-office';
 const PLUGIN_ID = 'dsh-ms-office';
 
 /** 本机装了 dsh 运行时时，用它自带的 semver 做真检查；没装就跳过（CI 上没有） */
@@ -41,7 +42,7 @@ function loadRuntimeSemver() {
 
 describe('package.json 清单', () => {
   test('名称与仓库约定一致', () => {
-    assert.equal(pkg.name, PLUGIN_ID);
+    assert.equal(pkg.name, PKG_NAME);
     assert.match(pkg.version, /^\d+\.\d+\.\d+/);
     assert.equal(pkg.type, 'module');
     assert.equal(pkg.license, 'MIT');
@@ -145,7 +146,7 @@ describe('package.json 清单', () => {
   });
 
   test('README 里引用的相对图片都存在且在白名单内（否则发布包缺图）', () => {
-    for (const readme of ['README.md', 'README.en.md']) {
+    for (const readme of ['README.md', 'README.zh.md']) {
       const text = fs.readFileSync(path.join(ROOT, readme), 'utf8');
       for (const m of text.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)) {
         const rel = m[1].trim();
@@ -168,7 +169,8 @@ describe('cordis.patch.yml', () => {
 
   test('挂载行的 id / name 都是本插件', () => {
     assert.match(yml, new RegExp(`id:\\s*${PLUGIN_ID}\\b`));
-    assert.match(yml, new RegExp(`name:\\s*${PLUGIN_ID}\\b`));
+    // name 按 npm 包名解析，带 scope 时必须加引号；id 是配置层标识，不含 scope
+    assert.match(yml, new RegExp(`name:\\s*["']?${PKG_NAME}\\b`));
   });
 
   test('只有一条挂载行（多一条会让插件被加载两次）', () => {
@@ -221,7 +223,7 @@ describe('文档与实际一致', () => {
   const count = capabilities.length;
 
   test('README 里的 action 数就是 capabilities.json 的条数', () => {
-    for (const [file, phrase] of [['README.md', `${count} actions`], ['README.en.md', `${count} actions`], ['README.zh.md', `${count} 个 action`]]) {
+    for (const [file, phrase] of [['README.md', `${count} actions`], ['README.zh.md', `${count} 个 action`]]) {
       const readme = fs.readFileSync(path.join(ROOT, file), 'utf8');
       assert.ok(readme.includes(phrase), `${file} 里没有 "${phrase}"`);
     }
@@ -234,7 +236,6 @@ describe('文档与实际一致', () => {
     // 完整清单搬进了 docs/，所以守卫面跟着扩到全部文档，而不是只看两个 README
     const files = [
       'README.md',
-      'README.en.md',
       'README.zh.md',
       ...fs
         .readdirSync(path.join(ROOT, 'docs'))
@@ -250,7 +251,7 @@ describe('文档与实际一致', () => {
   });
 
   test('README 指向的每份文档都存在', () => {
-    for (const readme of ['README.md', 'README.en.md', 'README.zh.md']) {
+    for (const readme of ['README.md', 'README.zh.md']) {
       const text = fs.readFileSync(path.join(ROOT, readme), 'utf8');
       const links = [...text.matchAll(/\]\((docs\/[^)#]+)(?:#[^)]*)?\)/g)].map((m) => m[1]);
       assert.ok(links.length >= 3, `${readme} 应该指向 docs/ 下的文档（实际 ${links.length} 条）`);

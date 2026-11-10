@@ -4,4 +4,4 @@
 # with no MCP surface, so there is no @deepseek-ai/dsh-mcp-client row here.
 - insert:
     - id: dsh-ms-office
-      name: dsh-ms-office
+      name: "@nanoai-dev/dsh-ms-office"

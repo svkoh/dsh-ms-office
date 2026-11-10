@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.4 — 2026-11-10
+
+- Prefer the Office add-in skill on Windows with Microsoft Office desktop; ask the user before switching to a file-level tool.
+- Rewrite both READMEs around install, first use and troubleshooting, with two task pane screenshots and a copyable diagnostic command.
+- Remove the duplicate English README, move npm publishing steps into the development docs, and align the package name, manifests and tests on `@nanoai-dev/dsh-ms-office`.
+
 ## 0.3.3 — 2026-10-19
 
 - Render the Office bridge settings on the plugin's own detail page. The Plugins page addresses an installed bundle as `{ kind: "bundle", pkg }`, while the section only accepted `{ kind: "item", id }`, so it returned null on the one page it was written for. Both shapes are now matched by name, and a row page still renders nothing.
